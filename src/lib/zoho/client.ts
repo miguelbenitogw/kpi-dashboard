@@ -182,6 +182,53 @@ export async function fetchJobOpenings(): Promise<Record<string, unknown>[]> {
   }
 }
 
+export interface CandidatesPageResult {
+  candidates: Record<string, unknown>[]
+  more_records: boolean
+  page: number
+  total_count?: number
+}
+
+export async function fetchCandidatesPage(
+  page: number,
+  modifiedSince?: string
+): Promise<CandidatesPageResult> {
+  const params: Record<string, string> = {
+    fields: CANDIDATE_FIELDS,
+    per_page: String(MAX_PER_PAGE),
+    page: String(page),
+  }
+
+  if (modifiedSince) {
+    params.criteria = `(Modified_Time:greater_than:${modifiedSince})`
+  }
+
+  try {
+    const response = await zohoFetch<ZohoListResponse<Record<string, unknown>>>(
+      '/Candidates',
+      params
+    )
+
+    return {
+      candidates: response.data ?? [],
+      more_records: response.info?.more_records ?? false,
+      page,
+      total_count: response.info?.count,
+    }
+  } catch (error) {
+    // If we get a "no data" response (204 or empty), return empty
+    if (
+      error instanceof Error &&
+      (error.message.includes('204') || error.message.includes('No Content'))
+    ) {
+      return { candidates: [], more_records: false, page, total_count: 0 }
+    }
+    throw new Error(
+      `Failed to fetch candidates page ${page}: ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
+}
+
 export async function fetchCandidateNotes(
   candidateId: string
 ): Promise<Record<string, unknown>[]> {

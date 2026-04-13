@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../supabase/server'
-import { fetchCandidates, fetchJobOpenings } from './client'
+import { fetchCandidates, fetchCandidatesPage, fetchJobOpenings } from './client'
 import {
   transformCandidate,
   transformJobOpening,
@@ -7,6 +7,7 @@ import {
   TERMINAL_STATUSES,
 } from './transform'
 import { differenceInDays, format, startOfDay } from 'date-fns'
+import type { Json } from '../supabase/types'
 
 export interface SyncResult {
   sync_type: 'incremental' | 'full'
@@ -19,6 +20,337 @@ export interface SyncResult {
   snapshots_created: number
   api_calls_used: number
   errors: string[]
+}
+
+export interface SyncCursor {
+  page: number
+  completed: boolean
+  sync_id: number
+  candidates_so_far: number
+  started_at: string
+}
+
+export interface ChunkedSyncResult {
+  page: number
+  candidates_so_far: number
+  candidates_this_chunk: number
+  completed: boolean
+  errors: string[]
+  api_calls_used: number
+}
+
+// --- Cursor helpers ---
+
+export async function getSyncCursor(): Promise<SyncCursor | null> {
+  const { data, error } = await supabaseAdmin
+    .from('dashboard_config')
+    .select('config_value')
+    .eq('config_key', 'sync_cursor')
+    .single()
+
+  if (error || !data?.config_value) return null
+  const cursor = data.config_value as unknown as SyncCursor
+  if (!cursor.page) return null
+  return cursor
+}
+
+export async function saveSyncCursor(cursor: SyncCursor): Promise<void> {
+  await supabaseAdmin
+    .from('dashboard_config')
+    .upsert(
+      {
+        config_key: 'sync_cursor',
+        config_value: cursor as unknown as Json,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'config_key' }
+    )
+}
+
+export async function clearSyncCursor(): Promise<void> {
+  await supabaseAdmin
+    .from('dashboard_config')
+    .delete()
+    .eq('config_key', 'sync_cursor')
+}
+
+// --- Chunked candidates sync ---
+
+export async function syncCandidatesChunked(
+  maxPages: number = 5
+): Promise<ChunkedSyncResult> {
+  const errors: string[] = []
+  let apiCallsUsed = 0
+  let candidatesSynced = 0
+
+  // Get or create cursor
+  let cursor = await getSyncCursor()
+
+  if (!cursor || cursor.completed) {
+    // Start a new sync
+    const { data: syncLogEntry } = await supabaseAdmin
+      .from('sync_log')
+      .insert({
+        sync_type: 'full',
+        started_at: new Date().toISOString(),
+        status: 'running',
+      })
+      .select('id')
+      .single()
+
+    cursor = {
+      page: 1,
+      completed: false,
+      sync_id: syncLogEntry?.id ?? 0,
+      candidates_so_far: 0,
+      started_at: new Date().toISOString(),
+    }
+    await saveSyncCursor(cursor)
+  }
+
+  let currentPage = cursor.page
+  let pagesProcessed = 0
+
+  while (pagesProcessed < maxPages) {
+    try {
+      const result = await fetchCandidatesPage(currentPage)
+      apiCallsUsed++
+
+      if (result.candidates.length === 0) {
+        // No more data
+        cursor.completed = true
+        break
+      }
+
+      // Process this page
+      const processResult = await processCandidatesBatch(result.candidates)
+      candidatesSynced += processResult.synced
+      if (processResult.errors.length > 0) {
+        errors.push(...processResult.errors)
+      }
+
+      pagesProcessed++
+
+      if (!result.more_records) {
+        cursor.completed = true
+        break
+      }
+
+      currentPage++
+    } catch (err) {
+      errors.push(
+        `Page ${currentPage} failed: ${err instanceof Error ? err.message : String(err)}`
+      )
+      break
+    }
+  }
+
+  // Update cursor
+  cursor.page = cursor.completed ? currentPage : currentPage + 1
+  cursor.candidates_so_far += candidatesSynced
+  await saveSyncCursor(cursor)
+
+  // If completed, run post-processing and update sync log
+  if (cursor.completed) {
+    try {
+      await runPostProcessing(errors)
+    } catch (err) {
+      errors.push(
+        `Post-processing failed: ${err instanceof Error ? err.message : String(err)}`
+      )
+    }
+
+    // Update sync log
+    if (cursor.sync_id) {
+      const syncStatus = errors.length === 0 ? 'success' : 'partial'
+      await supabaseAdmin
+        .from('sync_log')
+        .update({
+          finished_at: new Date().toISOString(),
+          records_processed: cursor.candidates_so_far,
+          api_calls_used: apiCallsUsed,
+          status: syncStatus,
+          error_message: errors.length > 0 ? errors.join(' | ') : null,
+        })
+        .eq('id', cursor.sync_id)
+    }
+  }
+
+  return {
+    page: currentPage,
+    candidates_so_far: cursor.candidates_so_far,
+    candidates_this_chunk: candidatesSynced,
+    completed: cursor.completed,
+    errors,
+    api_calls_used: apiCallsUsed,
+  }
+}
+
+async function processCandidatesBatch(
+  zohoCandidates: Record<string, unknown>[]
+): Promise<{ synced: number; statusChanges: number; errors: string[] }> {
+  const errors: string[] = []
+  let synced = 0
+  let statusChangesDetected = 0
+
+  const candidateIds = zohoCandidates.map((c) => String(c.id))
+  const existingStatusMap = await getExistingCandidateStatuses(candidateIds)
+
+  const candidateRows: Record<string, unknown>[] = []
+  const stageHistoryInserts: Record<string, unknown>[] = []
+
+  for (const zohoCandidate of zohoCandidates) {
+    const transformed = transformCandidate(zohoCandidate)
+    const existingStatus = existingStatusMap.get(transformed.id) ?? null
+    const currentStatus = transformed.current_status
+
+    if (
+      currentStatus &&
+      existingStatus !== null &&
+      existingStatus !== currentStatus
+    ) {
+      const statusChange = extractStatusChange(
+        transformed.id,
+        existingStatus,
+        currentStatus,
+        transformed.modified_time ?? new Date().toISOString()
+      )
+
+      if (statusChange) {
+        const daysInStage = await getDaysInStage(
+          transformed.id,
+          statusChange.changed_at
+        )
+
+        stageHistoryInserts.push({
+          ...statusChange,
+          job_opening_id: transformed.global_status
+            ? undefined
+            : undefined,
+          days_in_stage: daysInStage,
+        })
+        statusChangesDetected++
+      }
+    }
+
+    candidateRows.push({
+      ...transformed,
+      last_synced_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+  }
+
+  // Batch upsert candidates
+  for (let i = 0; i < candidateRows.length; i += UPSERT_BATCH_SIZE) {
+    const batch = candidateRows.slice(i, i + UPSERT_BATCH_SIZE)
+    const { error } = await supabaseAdmin
+      .from('candidates')
+      .upsert(batch as any[], { onConflict: 'id' })
+
+    if (error) {
+      errors.push(
+        `Candidates upsert batch ${i / UPSERT_BATCH_SIZE}: ${error.message}`
+      )
+    } else {
+      synced += batch.length
+    }
+  }
+
+  // Insert stage history records
+  if (stageHistoryInserts.length > 0) {
+    for (let i = 0; i < stageHistoryInserts.length; i += UPSERT_BATCH_SIZE) {
+      const batch = stageHistoryInserts.slice(i, i + UPSERT_BATCH_SIZE)
+      const { error } = await supabaseAdmin
+        .from('stage_history')
+        .insert(batch as any[])
+
+      if (error) {
+        errors.push(
+          `Stage history insert batch ${i / UPSERT_BATCH_SIZE}: ${error.message}`
+        )
+      }
+    }
+  }
+
+  return { synced, statusChanges: statusChangesDetected, errors }
+}
+
+async function runPostProcessing(errors: string[]): Promise<void> {
+  try {
+    await calculateCandidateDays()
+  } catch (err) {
+    errors.push(
+      `Calculate candidate days failed: ${err instanceof Error ? err.message : String(err)}`
+    )
+  }
+
+  try {
+    await updateJobOpeningStats()
+  } catch (err) {
+    errors.push(
+      `Update job opening stats failed: ${err instanceof Error ? err.message : String(err)}`
+    )
+  }
+
+  try {
+    await createDailySnapshot()
+  } catch (err) {
+    errors.push(
+      `Daily snapshot failed: ${err instanceof Error ? err.message : String(err)}`
+    )
+  }
+
+  try {
+    await recalculateSlaAlerts()
+  } catch (err) {
+    errors.push(
+      `SLA alerts recalculation failed: ${err instanceof Error ? err.message : String(err)}`
+    )
+  }
+}
+
+// --- Sync job openings (fast, does not need chunking) ---
+
+export async function syncJobOpenings(): Promise<{
+  synced: number
+  errors: string[]
+  api_calls: number
+}> {
+  const errors: string[] = []
+  let synced = 0
+
+  try {
+    const zohoJobOpenings = await fetchJobOpenings()
+    const apiCalls = estimateApiCalls(zohoJobOpenings.length)
+
+    const jobOpeningRows = zohoJobOpenings.map((jo) => ({
+      ...transformJobOpening(jo),
+      last_synced_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }))
+
+    for (let i = 0; i < jobOpeningRows.length; i += UPSERT_BATCH_SIZE) {
+      const batch = jobOpeningRows.slice(i, i + UPSERT_BATCH_SIZE)
+      const { error } = await supabaseAdmin
+        .from('job_openings')
+        .upsert(batch, { onConflict: 'id' })
+
+      if (error) {
+        errors.push(
+          `Job openings upsert batch ${i / UPSERT_BATCH_SIZE}: ${error.message}`
+        )
+      } else {
+        synced += batch.length
+      }
+    }
+
+    return { synced, errors, api_calls: apiCalls }
+  } catch (err) {
+    errors.push(
+      `Job openings sync failed: ${err instanceof Error ? err.message : String(err)}`
+    )
+    return { synced, errors, api_calls: 0 }
+  }
 }
 
 interface SlaThreshold {
