@@ -1,0 +1,151 @@
+{
+  "name": "KPI Dashboard - Process All",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 4
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron",
+      "name": "Daily 04:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.DASHBOARD_URL}}/api/process/stats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.SYNC_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "process-stats",
+      "name": "POST Process Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [250, 0],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.DASHBOARD_URL}}/api/process/candidates-days",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.SYNC_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "process-candidates-days",
+      "name": "POST Process Candidates Days",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 0],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log completion of all processing\nconst statsResponse = $('POST Process Stats').first().json;\nconst candidateDaysResponse = $('POST Process Candidates Days').first().json;\n\nreturn [{\n  json: {\n    workflow: '04-process-all',\n    status: 'completed',\n    stats_result: statsResponse.body || statsResponse,\n    candidates_days_result: candidateDaysResponse.body || candidateDaysResponse,\n    completed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "log-completion",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 0]
+    }
+  ],
+  "connections": {
+    "Daily 04:00": {
+      "main": [
+        [
+          {
+            "node": "POST Process Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Process Stats": {
+      "main": [
+        [
+          {
+            "node": "POST Process Candidates Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Process Candidates Days": {
+      "main": [
+        [
+          {
+            "node": "Log Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "kpi-dashboard"
+    },
+    {
+      "name": "processing"
+    }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}

@@ -1,0 +1,283 @@
+{
+  "name": "KPI Dashboard - Sync Candidates",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 2,
+              "triggerAtMinute": 15
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron",
+      "name": "Daily 02:15",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize pagination state\n// Calculate yesterday's date for incremental sync\nconst yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst yesterdayStr = yesterday.toISOString().split('T')[0];\n\nreturn [{\n  json: {\n    page: 1,\n    all_candidates: [],\n    yesterday: yesterdayStr,\n    more_records: true\n  }\n}];"
+      },
+      "id": "init-pagination",
+      "name": "Init Pagination",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [250, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://recruit.zoho.com/recruit/v2/Candidates",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zohoRecruitOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "Full_Name,Email,Phone,Job_Opening,Candidate_Status,Candidate_Stage,Candidate_Owner,Source,Created_Time,Modified_Time,Nationality,Native_Language,English_Level,German_Level,Work_Permit"
+            },
+            {
+              "name": "per_page",
+              "value": "200"
+            },
+            {
+              "name": "sort_by",
+              "value": "Modified_Time"
+            },
+            {
+              "name": "sort_order",
+              "value": "desc"
+            },
+            {
+              "name": "page",
+              "value": "={{ $json.page }}"
+            },
+            {
+              "name": "criteria",
+              "value": "=(Modified_Time:greater_equal:{{ $json.yesterday }})"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "fetch-candidates",
+      "name": "GET Candidates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transform Zoho Recruit candidates to dashboard API format\nconst responseBody = $input.first().json.body;\nconst items = responseBody.data || [];\nconst info = responseBody.info || {};\n\nconst candidates = items.map(item => {\n  const jobOpening = item.Job_Opening || {};\n  return {\n    id: item.id,\n    full_name: item.Full_Name || null,\n    email: item.Email || null,\n    phone: item.Phone || null,\n    job_opening_id: jobOpening.id || null,\n    job_opening_title: jobOpening.name || null,\n    current_status: item.Candidate_Status || null,\n    candidate_stage: item.Candidate_Stage || null,\n    owner: item.Candidate_Owner ? item.Candidate_Owner.name : null,\n    source: item.Source || null,\n    created_time: item.Created_Time || null,\n    modified_time: item.Modified_Time || null\n  };\n});\n\nconst moreRecords = info.more_records || false;\nconst currentPage = info.page || 1;\n\nreturn [{\n  json: {\n    candidates,\n    more_records: moreRecords,\n    page: currentPage,\n    total_in_page: candidates.length\n  }\n}];"
+      },
+      "id": "transform-candidates",
+      "name": "Transform Candidates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.DASHBOARD_URL}}/api/sync/candidates",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.SYNC_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ candidates: $json.candidates }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "post-candidates",
+      "name": "POST Candidates Batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 0],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-more-records",
+              "leftValue": "={{ $('Transform Candidates').item.json.more_records }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-more-pages",
+      "name": "More Pages?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1250, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare next page request\nconst currentPage = $('Transform Candidates').first().json.page;\nconst yesterday = $('Init Pagination').first().json.yesterday;\n\nreturn [{\n  json: {\n    page: currentPage + 1,\n    yesterday: yesterday,\n    more_records: true\n  }\n}];"
+      },
+      "id": "next-page",
+      "name": "Prepare Next Page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, -150]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log completion summary\nconst transformData = $('Transform Candidates').first().json;\n\nreturn [{\n  json: {\n    workflow: '02-sync-candidates',\n    status: 'completed',\n    last_page: transformData.page,\n    last_batch_count: transformData.total_in_page,\n    completed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "log-completion",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 150]
+    }
+  ],
+  "connections": {
+    "Daily 02:15": {
+      "main": [
+        [
+          {
+            "node": "Init Pagination",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Pagination": {
+      "main": [
+        [
+          {
+            "node": "GET Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Candidates": {
+      "main": [
+        [
+          {
+            "node": "Transform Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Candidates": {
+      "main": [
+        [
+          {
+            "node": "POST Candidates Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Candidates Batch": {
+      "main": [
+        [
+          {
+            "node": "More Pages?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "More Pages?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Next Page",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Next Page": {
+      "main": [
+        [
+          {
+            "node": "GET Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "kpi-dashboard"
+    },
+    {
+      "name": "zoho-recruit"
+    }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}

@@ -1,0 +1,305 @@
+{
+  "name": "KPI Dashboard - Sync Activities",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 3
+            }
+          ]
+        }
+      },
+      "id": "trigger-cron",
+      "name": "Daily 03:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.DASHBOARD_URL}}/api/sync/candidates",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.SYNC_API_KEY}}"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "modified_today",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "get-recent-candidates",
+      "name": "GET Recent Candidates (Supabase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [250, 0],
+      "notes": "If your dashboard doesn't have a GET endpoint for candidates, replace this with a direct Supabase query using the Supabase node or a Postgres node."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract candidate IDs from the dashboard response\n// If the GET endpoint doesn't exist, you can hardcode recently synced candidate IDs\n// or query Supabase directly via the Supabase node\nconst response = $input.first().json;\nlet candidateIds = [];\n\n// Try parsing from body (full response mode)\nconst body = response.body || response;\nif (Array.isArray(body)) {\n  candidateIds = body.map(c => c.id);\n} else if (body.candidates && Array.isArray(body.candidates)) {\n  candidateIds = body.candidates.map(c => c.id);\n} else if (body.data && Array.isArray(body.data)) {\n  candidateIds = body.data.map(c => c.id);\n}\n\n// Rate limit: max 200 candidates per run to stay within Zoho API limits\nconst MAX_CANDIDATES = 200;\nconst limitedIds = candidateIds.slice(0, MAX_CANDIDATES);\n\n// Return each candidate ID as a separate item for the loop\nreturn limitedIds.map(id => ({\n  json: {\n    candidate_id: id,\n    total_candidates: limitedIds.length\n  }\n}));"
+      },
+      "id": "extract-candidate-ids",
+      "name": "Extract Candidate IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://recruit.zoho.com/recruit/v2/Candidates/{{ $json.candidate_id }}/Activities",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "zohoRecruitOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "per_page",
+              "value": "200"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "batching": {
+            "batch": {
+              "batchSize": 5,
+              "batchInterval": 1000
+            }
+          }
+        }
+      },
+      "id": "fetch-activities",
+      "name": "GET Candidate Activities",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [750, 0],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter and transform activities to stage_history format\n// Only keep Candidate_Status field changes\nconst items = $input.all();\nconst allActivities = [];\n\nfor (const item of items) {\n  const responseBody = item.json.body || item.json;\n  const activities = responseBody.data || [];\n  const candidateId = item.json.candidate_id || null;\n\n  // Filter for status change activities\n  const statusChanges = activities.filter(activity => {\n    // Zoho activities that represent field changes\n    return (\n      activity.field_name === 'Candidate_Status' ||\n      activity.field_label === 'Candidate Status' ||\n      (activity.activity_type === 'field_update' && \n       (activity.field_name === 'Candidate_Status' || activity.field_name === 'Candidate Stage'))\n    );\n  });\n\n  for (const change of statusChanges) {\n    allActivities.push({\n      candidate_id: candidateId || change.parent_id || null,\n      job_opening_id: change.job_opening_id || null,\n      from_status: change.old_value || change.previous_value || null,\n      to_status: change.new_value || change.current_value || null,\n      changed_at: change.activity_time || change.Created_Time || change.modified_time || null,\n      changed_by: change.done_by ? change.done_by.name : null\n    });\n  }\n}\n\nif (allActivities.length === 0) {\n  return [{ json: { activities: [], skip: true, message: 'No status change activities found' } }];\n}\n\n// Batch activities in groups of 100 for the API\nconst BATCH_SIZE = 100;\nconst batches = [];\nfor (let i = 0; i < allActivities.length; i += BATCH_SIZE) {\n  batches.push(allActivities.slice(i, i + BATCH_SIZE));\n}\n\nreturn batches.map(batch => ({\n  json: {\n    activities: batch,\n    skip: false,\n    batch_count: batch.length\n  }\n}));"
+      },
+      "id": "filter-transform",
+      "name": "Filter Status Changes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check-has-activities",
+      "name": "Has Activities?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1250, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.DASHBOARD_URL}}/api/sync/activities",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$env.SYNC_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ activities: $json.activities }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "post-activities",
+      "name": "POST Activities",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, -100],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log completion\nreturn [{\n  json: {\n    workflow: '03-sync-activities',\n    status: 'completed',\n    completed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "log-completion",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1750, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log skip\nreturn [{\n  json: {\n    workflow: '03-sync-activities',\n    status: 'skipped',\n    reason: 'No status change activities found',\n    completed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "log-skip",
+      "name": "Log Skip",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 150]
+    }
+  ],
+  "connections": {
+    "Daily 03:00": {
+      "main": [
+        [
+          {
+            "node": "GET Recent Candidates (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Recent Candidates (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Extract Candidate IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Candidate IDs": {
+      "main": [
+        [
+          {
+            "node": "GET Candidate Activities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Candidate Activities": {
+      "main": [
+        [
+          {
+            "node": "Filter Status Changes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Status Changes": {
+      "main": [
+        [
+          {
+            "node": "Has Activities?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Activities?": {
+      "main": [
+        [
+          {
+            "node": "POST Activities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST Activities": {
+      "main": [
+        [
+          {
+            "node": "Log Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "kpi-dashboard"
+    },
+    {
+      "name": "zoho-recruit"
+    }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}
