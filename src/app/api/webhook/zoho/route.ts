@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { transformZohoCandidate, extractStatusChange } from '@/lib/zoho/transform'
+import { transformCandidate, extractStatusChange } from '@/lib/zoho/transform'
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     })
 
     // 4. Transform and update candidate
-    const candidateData = transformZohoCandidate(data)
+    const candidateData = transformCandidate(data)
     const { error: updateError } = await supabaseAdmin
       .from('candidates')
       .upsert(
@@ -46,8 +46,16 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Handle status change
-    const statusChange = extractStatusChange(data, previous_data)
-    if (statusChange.from_status !== statusChange.to_status && statusChange.to_status) {
+    const previousStatus = previous_data?.Candidate_Status ?? null
+    const currentStatus = data.Candidate_Status ?? null
+    const modifiedTime = data.Modified_Time ?? new Date().toISOString()
+    const statusChange = extractStatusChange(
+      String(data.id),
+      previousStatus,
+      currentStatus,
+      modifiedTime,
+    )
+    if (statusChange) {
       // Calculate days_in_stage from previous stage_history entry
       let daysInStage: number | null = null
 
@@ -88,7 +96,7 @@ export async function POST(request: NextRequest) {
 
 async function checkSlaThresholds(
   zohoData: Record<string, any>,
-  candidateData: ReturnType<typeof transformZohoCandidate>,
+  candidateData: ReturnType<typeof transformCandidate>,
 ) {
   // Fetch SLA config
   const { data: config } = await supabaseAdmin
@@ -159,8 +167,8 @@ async function checkSlaThresholds(
     await supabaseAdmin.from('sla_alerts').insert({
       candidate_id: zohoData.id,
       candidate_name: candidateData.full_name,
-      job_opening_id: candidateData.job_opening_id,
-      job_opening_title: candidateData.job_opening_title,
+      job_opening_id: zohoData.Job_Opening?.id || null,
+      job_opening_title: zohoData.Job_Opening?.Posting_Title || null,
       current_status: status,
       days_stuck: daysInCurrentStage,
       alert_level: alertLevel,
