@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   GitBranch,
+  GraduationCap,
   Clock,
   Filter,
   Menu,
@@ -16,6 +17,7 @@ import SyncStatus from "./SyncStatus";
 const navItems = [
   { href: "/dashboard", label: "Resumen", icon: LayoutDashboard },
   { href: "/dashboard/pipeline", label: "Pipeline", icon: GitBranch },
+  { href: "/dashboard/promos", label: "Promociones", icon: GraduationCap },
   { href: "/dashboard/sla", label: "SLA & Tiempos", icon: Clock },
   { href: "/dashboard/funnel", label: "Conversion", icon: Filter },
 ];
