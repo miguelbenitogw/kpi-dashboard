@@ -229,6 +229,89 @@ export async function fetchCandidatesPage(
   }
 }
 
+export async function fetchCandidatesByJobOpening(
+  jobOpeningId: string,
+  page: number = 1
+): Promise<CandidatesPageResult> {
+  const params: Record<string, string> = {
+    fields: CANDIDATE_FIELDS,
+    per_page: String(MAX_PER_PAGE),
+    page: String(page),
+    criteria: `(Job_Opening.id:equals:${jobOpeningId})`,
+  }
+
+  try {
+    const response = await zohoFetch<ZohoListResponse<Record<string, unknown>>>(
+      '/Candidates/search',
+      params
+    )
+
+    return {
+      candidates: response.data ?? [],
+      more_records: response.info?.more_records ?? false,
+      page,
+      total_count: response.info?.count,
+    }
+  } catch (error) {
+    // If we get a "no data" response (204 or empty), return empty
+    if (
+      error instanceof Error &&
+      (error.message.includes('204') || error.message.includes('No Content'))
+    ) {
+      return { candidates: [], more_records: false, page, total_count: 0 }
+    }
+    throw new Error(
+      `Failed to fetch candidates for job opening ${jobOpeningId}: ${error instanceof Error ? error.message : String(error)}`
+    )
+  }
+}
+
+export async function fetchAllCandidatesByJobOpening(
+  jobOpeningId: string
+): Promise<Record<string, unknown>[]> {
+  const allCandidates: Record<string, unknown>[] = []
+  let page = 1
+  let hasMore = true
+
+  while (hasMore) {
+    const result = await fetchCandidatesByJobOpening(jobOpeningId, page)
+    allCandidates.push(...result.candidates)
+    hasMore = result.more_records
+    page++
+
+    if (hasMore) {
+      await sleep(RATE_LIMIT_DELAY_MS)
+    }
+  }
+
+  return allCandidates
+}
+
+export async function fetchCandidatesByJobOpenings(
+  jobOpeningIds: string[]
+): Promise<{ candidates: Record<string, unknown>[]; apiCalls: number }> {
+  const allCandidates: Record<string, unknown>[] = []
+  let apiCalls = 0
+
+  for (const jobOpeningId of jobOpeningIds) {
+    let page = 1
+    let hasMore = true
+
+    while (hasMore) {
+      const result = await fetchCandidatesByJobOpening(jobOpeningId, page)
+      apiCalls++
+      allCandidates.push(...result.candidates)
+      hasMore = result.more_records
+      page++
+
+      // Rate limit: 200ms between calls
+      await sleep(RATE_LIMIT_DELAY_MS)
+    }
+  }
+
+  return { candidates: allCandidates, apiCalls }
+}
+
 export async function fetchCandidateNotes(
   candidateId: string
 ): Promise<Record<string, unknown>[]> {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   syncJobOpenings,
-  syncCandidatesChunked,
+  syncPromoCandidatesChunked,
   clearSyncCursor,
 } from '@/lib/zoho/sync'
 
@@ -16,23 +16,23 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Reset cursor for a fresh full sync
+    // Reset cursor for a fresh promo sync
     await clearSyncCursor()
 
-    // Sync job openings first (fast)
+    // Sync job openings first (fast, needed to identify promos)
     const jobResult = await syncJobOpenings()
 
-    // Fetch first 5 pages of candidates (~1000)
-    // If incomplete, the daily cron (sync) will continue picking up chunks
-    const chunkResult = await syncCandidatesChunked(5)
+    // Fetch promo candidates in chunks (5 pages per run)
+    // With ~75 candidates across ~3 promos, this should complete in one run
+    const chunkResult = await syncPromoCandidatesChunked(5)
 
     return NextResponse.json(
       {
         job_openings: jobResult,
         candidates: chunkResult,
         message: chunkResult.completed
-          ? 'Full sync completed in one run'
-          : 'Full sync started. Daily cron will continue from where it left off.',
+          ? 'Promo sync completed in one run'
+          : 'Promo sync started. Daily cron will continue from where it left off.',
       },
       {
         status:

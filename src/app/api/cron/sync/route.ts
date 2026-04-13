@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { runSync } from '@/lib/zoho/sync'
-import { getSyncCursor, syncCandidatesChunked } from '@/lib/zoho/sync'
+import {
+  runPromoSync,
+  getSyncCursor,
+  syncPromoCandidatesChunked,
+} from '@/lib/zoho/sync'
 
 export const maxDuration = 60
 
@@ -13,27 +16,27 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Check if there's an ongoing full sync that needs continuing
+    // Check if there's an ongoing chunked sync that needs continuing
     const cursor = await getSyncCursor()
 
     if (cursor && !cursor.completed) {
-      // Continue the chunked full sync (5 pages per cron run)
-      const chunkResult = await syncCandidatesChunked(5)
+      // Continue the chunked promo sync (5 pages per cron run)
+      const chunkResult = await syncPromoCandidatesChunked(5)
 
       return NextResponse.json(
         {
-          type: 'continue_full',
+          type: 'continue_promo',
           candidates: chunkResult,
           message: chunkResult.completed
-            ? 'Full sync completed'
-            : `Continuing full sync. Page ${chunkResult.page}, ${chunkResult.candidates_so_far} candidates so far.`,
+            ? 'Promo sync completed'
+            : `Continuing promo sync. ${chunkResult.candidates_this_chunk} candidates this chunk.`,
         },
         { status: chunkResult.errors.length === 0 ? 200 : 207 }
       )
     }
 
-    // Normal incremental sync (only recently modified candidates — fast)
-    const result = await runSync('incremental')
+    // Normal promo sync (job openings + promo candidates only)
+    const result = await runPromoSync()
 
     return NextResponse.json(result, {
       status: result.errors.length === 0 ? 200 : 207,

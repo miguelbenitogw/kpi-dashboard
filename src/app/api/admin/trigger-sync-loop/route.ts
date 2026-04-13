@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   syncJobOpenings,
-  syncCandidatesChunked,
+  syncPromoCandidatesChunked,
   clearSyncCursor,
   getSyncCursor,
 } from '@/lib/zoho/sync'
@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
 
     // Loop: fetch 1 page at a time until done or timeout approaching
     let totalCandidatesSynced = 0
-    let lastPage = 0
     let completed = false
     let iterations = 0
 
@@ -53,10 +52,9 @@ export async function POST(request: NextRequest) {
         break
       }
 
-      const chunkResult = await syncCandidatesChunked(1)
+      const chunkResult = await syncPromoCandidatesChunked(1)
       iterations++
       totalCandidatesSynced += chunkResult.candidates_this_chunk
-      lastPage = chunkResult.page
 
       if (chunkResult.errors.length > 0) {
         errors.push(...chunkResult.errors)
@@ -74,7 +72,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       completed,
       iterations,
-      last_page: lastPage,
       candidates_synced_this_run: totalCandidatesSynced,
       elapsed_ms: Date.now() - startTime,
       errors,

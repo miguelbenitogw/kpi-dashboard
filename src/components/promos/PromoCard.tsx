@@ -3,11 +3,13 @@
 import type { JobOpening } from '@/lib/supabase/types'
 import type { PromoStatusCount } from '@/lib/queries/promos'
 import { getStatusColor } from './StatusBreakdown'
+import { TERMINAL_STATUSES } from '@/lib/zoho/transform'
 
 interface PromoCardProps {
   promo: JobOpening
   statusBreakdown: PromoStatusCount[]
   lastActivity: Date | null
+  lastSyncedAt: string | null
   isSelected: boolean
   onSelect: (id: string) => void
 }
@@ -16,6 +18,7 @@ export default function PromoCard({
   promo,
   statusBreakdown,
   lastActivity,
+  lastSyncedAt,
   isSelected,
   onSelect,
 }: PromoCardProps) {
@@ -24,12 +27,20 @@ export default function PromoCard({
   const findCount = (status: string) =>
     statusBreakdown.find((s) => s.status === status)?.count ?? 0
 
-  const inTraining = findCount('In Training')
-  const hired = findCount('Hired')
-  const rejected = findCount('Rejected') + findCount('Expelled') + findCount('No Show') + findCount('No Answer')
+  const hiredCount = findCount('Hired')
+  const terminalCount = statusBreakdown
+    .filter((d) => TERMINAL_STATUSES.includes(d.status))
+    .reduce((s, d) => s + d.count, 0)
+  const activeCount = total - terminalCount
+
+  // Top 5 statuses for mini badges
+  const topStatuses = statusBreakdown.slice(0, 5)
 
   const isRecent =
     lastActivity && Date.now() - lastActivity.getTime() < 24 * 60 * 60 * 1000
+
+  // Hired progress percentage
+  const hiredPct = total > 0 ? (hiredCount / total) * 100 : 0
 
   return (
     <button
@@ -46,7 +57,7 @@ export default function PromoCard({
     >
       {/* Header */}
       <div className="mb-3 flex items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold text-gray-100 leading-tight">
+        <h3 className="text-sm font-semibold leading-tight text-gray-100">
           {promo.title}
         </h3>
         {isRecent && (
@@ -60,7 +71,29 @@ export default function PromoCard({
         )}
       </div>
 
-      {/* Stacked bar */}
+      {/* Total candidates - prominent */}
+      <div className="mb-3 flex items-baseline gap-2">
+        <span className="text-3xl font-bold tabular-nums text-gray-100">{total}</span>
+        <span className="text-xs text-gray-500">candidatos</span>
+      </div>
+
+      {/* Hired progress bar */}
+      {total > 0 && (
+        <div className="mb-3">
+          <div className="mb-1 flex items-center justify-between text-[10px]">
+            <span className="text-gray-500">Hired {hiredCount}/{total}</span>
+            <span className="tabular-nums text-emerald-400">{hiredPct.toFixed(0)}%</span>
+          </div>
+          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-700/40">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+              style={{ width: `${hiredPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Stacked bar for all statuses */}
       {total > 0 && (
         <div className="mb-3 flex h-2 w-full overflow-hidden rounded-full bg-gray-700/40">
           {statusBreakdown.map((d) => {
@@ -82,36 +115,65 @@ export default function PromoCard({
       )}
 
       {/* Key numbers */}
-      <div className="grid grid-cols-4 gap-2 text-center">
+      <div className="mb-3 grid grid-cols-3 gap-2 text-center">
         <div>
-          <p className="text-lg font-bold tabular-nums text-gray-100">{total}</p>
-          <p className="text-[10px] uppercase tracking-wider text-gray-500">Total</p>
+          <p className="text-sm font-bold tabular-nums text-blue-400">{activeCount}</p>
+          <p className="text-[10px] uppercase tracking-wider text-gray-500">Activos</p>
         </div>
         <div>
-          <p className="text-lg font-bold tabular-nums text-cyan-400">{inTraining}</p>
-          <p className="text-[10px] uppercase tracking-wider text-gray-500">Training</p>
-        </div>
-        <div>
-          <p className="text-lg font-bold tabular-nums text-emerald-400">{hired}</p>
+          <p className="text-sm font-bold tabular-nums text-emerald-400">{hiredCount}</p>
           <p className="text-[10px] uppercase tracking-wider text-gray-500">Hired</p>
         </div>
         <div>
-          <p className="text-lg font-bold tabular-nums text-red-400">{rejected}</p>
-          <p className="text-[10px] uppercase tracking-wider text-gray-500">Dropped</p>
+          <p className="text-sm font-bold tabular-nums text-gray-400">{terminalCount}</p>
+          <p className="text-[10px] uppercase tracking-wider text-gray-500">Finalizados</p>
         </div>
       </div>
 
-      {/* Last activity */}
-      {lastActivity && (
-        <p className="mt-3 text-[10px] text-gray-500">
-          Última actividad: {lastActivity.toLocaleDateString('es-AR', {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </p>
+      {/* Top 5 status badges */}
+      {topStatuses.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-1">
+          {topStatuses.map((d) => (
+            <span
+              key={d.status}
+              className="inline-flex items-center gap-1 rounded-full bg-gray-700/50 px-2 py-0.5 text-[10px] text-gray-300"
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: getStatusColor(d.status) }}
+              />
+              {d.status}
+              <span className="tabular-nums text-gray-500">{d.count}</span>
+            </span>
+          ))}
+        </div>
       )}
+
+      {/* Last sync & activity */}
+      <div className="space-y-0.5 text-[10px] text-gray-500">
+        {lastActivity && (
+          <p>
+            Última actividad:{' '}
+            {lastActivity.toLocaleDateString('es-AR', {
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </p>
+        )}
+        {lastSyncedAt && (
+          <p>
+            Último sync:{' '}
+            {new Date(lastSyncedAt).toLocaleDateString('es-AR', {
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </p>
+        )}
+      </div>
     </button>
   )
 }

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { runSync } from '@/lib/zoho/sync'
 import {
+  runPromoSync,
   syncJobOpenings,
-  syncCandidatesChunked,
+  syncPromoCandidatesChunked,
   clearSyncCursor,
   getSyncCursor,
+  cleanupNonPromoCandidates,
 } from '@/lib/zoho/sync'
 
 export const maxDuration = 60
@@ -18,35 +19,59 @@ export async function POST(request: NextRequest) {
   }
 
   const { searchParams } = request.nextUrl
-  const typeParam = searchParams.get('type') ?? 'incremental'
+  const typeParam = searchParams.get('type') ?? 'promo'
 
   try {
-    if (typeParam === 'full') {
-      // Start a new full sync: sync job openings first, then start chunked candidates
-      await clearSyncCursor()
-
-      const jobResult = await syncJobOpenings()
-      const chunkResult = await syncCandidatesChunked(5)
+    // --- Cleanup: remove non-promo candidates from Supabase ---
+    if (typeParam === 'cleanup') {
+      const result = await cleanupNonPromoCandidates()
 
       return NextResponse.json({
-        type: 'full',
+        type: 'cleanup',
+        ...result,
+      }, {
+        status: result.errors.length === 0 ? 200 : 207,
+      })
+    }
+
+    // --- Full promo sync (job openings + promo candidates in one shot) ---
+    if (typeParam === 'promo' || typeParam === 'full') {
+      await clearSyncCursor()
+
+      const result = await runPromoSync()
+
+      return NextResponse.json(result, {
+        status: result.errors.length === 0 ? 200 : 207,
+      })
+    }
+
+    // --- Chunked promo sync: start fresh ---
+    if (typeParam === 'chunked') {
+      await clearSyncCursor()
+
+      // Sync job openings first to identify promos
+      const jobResult = await syncJobOpenings()
+      const chunkResult = await syncPromoCandidatesChunked(5)
+
+      return NextResponse.json({
+        type: 'chunked',
         job_openings: jobResult,
         candidates: chunkResult,
       })
     }
 
+    // --- Continue an existing chunked sync ---
     if (typeParam === 'continue') {
-      // Continue an existing chunked sync
       const cursor = await getSyncCursor()
 
       if (!cursor || cursor.completed) {
         return NextResponse.json({
-          message: 'No active sync to continue. Use ?type=full to start one.',
+          message: 'No active sync to continue. Use ?type=chunked to start one.',
           cursor,
         })
       }
 
-      const chunkResult = await syncCandidatesChunked(5)
+      const chunkResult = await syncPromoCandidatesChunked(5)
 
       return NextResponse.json({
         type: 'continue',
@@ -54,25 +79,19 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (typeParam === 'chunk') {
-      // Run a specific number of pages
-      const pagesParam = searchParams.get('pages')
-      const pages = pagesParam ? parseInt(pagesParam, 10) : 5
-
-      const chunkResult = await syncCandidatesChunked(pages)
-
+    // --- Job openings only ---
+    if (typeParam === 'job-openings') {
+      const result = await syncJobOpenings()
       return NextResponse.json({
-        type: 'chunk',
-        candidates: chunkResult,
+        type: 'job-openings',
+        ...result,
       })
     }
 
-    // Default: incremental sync (uses original runSync for recently modified)
-    const result = await runSync('incremental')
-
-    return NextResponse.json(result, {
-      status: result.errors.length === 0 ? 200 : 207,
-    })
+    return NextResponse.json(
+      { error: `Unknown sync type: ${typeParam}. Valid: promo, full, chunked, continue, cleanup, job-openings` },
+      { status: 400 }
+    )
   } catch (error) {
     console.error('[admin/trigger-sync] Fatal error:', error)
     return NextResponse.json(
