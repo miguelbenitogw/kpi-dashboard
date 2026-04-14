@@ -163,8 +163,11 @@ export async function importBaseDatos(): Promise<BaseDatosResult> {
       continue
     }
 
-    // Build the update payload
-    const updateData = {
+    // Build the update payload — include full_name and current_status from Excel
+    const fullName = mapped['full_name'] ?? null
+    const estado = mapped['estado'] ?? null
+
+    const updateData: Record<string, unknown> = {
       coordinador: mapped['coordinador'] ?? null,
       tipo_perfil: mapped['tipo_perfil'] ?? null,
       cliente: mapped['cliente'] ?? null,
@@ -174,6 +177,9 @@ export async function importBaseDatos(): Promise<BaseDatosResult> {
       notas_excel: mapped['notas_excel'] ?? null,
       promocion_nombre: mapped['promocion_nombre'] ?? null,
     }
+    // Always set name and status from Excel if available
+    if (fullName) updateData.full_name = fullName
+    if (estado) updateData.current_status = estado
 
     // Try UPDATE first (candidate already exists from Zoho sync)
     const { data: existing, error: selectError } = await supabaseAdmin
@@ -191,7 +197,7 @@ export async function importBaseDatos(): Promise<BaseDatosResult> {
       // UPDATE existing candidate
       const { error: updateError } = await supabaseAdmin
         .from('candidates')
-        .update(updateData)
+        .update(updateData as any)
         .eq('id', candidateId)
 
       if (updateError) {
