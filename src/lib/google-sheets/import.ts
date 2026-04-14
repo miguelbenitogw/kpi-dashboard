@@ -7,7 +7,14 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { fetchAllTabs, extractSheetId, type SheetRow, type SheetTab } from './client'
+import {
+  fetchAllTabs,
+  fetchSingleTab,
+  extractSheetId,
+  KNOWN_GIDS,
+  type SheetRow,
+  type SheetTab,
+} from './client'
 import { searchCandidates } from '@/lib/zoho/direct-queries'
 
 // ---------------------------------------------------------------------------
@@ -35,16 +42,49 @@ const COLUMN_MAP: Record<string, string[]> = {
   enrollment_date: ['fecha de inscripción', 'inscripción', 'enrollment date', 'fecha inscripcion'],
   dropout_reason: ['motivo de baja', 'razón de baja', 'reason', 'motivo', 'dropout reason', 'causa'],
   dropout_date: ['fecha de baja', 'baja', 'dropout date', 'fecha baja'],
-  dropout_notes: ['observaciones baja', 'comentarios baja', 'dropout notes'],
+  dropout_notes: [
+    'observaciones baja', 'comentarios baja', 'dropout notes',
+    'motivos que dan',
+  ],
   notes: ['notas', 'notes', 'comentarios', 'observaciones'],
+}
+
+/**
+ * Extra column mappings specific to Dropouts tabs.
+ * These are checked FIRST when processing a dropout tab, then fall through
+ * to the standard COLUMN_MAP.
+ */
+const DROPOUT_COLUMN_MAP: Record<string, string[]> = {
+  full_name: ['name', 'nombre'],
+  sheet_status: ['status', 'estado'],
+  start_date: ['start date', 'fecha inicio', 'fecha de inicio'],
+  dropout_date: ['dropout date', 'fecha de baja', 'fecha baja'],
+  dropout_reason: ['reason for dropout', 'dropout reason', 'razón de baja', 'motivo de baja'],
+  dropout_notes: ['motivos que dan', 'observaciones baja'],
 }
 
 /**
  * Normalise a raw sheet header to our canonical field name.
  * Returns null if unmapped (field goes to raw_data).
+ *
+ * @param header   - Raw column header from the sheet
+ * @param extraMap - Optional extra column map checked FIRST (for tab-specific mappings)
  */
-function normaliseHeader(header: string): string | null {
+function normaliseHeader(
+  header: string,
+  extraMap?: Record<string, string[]>
+): string | null {
   const lower = header.toLowerCase().trim()
+
+  // Check extra map first (more specific)
+  if (extraMap) {
+    for (const [canonical, variants] of Object.entries(extraMap)) {
+      if (variants.some((v) => lower.includes(v) || v.includes(lower))) {
+        return canonical
+      }
+    }
+  }
+
   for (const [canonical, variants] of Object.entries(COLUMN_MAP)) {
     if (variants.some((v) => lower.includes(v) || v.includes(lower))) {
       return canonical
@@ -101,7 +141,8 @@ function rowToStudentRecord(
   row: SheetRow,
   headers: string[],
   tabName: string,
-  rowNumber: number
+  rowNumber: number,
+  extraColumnMap?: Record<string, string[]>
 ): StudentRecord {
   const mapped: Partial<StudentRecord> & { raw_data: SheetRow; tab_name: string; row_number: number } = {
     raw_data: row,
@@ -128,7 +169,7 @@ function rowToStudentRecord(
   }
 
   for (const header of headers) {
-    const canonical = normaliseHeader(header)
+    const canonical = normaliseHeader(header, extraColumnMap)
     const value = row[header]?.trim() || null
 
     if (!canonical || !value) continue
@@ -396,6 +437,220 @@ export async function importPromoSheet(
   }
 
   // ---- Step 6: Mark sync as done -----------------------------------------
+  await supabaseAdmin
+    .from('promo_sheets')
+    .update({
+      sync_status: 'done',
+      sync_error: null,
+      last_synced_at: new Date().toISOString(),
+    })
+    .eq('id', promoSheetId)
+
+  return result
+}
+
+// ---------------------------------------------------------------------------
+// Dedicated Dropouts tab import
+// ---------------------------------------------------------------------------
+
+/**
+ * Build an email→name lookup from the Contact Information tab.
+ * Returns a map of lowercase email → { name, email (original casing) }.
+ */
+async function fetchContactEmails(
+  sheetUrl: string
+): Promise<Map<string, { name: string; email: string }>> {
+  const map = new Map<string, { name: string; email: string }>()
+
+  try {
+    const tab = await fetchSingleTab(sheetUrl, KNOWN_GIDS.CONTACT_INFO, 'Contact Information')
+
+    for (const row of tab.rows) {
+      // Try common header names for email / name
+      const email =
+        row['Email'] || row['email'] || row['E-mail'] || row['Correo'] || row['correo'] || ''
+      const name =
+        row['Name'] || row['name'] || row['Nombre'] || row['nombre'] ||
+        row['Full Name'] || row['full name'] || row['Nombre completo'] || ''
+
+      if (email.trim()) {
+        map.set(email.trim().toLowerCase(), {
+          name: name.trim(),
+          email: email.trim(),
+        })
+      }
+    }
+  } catch (err) {
+    // Non-fatal: Contact Information tab may not exist or be inaccessible
+    console.warn(
+      'Could not fetch Contact Information tab for email cross-ref:',
+      err instanceof Error ? err.message : String(err)
+    )
+  }
+
+  return map
+}
+
+/**
+ * Import specifically the Dropouts tab from a Promo Google Sheet.
+ *
+ * 1. Fetches the Dropouts tab by known GID
+ * 2. Fetches the Contact Information tab for email cross-referencing
+ * 3. Parses dropout rows with dropout-specific column mappings
+ * 4. Matches to Zoho candidates by email (from contacts) then by name
+ * 5. Upserts into promo_students with tab_name = 'Dropouts'
+ */
+export async function importDropoutsTab(
+  sheetUrl: string,
+  jobOpeningId: string,
+  sheetName?: string
+): Promise<ImportResult> {
+  const result: ImportResult = {
+    imported: 0,
+    updated: 0,
+    matched_to_zoho: 0,
+    errors: [],
+    tabs_found: [],
+  }
+
+  const sheetId = extractSheetId(sheetUrl)
+
+  // ---- Step 1: Upsert promo_sheets record --------------------------------
+  const { data: sheetRecord, error: sheetUpsertError } = await supabaseAdmin
+    .from('promo_sheets')
+    .upsert(
+      {
+        sheet_url: sheetUrl,
+        sheet_id: sheetId,
+        job_opening_id: jobOpeningId,
+        sheet_name: sheetName ?? `Promo Sheet (${sheetId.slice(0, 8)})`,
+        sync_status: 'syncing',
+      },
+      { onConflict: 'sheet_url' }
+    )
+    .select('id')
+    .single()
+
+  if (sheetUpsertError || !sheetRecord) {
+    throw new Error(`Failed to upsert promo_sheets: ${sheetUpsertError?.message}`)
+  }
+
+  const promoSheetId: string = sheetRecord.id
+
+  // ---- Step 2: Fetch Dropouts tab ----------------------------------------
+  let dropoutsTab: SheetTab
+  try {
+    dropoutsTab = await fetchSingleTab(sheetUrl, KNOWN_GIDS.DROPOUTS, 'Dropouts')
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    await supabaseAdmin
+      .from('promo_sheets')
+      .update({ sync_status: 'error', sync_error: `Dropouts tab: ${msg}` })
+      .eq('id', promoSheetId)
+    throw new Error(`Failed to fetch Dropouts tab: ${msg}`)
+  }
+
+  result.tabs_found.push('Dropouts')
+
+  // ---- Step 3: Fetch Contact Information for email lookup -----------------
+  const contactEmails = await fetchContactEmails(sheetUrl)
+  if (contactEmails.size > 0) {
+    result.tabs_found.push(`Contact Information (${contactEmails.size} emails)`)
+  }
+
+  // Build a name→email lookup from contacts (lowercase name → email)
+  const nameToEmail = new Map<string, string>()
+  for (const [, { name, email }] of contactEmails) {
+    if (name) {
+      nameToEmail.set(name.toLowerCase(), email)
+    }
+  }
+
+  // ---- Step 4: Parse + match + upsert ------------------------------------
+  for (let i = 0; i < dropoutsTab.rows.length; i++) {
+    const rowNumber = i + 2
+    const student = rowToStudentRecord(
+      dropoutsTab.rows[i],
+      dropoutsTab.rawHeaders,
+      'Dropouts',
+      rowNumber,
+      DROPOUT_COLUMN_MAP
+    )
+
+    // Skip rows with no name (empty/filler)
+    if (!student.full_name) continue
+
+    // Try to find email from Contact Information tab
+    const contactEmail = nameToEmail.get(student.full_name.toLowerCase())
+    if (contactEmail && !student.email) {
+      student.email = contactEmail
+    }
+
+    // Best-effort Zoho match (email first, then name)
+    let zohoMatch: ZohoMatchResult = {
+      zoho_candidate_id: '',
+      zoho_status: null,
+      match_confidence: 'unmatched',
+    }
+
+    try {
+      zohoMatch = await matchToZoho(student, jobOpeningId)
+      if (zohoMatch.match_confidence !== 'unmatched') {
+        result.matched_to_zoho++
+      }
+    } catch (err) {
+      result.errors.push(
+        `Zoho match failed for "${student.full_name}": ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      )
+    }
+
+    // Build upsert payload
+    const upsertPayload = {
+      promo_sheet_id: promoSheetId,
+      job_opening_id: jobOpeningId,
+      full_name: student.full_name,
+      email: student.email,
+      phone: student.phone,
+      nationality: student.nationality,
+      country_of_residence: student.country_of_residence,
+      native_language: student.native_language,
+      english_level: student.english_level,
+      german_level: student.german_level,
+      work_permit: student.work_permit,
+      sheet_status: student.sheet_status,
+      sheet_stage: student.sheet_stage,
+      start_date: student.start_date,
+      end_date: student.end_date,
+      enrollment_date: student.enrollment_date,
+      dropout_reason: student.dropout_reason,
+      dropout_date: student.dropout_date,
+      dropout_notes: student.dropout_notes,
+      notes: student.notes,
+      zoho_candidate_id: zohoMatch.zoho_candidate_id || null,
+      zoho_status: zohoMatch.zoho_status,
+      zoho_matched_at: zohoMatch.match_confidence !== 'unmatched' ? new Date().toISOString() : null,
+      match_confidence: zohoMatch.match_confidence,
+      raw_data: student.raw_data,
+      tab_name: 'Dropouts',
+      row_number: student.row_number,
+    }
+
+    const { error: upsertError } = await supabaseAdmin
+      .from('promo_students')
+      .upsert(upsertPayload, {
+        onConflict: 'promo_sheet_id,tab_name,row_number',
+      })
+
+    if (upsertError) {
+      result.errors.push(`Row ${rowNumber} in Dropouts: ${upsertError.message}`)
+    } else {
+      result.imported++
+    }
+  }
+
+  // ---- Step 5: Mark sync as done -----------------------------------------
   await supabaseAdmin
     .from('promo_sheets')
     .update({

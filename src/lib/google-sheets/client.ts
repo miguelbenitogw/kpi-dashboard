@@ -17,6 +17,12 @@ export interface SheetTab {
 // Add more if the sheet gains new tabs.
 const PROBE_GIDS = ['0', '1', '2', '3', '4', '5']
 
+// Well-known GIDs for specific Promo 113 tabs
+export const KNOWN_GIDS = {
+  DROPOUTS: '1646413473',
+  CONTACT_INFO: '1379222708',
+} as const
+
 /**
  * Extracts the Google Sheet document ID from any valid Google Sheets URL.
  *
@@ -150,18 +156,22 @@ function parseCsvLine(line: string): string[] {
  * Tries to fetch multiple GIDs from a sheet to discover all available tabs.
  * Silently ignores GIDs that return HTTP errors (tab doesn't exist).
  *
- * @param sheetUrl - Full Google Sheets URL
- * @param gids     - List of GID strings to probe (defaults to PROBE_GIDS)
+ * @param sheetUrl  - Full Google Sheets URL
+ * @param gids      - List of GID strings to probe (defaults to PROBE_GIDS)
+ * @param extraGids - Additional GIDs to probe (merged with gids, deduped)
  */
 export async function fetchAllTabs(
   sheetUrl: string,
-  gids: string[] = PROBE_GIDS
+  gids: string[] = PROBE_GIDS,
+  extraGids: string[] = []
 ): Promise<SheetTab[]> {
+  // Merge and deduplicate GIDs
+  const allGids = [...new Set([...gids, ...extraGids])]
   const tabs: SheetTab[] = []
   const seen = new Set<string>()
 
   await Promise.all(
-    gids.map(async (gid) => {
+    allGids.map(async (gid) => {
       try {
         const csv = await fetchSheetCSV(sheetUrl, gid)
         const { headers, rows } = parseCSV(csv)
@@ -184,6 +194,30 @@ export async function fetchAllTabs(
   )
 
   return tabs
+}
+
+/**
+ * Fetches a single tab by GID and returns it as a SheetTab.
+ * Throws if the tab cannot be fetched.
+ */
+export async function fetchSingleTab(
+  sheetUrl: string,
+  gid: string,
+  tabName?: string
+): Promise<SheetTab> {
+  const csv = await fetchSheetCSV(sheetUrl, gid)
+  const { headers, rows } = parseCSV(csv)
+
+  if (headers.length === 0) {
+    throw new Error(`Tab (gid=${gid}) has no headers`)
+  }
+
+  return {
+    gid,
+    tabName: tabName ?? inferTabName(headers, rows, gid),
+    rows,
+    rawHeaders: headers,
+  }
 }
 
 /**

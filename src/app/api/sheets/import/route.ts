@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { validateApiKey, unauthorizedResponse } from '../../sync/middleware'
-import { importPromoSheet } from '@/lib/google-sheets/import'
+import { importPromoSheet, importDropoutsTab } from '@/lib/google-sheets/import'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -16,6 +16,8 @@ interface ImportRequestBody {
   sheet_url: string
   job_opening_id: string
   sheet_name?: string
+  /** When set to 'dropouts', uses the dedicated Dropouts tab import pipeline */
+  tab?: 'dropouts' | 'all'
 }
 
 /**
@@ -42,7 +44,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { sheet_url, job_opening_id, sheet_name } = body
+  const { sheet_url, job_opening_id, sheet_name, tab } = body
 
   if (!sheet_url || typeof sheet_url !== 'string') {
     return NextResponse.json(
@@ -59,7 +61,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await importPromoSheet(sheet_url, job_opening_id, sheet_name)
+    const result = tab === 'dropouts'
+      ? await importDropoutsTab(sheet_url, job_opening_id, sheet_name)
+      : await importPromoSheet(sheet_url, job_opening_id, sheet_name)
 
     return NextResponse.json(
       {
