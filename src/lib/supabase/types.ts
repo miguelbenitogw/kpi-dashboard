@@ -608,6 +608,42 @@ export interface Database {
           },
         ]
       }
+      candidate_job_history: {
+        Row: {
+          id: string
+          candidate_id: string
+          candidate_name: string | null
+          zoho_record_id: string | null
+          job_opening_id: string | null
+          job_opening_title: string | null
+          candidate_status_in_jo: string | null
+          association_type: string | null
+          fetched_at: string | null
+        }
+        Insert: {
+          id?: string
+          candidate_id: string
+          candidate_name?: string | null
+          zoho_record_id?: string | null
+          job_opening_id?: string | null
+          job_opening_title?: string | null
+          candidate_status_in_jo?: string | null
+          association_type?: string | null
+          fetched_at?: string | null
+        }
+        Update: {
+          id?: string
+          candidate_id?: string
+          candidate_name?: string | null
+          zoho_record_id?: string | null
+          job_opening_id?: string | null
+          job_opening_title?: string | null
+          candidate_status_in_jo?: string | null
+          association_type?: string | null
+          fetched_at?: string | null
+        }
+        Relationships: []
+      }
       promo_targets: {
         Row: {
           id: number
@@ -740,3 +776,7 @@ export type PromoStudentUpdate = Database['public']['Tables']['promo_students'][
 export type PromoTarget = Database['public']['Tables']['promo_targets']['Row']
 export type PromoTargetInsert = Database['public']['Tables']['promo_targets']['Insert']
 export type PromoTargetUpdate = Database['public']['Tables']['promo_targets']['Update']
+
+export type CandidateJobHistory = Database['public']['Tables']['candidate_job_history']['Row']
+export type CandidateJobHistoryInsert = Database['public']['Tables']['candidate_job_history']['Insert']
+export type CandidateJobHistoryUpdate = Database['public']['Tables']['candidate_job_history']['Update']
