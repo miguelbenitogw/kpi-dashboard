@@ -11,6 +11,8 @@ import {
   Clock,
   Filter,
   MessageSquare,
+  BarChart3,
+  Settings,
   Menu,
   X,
 } from "lucide-react";
@@ -23,6 +25,7 @@ const navItems = [
   { href: "/dashboard/candidates", label: "Candidatos", icon: Users },
   { href: "/dashboard/sla", label: "SLA & Tiempos", icon: Clock },
   { href: "/dashboard/funnel", label: "Conversion", icon: Filter },
+  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/chat", label: "Asistente IA", icon: MessageSquare },
 ];
 
