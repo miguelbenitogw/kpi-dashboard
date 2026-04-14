@@ -237,12 +237,12 @@ export async function fetchCandidatesByJobOpening(
     fields: CANDIDATE_FIELDS,
     per_page: String(MAX_PER_PAGE),
     page: String(page),
-    criteria: `(Job_Opening.id:equals:${jobOpeningId})`,
   }
 
   try {
+    // Correct Zoho Recruit endpoint: GET /JobOpenings/{id}/Candidates
     const response = await zohoFetch<ZohoListResponse<Record<string, unknown>>>(
-      '/Candidates/search',
+      `/Job_Openings/${jobOpeningId}/Candidates`,
       params
     )
 
