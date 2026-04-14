@@ -393,6 +393,94 @@ export async function getPromoComparison(
   })
 }
 
+// --- History types ---
+
+export interface CandidateHistoryRecord {
+  id: string
+  job_opening_title: string | null
+  candidate_status_in_jo: string | null
+  association_type: string | null
+}
+
+export interface CandidateWithHistory {
+  candidate_id: string
+  candidate_name: string | null
+  current_status: string | null
+  history: CandidateHistoryRecord[]
+  atraccionCount: number
+  formacionCount: number
+}
+
+/**
+ * Get history overview for all candidates in a promo.
+ * Joins candidates (by promocion_nombre) with candidate_job_history.
+ */
+export async function getPromoHistoryOverview(
+  promocion: string
+): Promise<CandidateWithHistory[]> {
+  // Step 1: get all candidates in this promo
+  const { data: candidates, error: candError } = await supabase
+    .from('candidates')
+    .select('id, full_name, current_status')
+    .eq('promocion_nombre', promocion)
+    .order('full_name', { ascending: true })
+
+  if (candError) throw candError
+  if (!candidates || candidates.length === 0) return []
+
+  const candidateIds = candidates.map((c) => c.id)
+
+  // Step 2: get all history records for these candidates
+  const { data: historyRows, error: histError } = await supabase
+    .from('candidate_job_history')
+    .select('id, candidate_id, job_opening_title, candidate_status_in_jo, association_type')
+    .in('candidate_id', candidateIds)
+    .order('association_type', { ascending: true })
+
+  if (histError) throw histError
+
+  // Step 3: group history by candidate
+  const historyMap = new Map<string, CandidateHistoryRecord[]>()
+  for (const row of historyRows ?? []) {
+    const list = historyMap.get(row.candidate_id) ?? []
+    list.push({
+      id: row.id,
+      job_opening_title: row.job_opening_title,
+      candidate_status_in_jo: row.candidate_status_in_jo,
+      association_type: row.association_type,
+    })
+    historyMap.set(row.candidate_id, list)
+  }
+
+  return candidates.map((c) => {
+    const history = historyMap.get(c.id) ?? []
+    return {
+      candidate_id: c.id,
+      candidate_name: c.full_name,
+      current_status: c.current_status,
+      history,
+      atraccionCount: history.filter((h) => h.association_type === 'atraccion').length,
+      formacionCount: history.filter((h) => h.association_type === 'formacion').length,
+    }
+  })
+}
+
+/**
+ * Get history for a single candidate
+ */
+export async function getCandidateHistory(
+  candidateId: string
+): Promise<CandidateHistoryRecord[]> {
+  const { data, error } = await supabase
+    .from('candidate_job_history')
+    .select('id, job_opening_title, candidate_status_in_jo, association_type')
+    .eq('candidate_id', candidateId)
+    .order('association_type', { ascending: true })
+
+  if (error) throw error
+  return (data ?? []) as CandidateHistoryRecord[]
+}
+
 /**
  * Get single promo target row
  */

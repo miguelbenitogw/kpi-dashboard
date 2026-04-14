@@ -4,17 +4,19 @@ import { useState } from 'react'
 import StudentStatusList from './StudentStatusList'
 import DropoutAnalysis from './DropoutAnalysis'
 import ConversionFunnel from './ConversionFunnel'
+import HistoryView from './HistoryView'
 
 interface PerformanceDetailProps {
   promocion: string
 }
 
-type TabKey = 'estudiantes' | 'bajas' | 'conversion'
+type TabKey = 'estudiantes' | 'bajas' | 'conversion' | 'historial'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'estudiantes', label: 'Estudiantes' },
   { key: 'bajas', label: 'Bajas' },
   { key: 'conversion', label: 'Conversion' },
+  { key: 'historial', label: 'Historial' },
 ]
 
 export default function PerformanceDetail({ promocion }: PerformanceDetailProps) {
@@ -56,6 +58,9 @@ export default function PerformanceDetail({ promocion }: PerformanceDetailProps)
         )}
         {activeTab === 'conversion' && (
           <ConversionFunnel promocion={promocion} />
+        )}
+        {activeTab === 'historial' && (
+          <HistoryView promocion={promocion} />
         )}
       </div>
     </div>

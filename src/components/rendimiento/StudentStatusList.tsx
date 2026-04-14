@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import type { Candidate } from '@/lib/supabase/types'
 import {
   getPromoStudentList,
+  getPromoHistoryOverview,
   type StudentListOptions,
   type StudentListResult,
 } from '@/lib/queries/performance'
@@ -66,6 +67,9 @@ export default function StudentStatusList({ promocion }: StudentStatusListProps)
   // Unique statuses for filter dropdown
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([])
 
+  // History counts: candidateId -> number of atraccion JOs
+  const [historyCounts, setHistoryCounts] = useState<Map<string, number>>(new Map())
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
@@ -100,6 +104,18 @@ export default function StudentStatusList({ promocion }: StudentStatusListProps)
     setPage(1)
     setStatusFilter([])
     setAvailableStatuses([])
+    // Load history counts for badge display
+    getPromoHistoryOverview(promocion)
+      .then((overview) => {
+        const counts = new Map<string, number>()
+        for (const c of overview) {
+          if (c.atraccionCount > 0) {
+            counts.set(c.candidate_id, c.atraccionCount)
+          }
+        }
+        setHistoryCounts(counts)
+      })
+      .catch(() => { /* silent - badge is optional */ })
   }, [promocion])
 
   useEffect(() => {
@@ -202,7 +218,14 @@ export default function StudentStatusList({ promocion }: StudentStatusListProps)
               result.data.map((c: Candidate) => (
                 <tr key={c.id} className="transition hover:bg-gray-700/20">
                   <td className="whitespace-nowrap px-3 py-2.5 font-medium text-gray-100">
-                    {c.full_name ?? '\u2014'}
+                    <span className="inline-flex items-center gap-2">
+                      {c.full_name ?? '\u2014'}
+                      {historyCounts.get(c.id) != null && historyCounts.get(c.id)! > 0 && (
+                        <span className="rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[9px] font-medium text-blue-400">
+                          {historyCounts.get(c.id)} proy. ant.
+                        </span>
+                      )}
+                    </span>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     <div className="flex items-center gap-2">

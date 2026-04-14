@@ -144,8 +144,7 @@ export async function getSessionsOverTime(
       pageviews: parseInt(row.metricValues?.[2]?.value ?? '0', 10),
     }));
   } catch (err) {
-    console.error('[GA4] getSessionsOverTime error:', err);
-    return [];
+    handleGoogleApiError(err, 'getSessionsOverTime');
   }
 }
 
@@ -185,8 +184,7 @@ export async function getTrafficSources(
       users: parseInt(row.metricValues?.[1]?.value ?? '0', 10),
     }));
   } catch (err) {
-    console.error('[GA4] getTrafficSources error:', err);
-    return [];
+    handleGoogleApiError(err, 'getTrafficSources');
   }
 }
 
@@ -227,8 +225,7 @@ export async function getTopLandingPages(
       avgDuration: parseFloat(row.metricValues?.[3]?.value ?? '0'),
     }));
   } catch (err) {
-    console.error('[GA4] getTopLandingPages error:', err);
-    return [];
+    handleGoogleApiError(err, 'getTopLandingPages');
   }
 }
 
@@ -264,8 +261,7 @@ export async function getGeographicBreakdown(
       users: parseInt(row.metricValues?.[1]?.value ?? '0', 10),
     }));
   } catch (err) {
-    console.error('[GA4] getGeographicBreakdown error:', err);
-    return [];
+    handleGoogleApiError(err, 'getGeographicBreakdown');
   }
 }
 
@@ -312,9 +308,56 @@ export async function getOverviewMetrics(
       avgSessionDuration: parseFloat(row.metricValues?.[4]?.value ?? '0'),
     };
   } catch (err) {
-    console.error('[GA4] getOverviewMetrics error:', err);
-    return empty;
+    handleGoogleApiError(err, 'getOverviewMetrics');
   }
+}
+
+// ---------------------------------------------------------------------------
+// Errors
+// ---------------------------------------------------------------------------
+
+/**
+ * Custom error class for GA4-specific errors so the API route can return
+ * actionable messages to the frontend (e.g. "add the service account as Viewer").
+ */
+export class GA4Error extends Error {
+  constructor(
+    message: string,
+    public readonly code: 'PERMISSION_DENIED' | 'NOT_CONFIGURED' | 'API_ERROR',
+    public readonly details?: string
+  ) {
+    super(message);
+    this.name = 'GA4Error';
+  }
+}
+
+/**
+ * Checks whether a caught error is a Google API permission/auth error and
+ * re-throws it as a GA4Error so callers can show actionable guidance.
+ */
+function handleGoogleApiError(err: unknown, context: string): never {
+  const message = err instanceof Error ? err.message : String(err);
+  const lower = message.toLowerCase();
+
+  if (
+    lower.includes('permission_denied') ||
+    lower.includes('403') ||
+    lower.includes('caller does not have permission') ||
+    lower.includes('is not found or caller does not have')
+  ) {
+    throw new GA4Error(
+      `Google Analytics permission denied. Add the service account as a Viewer in the GA4 property settings.`,
+      'PERMISSION_DENIED',
+      message
+    );
+  }
+
+  console.error(`[GA4] ${context} error:`, err);
+  throw new GA4Error(
+    `GA4 API error in ${context}: ${message}`,
+    'API_ERROR',
+    message
+  );
 }
 
 // ---------------------------------------------------------------------------
