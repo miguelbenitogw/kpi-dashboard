@@ -319,6 +319,32 @@ export interface Database {
         }
         Relationships: []
       }
+      user_preferences: {
+        Row: {
+          id: string
+          user_key: string
+          preference_type: string
+          value: Json
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_key?: string
+          preference_type: string
+          value?: Json
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_key?: string
+          preference_type?: string
+          value?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       sync_log: {
         Row: {
           id: number
@@ -430,3 +456,7 @@ export type SyncLogUpdate = Database['public']['Tables']['sync_log']['Update']
 export type WebhookEvent = Database['public']['Tables']['webhook_events']['Row']
 export type WebhookEventInsert = Database['public']['Tables']['webhook_events']['Insert']
 export type WebhookEventUpdate = Database['public']['Tables']['webhook_events']['Update']
+
+export type UserPreference = Database['public']['Tables']['user_preferences']['Row']
+export type UserPreferenceInsert = Database['public']['Tables']['user_preferences']['Insert']
+export type UserPreferenceUpdate = Database['public']['Tables']['user_preferences']['Update']

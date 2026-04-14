@@ -75,6 +75,7 @@ export default function PromosPage() {
   const [loading, setLoading] = useState(true)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [lastRealtimeUpdate, setLastRealtimeUpdate] = useState<Date | null>(null)
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
   const channelRef = useRef<RealtimeChannel | null>(null)
 
   const promos = summaries.map((s) => s.promo)
@@ -142,10 +143,65 @@ export default function PromosPage() {
     }
   }, [])
 
+  // Load favorites from API
+  const loadFavorites = useCallback(async () => {
+    try {
+      const res = await fetch('/api/preferences/favorites')
+      if (!res.ok) return
+      const data = await res.json() as { ids: string[] }
+      setFavoriteIds(new Set(data.ids))
+    } catch (err) {
+      console.error('Error loading favorites:', err)
+    }
+  }, [])
+
+  // Toggle favorite with optimistic update
+  const handleToggleFavorite = useCallback(async (id: string) => {
+    const isFav = favoriteIds.has(id)
+    // Optimistic update
+    setFavoriteIds((prev) => {
+      const next = new Set(prev)
+      if (isFav) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+
+    try {
+      const res = await fetch('/api/preferences/favorites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_opening_id: id, action: isFav ? 'remove' : 'add' }),
+      })
+      if (!res.ok) throw new Error('Failed to update favorite')
+      const data = await res.json() as { ids: string[] }
+      setFavoriteIds(new Set(data.ids))
+    } catch (err) {
+      console.error('Error toggling favorite:', err)
+      // Rollback optimistic update
+      setFavoriteIds((prev) => {
+        const next = new Set(prev)
+        if (isFav) {
+          next.add(id)
+        } else {
+          next.delete(id)
+        }
+        return next
+      })
+    }
+  }, [favoriteIds])
+
   // Initial load
   useEffect(() => {
     loadPromos().finally(() => setLoading(false))
   }, [loadPromos])
+
+  // Load favorites on mount
+  useEffect(() => {
+    loadFavorites()
+  }, [loadFavorites])
 
   // Subscribe to realtime changes
   useEffect(() => {
@@ -195,6 +251,10 @@ export default function PromosPage() {
   }, [selectedId, loadPromoDetail])
 
   const selectedPromo = promos.find((p) => p.id === selectedId)
+
+  // Sort summaries: favorites first, then the rest
+  const favoriteSummaries = summaries.filter((s) => favoriteIds.has(s.promo.id))
+  const otherSummaries = summaries.filter((s) => !favoriteIds.has(s.promo.id))
 
   if (loading) {
     return (
@@ -252,17 +312,54 @@ export default function PromosPage() {
               Promociones ({promos.length})
             </h2>
             <div className="space-y-3">
-              {summaries.map((item) => (
-                <PromoCard
-                  key={item.promo.id}
-                  promo={item.promo}
-                  statusBreakdown={promoData[item.promo.id]?.breakdown ?? item.breakdown.breakdown}
-                  lastActivity={promoData[item.promo.id]?.lastActivity ?? item.lastActivity}
-                  lastSyncedAt={promoData[item.promo.id]?.lastSyncedAt ?? item.lastSyncedAt}
-                  isSelected={selectedId === item.promo.id}
-                  onSelect={setSelectedId}
-                />
-              ))}
+              {/* Favorites section */}
+              {favoriteSummaries.length > 0 && (
+                <>
+                  <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-amber-400/80">
+                    <span>Favoritos</span>
+                    <span className="rounded-full bg-amber-400/15 px-1.5 py-0.5 tabular-nums text-amber-400">
+                      {favoriteSummaries.length}
+                    </span>
+                  </p>
+                  {favoriteSummaries.map((item) => (
+                    <PromoCard
+                      key={item.promo.id}
+                      promo={item.promo}
+                      statusBreakdown={promoData[item.promo.id]?.breakdown ?? item.breakdown.breakdown}
+                      lastActivity={promoData[item.promo.id]?.lastActivity ?? item.lastActivity}
+                      lastSyncedAt={promoData[item.promo.id]?.lastSyncedAt ?? item.lastSyncedAt}
+                      isSelected={selectedId === item.promo.id}
+                      isFavorite={true}
+                      onSelect={setSelectedId}
+                      onToggleFavorite={handleToggleFavorite}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* Other promos section */}
+              {otherSummaries.length > 0 && (
+                <>
+                  {favoriteSummaries.length > 0 && (
+                    <p className="pt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      Otras promos
+                    </p>
+                  )}
+                  {otherSummaries.map((item) => (
+                    <PromoCard
+                      key={item.promo.id}
+                      promo={item.promo}
+                      statusBreakdown={promoData[item.promo.id]?.breakdown ?? item.breakdown.breakdown}
+                      lastActivity={promoData[item.promo.id]?.lastActivity ?? item.lastActivity}
+                      lastSyncedAt={promoData[item.promo.id]?.lastSyncedAt ?? item.lastSyncedAt}
+                      isSelected={selectedId === item.promo.id}
+                      isFavorite={false}
+                      onSelect={setSelectedId}
+                      onToggleFavorite={handleToggleFavorite}
+                    />
+                  ))}
+                </>
+              )}
             </div>
           </div>
 

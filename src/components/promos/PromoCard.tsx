@@ -1,5 +1,6 @@
 'use client'
 
+import { Star } from 'lucide-react'
 import type { JobOpening } from '@/lib/supabase/types'
 import type { PromoStatusCount } from '@/lib/queries/promos'
 import { getStatusColor } from './StatusBreakdown'
@@ -11,7 +12,9 @@ interface PromoCardProps {
   lastActivity: Date | null
   lastSyncedAt: string | null
   isSelected: boolean
+  isFavorite: boolean
   onSelect: (id: string) => void
+  onToggleFavorite: (id: string) => void
 }
 
 export default function PromoCard({
@@ -20,7 +23,9 @@ export default function PromoCard({
   lastActivity,
   lastSyncedAt,
   isSelected,
+  isFavorite,
   onSelect,
+  onToggleFavorite,
 }: PromoCardProps) {
   const total = statusBreakdown.reduce((sum, d) => sum + d.count, 0)
 
@@ -47,16 +52,37 @@ export default function PromoCard({
       type="button"
       onClick={() => onSelect(promo.id)}
       className={`
-        w-full rounded-xl border p-5 text-left transition-all duration-200
+        relative w-full rounded-xl border p-5 text-left transition-all duration-200
         ${
           isSelected
             ? 'border-blue-500/60 bg-blue-500/10 ring-1 ring-blue-500/30'
+            : isFavorite
+            ? 'border-amber-500/40 bg-amber-500/5 hover:border-amber-500/60 hover:bg-amber-500/10'
             : 'border-gray-700/50 bg-gray-800/50 hover:border-gray-600/50 hover:bg-gray-800/80'
         }
       `}
     >
+      {/* Favorite button */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggleFavorite(promo.id)
+        }}
+        className="absolute right-3 top-3 rounded-md p-1 transition-colors hover:bg-gray-700/50"
+        aria-label={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+      >
+        <Star
+          className={`h-4 w-4 transition-colors ${
+            isFavorite
+              ? 'fill-amber-400 text-amber-400'
+              : 'fill-transparent text-gray-500 hover:text-amber-400'
+          }`}
+        />
+      </button>
+
       {/* Header */}
-      <div className="mb-3 flex items-start justify-between gap-2">
+      <div className="mb-3 flex items-start justify-between gap-2 pr-6">
         <h3 className="text-sm font-semibold leading-tight text-gray-100">
           {promo.title}
         </h3>
