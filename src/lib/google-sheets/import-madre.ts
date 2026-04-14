@@ -9,6 +9,12 @@
 
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { buildCsvUrl, parseCSV, type SheetRow } from './client'
+import { importGlobalPlacement, type GlobalPlacementResult } from './import-global-placement'
+import {
+  extractPromoNumber,
+  syncPromotionsFromCandidates,
+  type SyncPromotionCountsResult,
+} from '@/lib/queries/promotions-core'
 
 // ---------------------------------------------------------------------------
 // Sheet constants
@@ -370,22 +376,111 @@ export async function importResumen(): Promise<ResumenResult> {
 // Orchestrator
 // ---------------------------------------------------------------------------
 
+export interface PromotionsCreateResult {
+  created: number
+  updated: number
+  errors: string[]
+}
+
 export interface ExcelMadreResult {
   baseDatos: BaseDatosResult
   resumen: ResumenResult
+  globalPlacement: GlobalPlacementResult
+  promotionsCreate: PromotionsCreateResult
+  promotionsSync: SyncPromotionCountsResult
   errors: string[]
 }
 
 /**
- * Orchestrates both imports from the Excel madre sheet.
- * Runs Base Datos first, then Resumen. Collects all errors.
+ * Create/update promotion records from distinct promocion_nombre values in candidates.
+ * Also enriches from Resumen data in promo_targets.
+ */
+async function createPromotionsFromCandidates(): Promise<PromotionsCreateResult> {
+  const result: PromotionsCreateResult = { created: 0, updated: 0, errors: [] }
+
+  // Get distinct promocion_nombre values from candidates
+  const { data: candidates, error: candError } = await supabaseAdmin
+    .from('candidates')
+    .select('promocion_nombre')
+    .not('promocion_nombre', 'is', null)
+
+  if (candError) {
+    result.errors.push(`Failed to fetch candidates: ${candError.message}`)
+    return result
+  }
+
+  const promoNames = new Set<string>()
+  for (const c of candidates ?? []) {
+    if (c.promocion_nombre) promoNames.add(c.promocion_nombre)
+  }
+
+  if (promoNames.size === 0) return result
+
+  // Get existing promo_targets for enrichment
+  const { data: targets } = await supabaseAdmin
+    .from('promo_targets')
+    .select('*')
+
+  const targetMap = new Map<string, (typeof targets extends (infer T)[] | null ? T : never)>()
+  for (const t of targets ?? []) {
+    targetMap.set(t.promocion, t)
+  }
+
+  // Upsert each promotion
+  for (const nombre of promoNames) {
+    const target = targetMap.get(nombre)
+    const numero = extractPromoNumber(nombre)
+
+    const payload: Record<string, unknown> = {
+      nombre,
+      numero,
+      modalidad: target?.modalidad ?? null,
+      pais: target?.pais ?? null,
+      coordinador: target?.coordinador ?? null,
+      cliente: target?.cliente ?? null,
+      fecha_inicio: target?.fecha_inicio ?? null,
+      fecha_fin: target?.fecha_fin ?? null,
+      objetivo_atraccion: target?.objetivo_atraccion ?? null,
+      objetivo_programa: target?.objetivo_programa ?? null,
+      expectativa_finalizan: target?.expectativa_finalizan ?? null,
+    }
+
+    const { error: upsertError, data: upsertData } = await supabaseAdmin
+      .from('promotions')
+      .upsert(payload as any, { onConflict: 'nombre' })
+      .select('id')
+      .single()
+
+    if (upsertError) {
+      result.errors.push(`${nombre}: ${upsertError.message}`)
+    } else if (upsertData) {
+      result.created++
+    }
+  }
+
+  return result
+}
+
+/**
+ * Orchestrates all imports from the Excel madre sheet.
+ *
+ * Pipeline order:
+ *   1. Base Datos — enrich candidates
+ *   2. Resumen — import promo targets
+ *   3. Create/update promotions from distinct promo names
+ *   4. Global Placement — import placement data
+ *   5. Sync promotion counts from candidates
  */
 export async function importExcelMadre(): Promise<ExcelMadreResult> {
   const errors: string[] = []
 
   let baseDatos: BaseDatosResult = { updated: 0, inserted: 0, skipped: 0, errors: [] }
   let resumen: ResumenResult = { upserted: 0, skipped: 0, errors: [] }
+  let globalPlacement: GlobalPlacementResult = { updated: 0, skipped: 0, notMatched: 0, errors: [] }
+  let promotionsCreate: PromotionsCreateResult = { created: 0, updated: 0, errors: [] }
+  let promotionsSync: SyncPromotionCountsResult = { synced: 0, errors: [] }
 
+  // Step 1: Base Datos
   try {
     baseDatos = await importBaseDatos()
     if (baseDatos.errors.length > 0) {
@@ -396,6 +491,7 @@ export async function importExcelMadre(): Promise<ExcelMadreResult> {
     errors.push(`[BaseDatos] Fatal: ${msg}`)
   }
 
+  // Step 2: Resumen
   try {
     resumen = await importResumen()
     if (resumen.errors.length > 0) {
@@ -406,5 +502,38 @@ export async function importExcelMadre(): Promise<ExcelMadreResult> {
     errors.push(`[Resumen] Fatal: ${msg}`)
   }
 
-  return { baseDatos, resumen, errors }
+  // Step 3: Create/update promotions
+  try {
+    promotionsCreate = await createPromotionsFromCandidates()
+    if (promotionsCreate.errors.length > 0) {
+      errors.push(...promotionsCreate.errors.map((e) => `[Promotions] ${e}`))
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    errors.push(`[Promotions] Fatal: ${msg}`)
+  }
+
+  // Step 4: Global Placement
+  try {
+    globalPlacement = await importGlobalPlacement()
+    if (globalPlacement.errors.length > 0) {
+      errors.push(...globalPlacement.errors.map((e) => `[GlobalPlacement] ${e}`))
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    errors.push(`[GlobalPlacement] Fatal: ${msg}`)
+  }
+
+  // Step 5: Sync promotion counts
+  try {
+    promotionsSync = await syncPromotionsFromCandidates()
+    if (promotionsSync.errors.length > 0) {
+      errors.push(...promotionsSync.errors.map((e) => `[PromoSync] ${e}`))
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    errors.push(`[PromoSync] Fatal: ${msg}`)
+  }
+
+  return { baseDatos, resumen, globalPlacement, promotionsCreate, promotionsSync, errors }
 }
