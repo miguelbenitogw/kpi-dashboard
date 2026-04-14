@@ -240,11 +240,11 @@ export async function fetchCandidatesByJobOpening(
   }
 
   try {
-    // Correct Zoho Recruit endpoint: GET /JobOpenings/{id}/associate
-    // Note: module name is camelCase "JobOpenings" (NOT "Job_Openings")
-    // and the sub-resource is "associate" (NOT "Candidates")
+    // Zoho Recruit endpoint for related records:
+    // GET /JobOpenings/{id}/Candidates
+    // CRITICAL: module must be camelCase "JobOpenings" (NOT "Job_Openings")
     const response = await zohoFetch<ZohoListResponse<Record<string, unknown>>>(
-      `/JobOpenings/${jobOpeningId}/associate`,
+      `/JobOpenings/${jobOpeningId}/Candidates`,
       params
     )
 
