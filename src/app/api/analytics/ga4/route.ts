@@ -5,6 +5,7 @@ import {
   getTopLandingPages,
   getGeographicBreakdown,
   getOverviewMetrics,
+  GA4Error,
 } from '@/lib/google-analytics/client';
 
 type MetricType = 'sessions' | 'traffic' | 'pages' | 'geo' | 'overview';
@@ -46,6 +47,24 @@ export async function GET(request: Request) {
   }
 
   try {
+    // Debug: test client creation
+    const base64Key = process.env.GA4_SERVICE_ACCOUNT_KEY!;
+    const propertyId = process.env.GA4_PROPERTY_ID!;
+    let debugInfo: Record<string, unknown> = {
+      propertyId,
+      keyLength: base64Key.length,
+      keyPrefix: base64Key.slice(0, 20),
+    };
+    try {
+      const jsonStr = Buffer.from(base64Key, 'base64').toString('utf-8');
+      const creds = JSON.parse(jsonStr);
+      debugInfo.clientEmail = creds.client_email;
+      debugInfo.hasPrivateKey = !!creds.private_key;
+      debugInfo.keysInJson = Object.keys(creds);
+    } catch (e) {
+      debugInfo.parseError = e instanceof Error ? e.message : String(e);
+    }
+
     let data: unknown;
 
     switch (metric) {
@@ -71,9 +90,23 @@ export async function GET(request: Request) {
         );
     }
 
-    return NextResponse.json({ data });
+    return NextResponse.json({ data, debug: debugInfo });
   } catch (error) {
     console.error('[api/analytics/ga4] Error:', error);
+
+    // Surface GA4-specific errors with actionable info
+    if (error instanceof GA4Error) {
+      const status = error.code === 'PERMISSION_DENIED' ? 403 : 500;
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: error.code,
+          details: error.details,
+        },
+        { status }
+      );
+    }
+
     const message =
       error instanceof Error ? error.message : 'Internal server error';
     const stack =
