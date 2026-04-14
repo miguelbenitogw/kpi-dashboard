@@ -20,13 +20,9 @@ import SyncStatus from "./SyncStatus";
 
 const navItems = [
   { href: "/dashboard", label: "Resumen", icon: LayoutDashboard },
-  { href: "/dashboard/pipeline", label: "Pipeline", icon: GitBranch },
   { href: "/dashboard/promos", label: "Promociones", icon: GraduationCap },
   { href: "/dashboard/candidates", label: "Candidatos", icon: Users },
-  { href: "/dashboard/sla", label: "SLA & Tiempos", icon: Clock },
-  { href: "/dashboard/funnel", label: "Conversion", icon: Filter },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/dashboard/chat", label: "Asistente IA", icon: MessageSquare },
 ];
 
 export default function Sidebar() {
