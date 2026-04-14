@@ -28,6 +28,23 @@ export async function GET(request: Request) {
     );
   }
 
+  // Quick diagnostic: check if env vars are configured
+  const hasServiceKey = !!process.env.GA4_SERVICE_ACCOUNT_KEY;
+  const hasPropertyId = !!process.env.GA4_PROPERTY_ID;
+
+  if (!hasServiceKey || !hasPropertyId) {
+    return NextResponse.json(
+      {
+        error: 'GA4 not configured',
+        details: {
+          GA4_SERVICE_ACCOUNT_KEY: hasServiceKey ? 'set' : 'MISSING',
+          GA4_PROPERTY_ID: hasPropertyId ? 'set' : 'MISSING',
+        },
+      },
+      { status: 503 }
+    );
+  }
+
   try {
     let data: unknown;
 
@@ -57,8 +74,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ data });
   } catch (error) {
     console.error('[api/analytics/ga4] Error:', error);
+    const message =
+      error instanceof Error ? error.message : 'Internal server error';
+    const stack =
+      process.env.NODE_ENV !== 'production' && error instanceof Error
+        ? error.stack
+        : undefined;
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: message, stack },
       { status: 500 }
     );
   }

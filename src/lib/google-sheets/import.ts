@@ -450,6 +450,84 @@ export async function importPromoSheet(
 }
 
 // ---------------------------------------------------------------------------
+// Sync dropout data to candidates table
+// ---------------------------------------------------------------------------
+
+/**
+ * After importing dropout rows into promo_students, sync the dropout info
+ * back to the candidates table for any matched Zoho candidates.
+ *
+ * Matches by zoho_candidate_id (from promo_students) or by email.
+ */
+async function syncDropoutsToCandidates(
+  promoSheetId: string
+): Promise<{ synced: number; errors: string[] }> {
+  const syncResult = { synced: 0, errors: [] as string[] }
+
+  // Get all dropout rows from promo_students that have a Zoho match
+  const { data: dropoutStudents, error } = await supabaseAdmin
+    .from('promo_students')
+    .select('zoho_candidate_id, email, full_name, dropout_reason, dropout_date, dropout_notes, sheet_status')
+    .eq('promo_sheet_id', promoSheetId)
+    .eq('tab_name', 'Dropouts')
+
+  if (error || !dropoutStudents) {
+    syncResult.errors.push(`Failed to fetch dropout students: ${error?.message}`)
+    return syncResult
+  }
+
+  for (const student of dropoutStudents) {
+    // Need either a zoho_candidate_id or an email to match
+    if (!student.zoho_candidate_id && !student.email) continue
+
+    const updatePayload = {
+      dropout_reason: student.dropout_reason,
+      dropout_date: student.dropout_date,
+      dropout_notes: student.dropout_notes,
+    }
+
+    let updated = false
+
+    // Try matching by zoho_candidate_id first (= candidates.id)
+    if (student.zoho_candidate_id) {
+      const { error: updateError, data } = await supabaseAdmin
+        .from('candidates')
+        .update(updatePayload)
+        .eq('id', student.zoho_candidate_id)
+        .select('id')
+
+      if (updateError) {
+        syncResult.errors.push(
+          `Candidate ${student.zoho_candidate_id}: ${updateError.message}`
+        )
+      } else if (data && data.length > 0) {
+        syncResult.synced++
+        updated = true
+      }
+    }
+
+    // Fallback: try matching by email
+    if (!updated && student.email) {
+      const { error: updateError, data } = await supabaseAdmin
+        .from('candidates')
+        .update(updatePayload)
+        .eq('email', student.email)
+        .select('id')
+
+      if (updateError) {
+        syncResult.errors.push(
+          `Candidate email ${student.email}: ${updateError.message}`
+        )
+      } else if (data && data.length > 0) {
+        syncResult.synced++
+      }
+    }
+  }
+
+  return syncResult
+}
+
+// ---------------------------------------------------------------------------
 // Dedicated Dropouts tab import
 // ---------------------------------------------------------------------------
 
@@ -650,7 +728,21 @@ export async function importDropoutsTab(
     }
   }
 
-  // ---- Step 5: Mark sync as done -----------------------------------------
+  // ---- Step 5: Sync dropout data to candidates table ----------------------
+  try {
+    const syncResult = await syncDropoutsToCandidates(promoSheetId)
+    if (syncResult.errors.length > 0) {
+      result.errors.push(...syncResult.errors.map((e) => `[candidates sync] ${e}`))
+    }
+    // Track synced count in updated field
+    result.updated += syncResult.synced
+  } catch (err) {
+    result.errors.push(
+      `[candidates sync] Fatal: ${err instanceof Error ? err.message : String(err)}`
+    )
+  }
+
+  // ---- Step 6: Mark sync as done -----------------------------------------
   await supabaseAdmin
     .from('promo_sheets')
     .update({

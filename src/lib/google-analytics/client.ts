@@ -70,7 +70,20 @@ function getClient(): BetaAnalyticsDataClient | null {
     const credentials = JSON.parse(jsonStr) as {
       client_email: string;
       private_key: string;
+      project_id?: string;
     };
+
+    if (!credentials.client_email || !credentials.private_key) {
+      console.error(
+        '[GA4] Service account key missing client_email or private_key. Keys present:',
+        Object.keys(credentials).join(', ')
+      );
+      return null;
+    }
+
+    console.log(
+      `[GA4] Initializing client for service account: ${credentials.client_email}`
+    );
 
     _client = new BetaAnalyticsDataClient({
       credentials: {

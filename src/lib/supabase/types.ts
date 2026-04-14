@@ -36,6 +36,22 @@ export interface Database {
           last_synced_at: string | null
           created_at: string | null
           updated_at: string | null
+          // Excel madre columns
+          coordinador: string | null
+          tipo_perfil: string | null
+          cliente: string | null
+          fecha_fin_formacion: string | null
+          fecha_inicio_trabajo: string | null
+          tiempo_colocacion: string | null
+          notas_excel: string | null
+          promocion_nombre: string | null
+          // Dropout columns
+          dropout_reason: string | null
+          dropout_date: string | null
+          dropout_notes: string | null
+          dropout_attendance_pct: number | null
+          dropout_language_level: string | null
+          transferred_to: string | null
         }
         Insert: {
           id: string
@@ -63,6 +79,22 @@ export interface Database {
           last_synced_at?: string | null
           created_at?: string | null
           updated_at?: string | null
+          // Excel madre columns
+          coordinador?: string | null
+          tipo_perfil?: string | null
+          cliente?: string | null
+          fecha_fin_formacion?: string | null
+          fecha_inicio_trabajo?: string | null
+          tiempo_colocacion?: string | null
+          notas_excel?: string | null
+          promocion_nombre?: string | null
+          // Dropout columns
+          dropout_reason?: string | null
+          dropout_date?: string | null
+          dropout_notes?: string | null
+          dropout_attendance_pct?: number | null
+          dropout_language_level?: string | null
+          transferred_to?: string | null
         }
         Update: {
           id?: string
@@ -89,6 +121,22 @@ export interface Database {
           sla_status?: string | null
           last_synced_at?: string | null
           updated_at?: string | null
+          // Excel madre columns
+          coordinador?: string | null
+          tipo_perfil?: string | null
+          cliente?: string | null
+          fecha_fin_formacion?: string | null
+          fecha_inicio_trabajo?: string | null
+          tiempo_colocacion?: string | null
+          notas_excel?: string | null
+          promocion_nombre?: string | null
+          // Dropout columns
+          dropout_reason?: string | null
+          dropout_date?: string | null
+          dropout_notes?: string | null
+          dropout_attendance_pct?: number | null
+          dropout_language_level?: string | null
+          transferred_to?: string | null
         }
         Relationships: [
           {
@@ -560,6 +608,74 @@ export interface Database {
           },
         ]
       }
+      promo_targets: {
+        Row: {
+          id: number
+          promocion: string
+          modalidad: string | null
+          pais: string | null
+          coordinador: string | null
+          cliente: string | null
+          fecha_inicio: string | null
+          fecha_fin: string | null
+          objetivo_atraccion: number | null
+          total_aceptados: number | null
+          pct_consecucion_atraccion: number | null
+          objetivo_programa: number | null
+          total_programa: number | null
+          pct_consecucion_programa: number | null
+          expectativa_finalizan: number | null
+          pct_exito_estimado: number | null
+          contratos_firmados: number | null
+          raw_data: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: number
+          promocion: string
+          modalidad?: string | null
+          pais?: string | null
+          coordinador?: string | null
+          cliente?: string | null
+          fecha_inicio?: string | null
+          fecha_fin?: string | null
+          objetivo_atraccion?: number | null
+          total_aceptados?: number | null
+          pct_consecucion_atraccion?: number | null
+          objetivo_programa?: number | null
+          total_programa?: number | null
+          pct_consecucion_programa?: number | null
+          expectativa_finalizan?: number | null
+          pct_exito_estimado?: number | null
+          contratos_firmados?: number | null
+          raw_data?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: number
+          promocion?: string
+          modalidad?: string | null
+          pais?: string | null
+          coordinador?: string | null
+          cliente?: string | null
+          fecha_inicio?: string | null
+          fecha_fin?: string | null
+          objetivo_atraccion?: number | null
+          total_aceptados?: number | null
+          pct_consecucion_atraccion?: number | null
+          objetivo_programa?: number | null
+          total_programa?: number | null
+          pct_consecucion_programa?: number | null
+          expectativa_finalizan?: number | null
+          pct_exito_estimado?: number | null
+          contratos_firmados?: number | null
+          raw_data?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -620,3 +736,7 @@ export type PromoSheetUpdate = Database['public']['Tables']['promo_sheets']['Upd
 export type PromoStudent = Database['public']['Tables']['promo_students']['Row']
 export type PromoStudentInsert = Database['public']['Tables']['promo_students']['Insert']
 export type PromoStudentUpdate = Database['public']['Tables']['promo_students']['Update']
+
+export type PromoTarget = Database['public']['Tables']['promo_targets']['Row']
+export type PromoTargetInsert = Database['public']['Tables']['promo_targets']['Insert']
+export type PromoTargetUpdate = Database['public']['Tables']['promo_targets']['Update']

@@ -5,14 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  GitBranch,
-  GraduationCap,
   Users,
-  Clock,
-  Filter,
-  MessageSquare,
-  BarChart3,
-  Settings,
+  TrendingUp,
+  Megaphone,
   Menu,
   X,
 } from "lucide-react";
@@ -20,9 +15,9 @@ import SyncStatus from "./SyncStatus";
 
 const navItems = [
   { href: "/dashboard", label: "Resumen", icon: LayoutDashboard },
-  { href: "/dashboard/promos", label: "Promociones", icon: GraduationCap },
-  { href: "/dashboard/candidates", label: "Candidatos", icon: Users },
-  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/candidates", label: "Atracción", icon: Users },
+  { href: "/dashboard/rendimiento", label: "Rendimiento", icon: TrendingUp },
+  { href: "/dashboard/analytics", label: "Marketing", icon: Megaphone },
 ];
 
 export default function Sidebar() {
