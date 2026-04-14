@@ -9,6 +9,7 @@ import {
   GraduationCap,
   Clock,
   Filter,
+  MessageSquare,
   Menu,
   X,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/dashboard/promos", label: "Promociones", icon: GraduationCap },
   { href: "/dashboard/sla", label: "SLA & Tiempos", icon: Clock },
   { href: "/dashboard/funnel", label: "Conversion", icon: Filter },
+  { href: "/dashboard/chat", label: "Asistente IA", icon: MessageSquare },
 ];
 
 export default function Sidebar() {
