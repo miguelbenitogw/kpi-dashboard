@@ -100,8 +100,15 @@ const BASE_DATOS_COLUMN_MAP: Record<string, string[]> = {
 
 function mapBaseDatosHeader(header: string): string | null {
   const lower = header.toLowerCase().trim()
+  // First pass: exact match only (avoids false positives like "apellidos" matching "id")
   for (const [canonical, variants] of Object.entries(BASE_DATOS_COLUMN_MAP)) {
-    if (variants.some((v) => lower === v || lower.includes(v))) {
+    if (variants.some((v) => lower === v)) {
+      return canonical
+    }
+  }
+  // Second pass: substring match for longer variants only (min 4 chars to avoid "id" in "apellidos")
+  for (const [canonical, variants] of Object.entries(BASE_DATOS_COLUMN_MAP)) {
+    if (variants.some((v) => v.length >= 4 && lower.includes(v))) {
       return canonical
     }
   }
