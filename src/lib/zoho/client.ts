@@ -242,11 +242,11 @@ export async function fetchCandidatesByJobOpening(
 
   try {
     // Zoho Recruit "Get Associated Records" endpoint:
-    // GET /jobopening/{id}/associate
-    // CRITICAL: module is SINGULAR LOWERCASE "jobopening"
+    // GET /Job_Openings/{id}/associate
+    // TESTED: Only /Job_Openings (plural, underscore) + /associate works
     // Docs: https://www.zoho.com/recruit/developer-guide/apiv2/get-associated-records.html
     const response = await zohoFetch<ZohoListResponse<Record<string, unknown>>>(
-      `/jobopening/${jobOpeningId}/associate`,
+      `/Job_Openings/${jobOpeningId}/associate`,
       params
     )
 
