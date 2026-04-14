@@ -22,6 +22,18 @@ export async function POST(request: NextRequest) {
   const typeParam = searchParams.get('type') ?? 'promo'
 
   try {
+    // --- Reset cursor: clear stuck sync cursor ---
+    if (typeParam === 'reset-cursor') {
+      await clearSyncCursor()
+      const cursor = await getSyncCursor()
+
+      return NextResponse.json({
+        type: 'reset-cursor',
+        message: 'Sync cursor cleared successfully. Use ?type=chunked to start a fresh sync.',
+        cursor,
+      })
+    }
+
     // --- Cleanup: remove non-promo candidates from Supabase ---
     if (typeParam === 'cleanup') {
       const result = await cleanupNonPromoCandidates()
@@ -89,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: `Unknown sync type: ${typeParam}. Valid: promo, full, chunked, continue, cleanup, job-openings` },
+      { error: `Unknown sync type: ${typeParam}. Valid: promo, full, chunked, continue, cleanup, job-openings, reset-cursor` },
       { status: 400 }
     )
   } catch (error) {

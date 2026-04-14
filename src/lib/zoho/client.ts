@@ -54,7 +54,23 @@ export async function zohoFetch<T>(
       throw new Error(`Zoho API error ${response.status} on ${endpoint}: ${body}`)
     }
 
-    return (await response.json()) as T
+    // Handle 204 No Content or empty body gracefully
+    if (response.status === 204) {
+      return { data: [], info: { more_records: false, per_page: 0, count: 0, page: 1 } } as T
+    }
+
+    const text = await response.text()
+    if (!text || text.trim().length === 0) {
+      console.warn(`[zohoFetch] Empty response body for ${endpoint}, returning empty data`)
+      return { data: [], info: { more_records: false, per_page: 0, count: 0, page: 1 } } as T
+    }
+
+    try {
+      return JSON.parse(text) as T
+    } catch {
+      console.warn(`[zohoFetch] Malformed JSON for ${endpoint}: ${text.slice(0, 200)}`)
+      return { data: [], info: { more_records: false, per_page: 0, count: 0, page: 1 } } as T
+    }
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('Zoho API error')) {
       throw error
