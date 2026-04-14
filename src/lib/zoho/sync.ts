@@ -84,6 +84,7 @@ async function getPromoJobOpeningIds(): Promise<
     .from('job_openings')
     .select('id, title')
     .ilike('title', PROMO_PATTERN)
+    .eq('is_active', true)
 
   if (error) throw new Error(`Failed to query promo job openings: ${error.message}`)
   return data ?? []
@@ -281,10 +282,18 @@ export async function syncPromoCandidatesChunked(
         cursor.page++
       }
     } catch (err) {
-      errors.push(
-        `Job ${currentJobOpeningId} page ${cursor.page} failed: ${err instanceof Error ? err.message : String(err)}`
-      )
-      break
+      const errMsg = err instanceof Error ? err.message : String(err)
+      errors.push(`Job ${currentJobOpeningId} page ${cursor.page} failed: ${errMsg}`)
+      // On Zoho 500/404 errors, skip this job opening instead of stopping the whole sync
+      if (errMsg.includes('500') || errMsg.includes('404') || errMsg.includes('INTERNAL_ERROR')) {
+        cursor.promo_index++
+        cursor.page = 1
+        if (cursor.promo_index >= cursor.promo_job_opening_ids.length) {
+          cursor.completed = true
+        }
+      } else {
+        break
+      }
     }
   }
 
