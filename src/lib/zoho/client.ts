@@ -233,8 +233,9 @@ export async function fetchCandidatesByJobOpening(
   jobOpeningId: string,
   page: number = 1
 ): Promise<CandidatesPageResult> {
+  // The /associate endpoint only supports: page, per_page, candidate_statuses, posting_title
+  // It does NOT support the "fields" parameter (causes 400 error)
   const params: Record<string, string> = {
-    fields: CANDIDATE_FIELDS,
     per_page: String(MAX_PER_PAGE),
     page: String(page),
   }
