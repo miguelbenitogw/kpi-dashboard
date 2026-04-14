@@ -408,6 +408,158 @@ export interface Database {
         }
         Relationships: []
       }
+      promo_sheets: {
+        Row: {
+          id: string
+          job_opening_id: string | null
+          sheet_url: string
+          sheet_id: string | null
+          sheet_name: string | null
+          last_synced_at: string | null
+          sync_status: string | null
+          sync_error: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          job_opening_id?: string | null
+          sheet_url: string
+          sheet_id?: string | null
+          sheet_name?: string | null
+          last_synced_at?: string | null
+          sync_status?: string | null
+          sync_error?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          job_opening_id?: string | null
+          sheet_url?: string
+          sheet_id?: string | null
+          sheet_name?: string | null
+          last_synced_at?: string | null
+          sync_status?: string | null
+          sync_error?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'promo_sheets_job_opening_id_fkey'
+            columns: ['job_opening_id']
+            isOneToOne: false
+            referencedRelation: 'job_openings'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      promo_students: {
+        Row: {
+          id: string
+          promo_sheet_id: string
+          job_opening_id: string | null
+          full_name: string | null
+          email: string | null
+          phone: string | null
+          nationality: string | null
+          country_of_residence: string | null
+          native_language: string | null
+          english_level: string | null
+          german_level: string | null
+          work_permit: string | null
+          sheet_status: string | null
+          sheet_stage: string | null
+          start_date: string | null
+          end_date: string | null
+          enrollment_date: string | null
+          dropout_reason: string | null
+          dropout_date: string | null
+          dropout_notes: string | null
+          notes: string | null
+          zoho_candidate_id: string | null
+          zoho_status: string | null
+          zoho_matched_at: string | null
+          match_confidence: string | null
+          raw_data: Json | null
+          tab_name: string | null
+          row_number: number | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          promo_sheet_id: string
+          job_opening_id?: string | null
+          full_name?: string | null
+          email?: string | null
+          phone?: string | null
+          nationality?: string | null
+          country_of_residence?: string | null
+          native_language?: string | null
+          english_level?: string | null
+          german_level?: string | null
+          work_permit?: string | null
+          sheet_status?: string | null
+          sheet_stage?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          enrollment_date?: string | null
+          dropout_reason?: string | null
+          dropout_date?: string | null
+          dropout_notes?: string | null
+          notes?: string | null
+          zoho_candidate_id?: string | null
+          zoho_status?: string | null
+          zoho_matched_at?: string | null
+          match_confidence?: string | null
+          raw_data?: Json | null
+          tab_name?: string | null
+          row_number?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          promo_sheet_id?: string
+          job_opening_id?: string | null
+          full_name?: string | null
+          email?: string | null
+          phone?: string | null
+          nationality?: string | null
+          country_of_residence?: string | null
+          native_language?: string | null
+          english_level?: string | null
+          german_level?: string | null
+          work_permit?: string | null
+          sheet_status?: string | null
+          sheet_stage?: string | null
+          start_date?: string | null
+          end_date?: string | null
+          enrollment_date?: string | null
+          dropout_reason?: string | null
+          dropout_date?: string | null
+          dropout_notes?: string | null
+          notes?: string | null
+          zoho_candidate_id?: string | null
+          zoho_status?: string | null
+          zoho_matched_at?: string | null
+          match_confidence?: string | null
+          raw_data?: Json | null
+          tab_name?: string | null
+          row_number?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'promo_students_promo_sheet_id_fkey'
+            columns: ['promo_sheet_id']
+            isOneToOne: false
+            referencedRelation: 'promo_sheets'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -460,3 +612,11 @@ export type WebhookEventUpdate = Database['public']['Tables']['webhook_events'][
 export type UserPreference = Database['public']['Tables']['user_preferences']['Row']
 export type UserPreferenceInsert = Database['public']['Tables']['user_preferences']['Insert']
 export type UserPreferenceUpdate = Database['public']['Tables']['user_preferences']['Update']
+
+export type PromoSheet = Database['public']['Tables']['promo_sheets']['Row']
+export type PromoSheetInsert = Database['public']['Tables']['promo_sheets']['Insert']
+export type PromoSheetUpdate = Database['public']['Tables']['promo_sheets']['Update']
+
+export type PromoStudent = Database['public']['Tables']['promo_students']['Row']
+export type PromoStudentInsert = Database['public']['Tables']['promo_students']['Insert']
+export type PromoStudentUpdate = Database['public']['Tables']['promo_students']['Update']
