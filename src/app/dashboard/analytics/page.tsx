@@ -201,7 +201,22 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {error && errorCode !== 'PERMISSION_DENIED' && (
+      {error && errorCode === 'NOT_CONFIGURED' && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6">
+          <h3 className="text-lg font-semibold text-amber-300">
+            API Key no configurada
+          </h3>
+          <p className="mt-2 text-sm text-amber-400/90">
+            Configurar la variable de entorno{' '}
+            <code className="rounded bg-gray-900/60 px-2 py-0.5 text-amber-200">
+              NEXT_PUBLIC_SYNC_API_KEY
+            </code>{' '}
+            en Vercel para conectar el dashboard con la API de analytics.
+          </p>
+        </div>
+      )}
+
+      {error && errorCode !== 'PERMISSION_DENIED' && errorCode !== 'NOT_CONFIGURED' && (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6">
           <p className="text-red-400">Error: {error}</p>
           <button
@@ -218,12 +233,13 @@ export default function AnalyticsPage() {
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-8 text-center">
           <Radio className="mx-auto h-10 w-10 text-amber-400" />
           <h3 className="mt-4 text-lg font-semibold text-amber-300">
-            GA4 no configurado
+            No hay datos para este periodo
           </h3>
           <p className="mt-2 text-sm text-amber-400/80">
-            No se encontraron datos de Google Analytics. Verifica que las
-            variables de entorno GA4_PROPERTY_ID y GA4_SERVICE_ACCOUNT_KEY
-            esten configuradas correctamente.
+            No se encontraron datos de Google Analytics para el rango
+            seleccionado. Si es la primera vez, verifica que las variables de
+            entorno GA4_PROPERTY_ID y GA4_SERVICE_ACCOUNT_KEY esten
+            configuradas correctamente.
           </p>
         </div>
       )}

@@ -52,6 +52,16 @@ export interface Database {
           dropout_attendance_pct: number | null
           dropout_language_level: string | null
           transferred_to: string | null
+          // Placement columns (Global Placement tab)
+          placement_status: string | null
+          placement_client: string | null
+          placement_location: string | null
+          placement_date: string | null
+          flight_date: string | null
+          hospitering_dates: string | null
+          hpr_number: string | null
+          // Promotion link
+          promotion_id: string | null
         }
         Insert: {
           id: string
@@ -95,6 +105,16 @@ export interface Database {
           dropout_attendance_pct?: number | null
           dropout_language_level?: string | null
           transferred_to?: string | null
+          // Placement columns (Global Placement tab)
+          placement_status?: string | null
+          placement_client?: string | null
+          placement_location?: string | null
+          placement_date?: string | null
+          flight_date?: string | null
+          hospitering_dates?: string | null
+          hpr_number?: string | null
+          // Promotion link
+          promotion_id?: string | null
         }
         Update: {
           id?: string
@@ -137,6 +157,16 @@ export interface Database {
           dropout_attendance_pct?: number | null
           dropout_language_level?: string | null
           transferred_to?: string | null
+          // Placement columns (Global Placement tab)
+          placement_status?: string | null
+          placement_client?: string | null
+          placement_location?: string | null
+          placement_date?: string | null
+          flight_date?: string | null
+          hospitering_dates?: string | null
+          hpr_number?: string | null
+          // Promotion link
+          promotion_id?: string | null
         }
         Relationships: [
           {
@@ -146,7 +176,97 @@ export interface Database {
             referencedRelation: 'job_openings'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'candidates_promotion_id_fkey'
+            columns: ['promotion_id']
+            isOneToOne: false
+            referencedRelation: 'promotions'
+            referencedColumns: ['id']
+          },
         ]
+      }
+      promotions: {
+        Row: {
+          id: string
+          nombre: string
+          numero: number | null
+          modalidad: string | null
+          pais: string | null
+          coordinador: string | null
+          cliente: string | null
+          fecha_inicio: string | null
+          fecha_fin: string | null
+          objetivo_atraccion: number | null
+          objetivo_programa: number | null
+          expectativa_finalizan: number | null
+          total_aceptados: number | null
+          total_programa: number | null
+          total_hired: number | null
+          total_dropouts: number | null
+          total_candidates: number | null
+          zoho_job_opening_id: string | null
+          sheet_url: string | null
+          sheet_madre_row: number | null
+          is_active: boolean | null
+          phase: string | null
+          raw_data: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          nombre: string
+          numero?: number | null
+          modalidad?: string | null
+          pais?: string | null
+          coordinador?: string | null
+          cliente?: string | null
+          fecha_inicio?: string | null
+          fecha_fin?: string | null
+          objetivo_atraccion?: number | null
+          objetivo_programa?: number | null
+          expectativa_finalizan?: number | null
+          total_aceptados?: number | null
+          total_programa?: number | null
+          total_hired?: number | null
+          total_dropouts?: number | null
+          total_candidates?: number | null
+          zoho_job_opening_id?: string | null
+          sheet_url?: string | null
+          sheet_madre_row?: number | null
+          is_active?: boolean | null
+          phase?: string | null
+          raw_data?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          nombre?: string
+          numero?: number | null
+          modalidad?: string | null
+          pais?: string | null
+          coordinador?: string | null
+          cliente?: string | null
+          fecha_inicio?: string | null
+          fecha_fin?: string | null
+          objetivo_atraccion?: number | null
+          objetivo_programa?: number | null
+          expectativa_finalizan?: number | null
+          total_aceptados?: number | null
+          total_programa?: number | null
+          total_hired?: number | null
+          total_dropouts?: number | null
+          total_candidates?: number | null
+          zoho_job_opening_id?: string | null
+          sheet_url?: string | null
+          sheet_madre_row?: number | null
+          is_active?: boolean | null
+          phase?: string | null
+          raw_data?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       job_openings: {
         Row: {
@@ -776,6 +896,10 @@ export type PromoStudentUpdate = Database['public']['Tables']['promo_students'][
 export type PromoTarget = Database['public']['Tables']['promo_targets']['Row']
 export type PromoTargetInsert = Database['public']['Tables']['promo_targets']['Insert']
 export type PromoTargetUpdate = Database['public']['Tables']['promo_targets']['Update']
+
+export type Promotion = Database['public']['Tables']['promotions']['Row']
+export type PromotionInsert = Database['public']['Tables']['promotions']['Insert']
+export type PromotionUpdate = Database['public']['Tables']['promotions']['Update']
 
 export type CandidateJobHistory = Database['public']['Tables']['candidate_job_history']['Row']
 export type CandidateJobHistoryInsert = Database['public']['Tables']['candidate_job_history']['Insert']
