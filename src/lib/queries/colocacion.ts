@@ -1,5 +1,114 @@
 import { supabase } from '@/lib/supabase/client'
 
+// ── GP-based queries (Global Placement tab) ──────────────────────────────────
+
+export interface GPStatusCount {
+  status: string
+  count: number
+  percentage: number
+}
+
+export interface GPCandidateSummary {
+  id: string
+  full_name: string | null
+  gp_training_status: string | null
+  gp_open_to: string | null
+  gp_priority: string | null
+  gp_availability: string | null
+}
+
+export async function getGPTrainingStatusCounts(): Promise<GPStatusCount[]> {
+  const { data, error } = await (supabase as any)
+    .from('candidates')
+    .select('gp_training_status')
+    .not('gp_training_status', 'is', null)
+
+  if (error) {
+    console.error('Error fetching GP training status counts:', error)
+    return []
+  }
+
+  if (!data || data.length === 0) return []
+
+  const total = data.length
+  const countMap = new Map<string, number>()
+  for (const row of data) {
+    const val = (row.gp_training_status as string) || 'Sin dato'
+    countMap.set(val, (countMap.get(val) ?? 0) + 1)
+  }
+
+  return Array.from(countMap.entries())
+    .map(([status, count]) => ({
+      status,
+      count,
+      percentage: Math.round((count / total) * 10000) / 100,
+    }))
+    .sort((a, b) => b.count - a.count)
+}
+
+export async function getGPOpenToCounts(): Promise<GPStatusCount[]> {
+  const { data, error } = await (supabase as any)
+    .from('candidates')
+    .select('gp_open_to')
+    .not('gp_open_to', 'is', null)
+
+  if (error) {
+    console.error('Error fetching GP open to counts:', error)
+    return []
+  }
+
+  if (!data || data.length === 0) return []
+
+  const total = data.length
+  const countMap = new Map<string, number>()
+  for (const row of data) {
+    const val = (row.gp_open_to as string) || 'Sin dato'
+    countMap.set(val, (countMap.get(val) ?? 0) + 1)
+  }
+
+  return Array.from(countMap.entries())
+    .map(([status, count]) => ({
+      status,
+      count,
+      percentage: Math.round((count / total) * 10000) / 100,
+    }))
+    .sort((a, b) => b.count - a.count)
+}
+
+export async function getGPCandidatesByStatus(
+  status: string,
+): Promise<GPCandidateSummary[]> {
+  const { data, error } = await (supabase as any)
+    .from('candidates')
+    .select('id, full_name, gp_training_status, gp_open_to, gp_priority, gp_availability')
+    .eq('gp_training_status', status)
+    .order('full_name', { ascending: true, nullsFirst: false })
+
+  if (error) {
+    console.error('Error fetching GP candidates by status:', error)
+    return []
+  }
+
+  return (data ?? []) as GPCandidateSummary[]
+}
+
+export async function getGPCandidatesByOpenTo(
+  openTo: string,
+): Promise<GPCandidateSummary[]> {
+  const { data, error } = await (supabase as any)
+    .from('candidates')
+    .select('id, full_name, gp_training_status, gp_open_to, gp_priority, gp_availability')
+    .eq('gp_open_to', openTo)
+    .order('full_name', { ascending: true, nullsFirst: false })
+
+  if (error) {
+    console.error('Error fetching GP candidates by open to:', error)
+    return []
+  }
+
+  return (data ?? []) as GPCandidateSummary[]
+}
+
 export interface PlacementPreferenceCount {
   preference: string
   count: number

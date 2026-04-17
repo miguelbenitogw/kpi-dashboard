@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { importExcelMadre } from '@/lib/google-sheets/import-madre'
 import { importPromoSheet } from '@/lib/google-sheets/import'
+import { importGlobalPlacement } from '@/lib/google-sheets/import-global-placement'
 
 export const maxDuration = 60
 
@@ -31,6 +32,12 @@ export async function GET(request: NextRequest) {
       resumen: { upserted: number; skipped: number } | null
       errors: string[]
     }
+    global_placement: {
+      updated: number
+      skipped: number
+      not_matched: number
+      errors: string[]
+    }
     promo_sheets: Array<{
       sheet_name: string | null
       status: 'success' | 'error' | 'skipped'
@@ -39,6 +46,7 @@ export async function GET(request: NextRequest) {
     }>
   } = {
     excel_madre: { base_datos: null, resumen: null, errors: [] },
+    global_placement: { updated: 0, skipped: 0, not_matched: 0, errors: [] },
     promo_sheets: [],
   }
 
@@ -63,7 +71,21 @@ export async function GET(request: NextRequest) {
     results.excel_madre.errors.push(`Fatal: ${msg}`)
   }
 
-  // ---- Phase 2: Re-sync all registered promo sheets -----------------------
+  // ---- Phase 2: Global Placement tab import --------------------------------
+  try {
+    const gpResult = await importGlobalPlacement()
+    results.global_placement = {
+      updated: gpResult.updated,
+      skipped: gpResult.skipped,
+      not_matched: gpResult.notMatched,
+      errors: gpResult.errors,
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    results.global_placement.errors.push(`Fatal: ${msg}`)
+  }
+
+  // ---- Phase 3: Re-sync all registered promo sheets -----------------------
   const { data: sheets, error: sheetsError } = await supabaseAdmin
     .from('promo_sheets')
     .select('id, sheet_url, sheet_name, job_opening_id, sync_status')
@@ -132,6 +154,7 @@ export async function GET(request: NextRequest) {
 
   const hasErrors =
     results.excel_madre.errors.length > 0 ||
+    results.global_placement.errors.length > 0 ||
     results.promo_sheets.some((r) => r.status === 'error')
 
   return NextResponse.json(

@@ -236,9 +236,9 @@ export async function getPromotionsFormacionOverview(): Promise<
 > {
   const { data: promotions, error } = await supabase
     .from('promotions')
-    .select('id, nombre, expectativa_finalizan, total_dropouts, is_active')
+    .select('id, nombre, expectativa_finalizan, total_dropouts, is_active, fecha_fin')
     .eq('is_active', true)
-    .order('nombre', { ascending: true })
+    .order('fecha_fin', { ascending: true, nullsFirst: false })
 
   if (error) {
     console.error('Error fetching promotions overview:', error)

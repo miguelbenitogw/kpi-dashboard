@@ -218,7 +218,7 @@ export async function getActivePromotions(): Promise<ActivePromotion[]> {
       'id, nombre, coordinador, cliente, fecha_fin, objetivo_atraccion, total_aceptados',
     )
     .eq('is_active', true)
-    .order('nombre', { ascending: true })
+    .order('fecha_fin', { ascending: true, nullsFirst: false })
 
   if (error) {
     console.error('Error fetching active promotions:', error)

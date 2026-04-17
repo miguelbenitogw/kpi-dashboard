@@ -6,7 +6,7 @@ export async function getJobOpenings(): Promise<JobOpening[]> {
     .from('job_openings')
     .select('*')
     .eq('is_active', true)
-    .order('title', { ascending: true })
+    .order('date_opened', { ascending: false, nullsFirst: false })
 
   if (error) throw error
   return data ?? []
@@ -19,6 +19,7 @@ export async function getCandidatesByVacancy(jobOpeningId: string): Promise<
     .from('candidates')
     .select('*')
     .eq('job_opening_id', jobOpeningId)
+    .order('modified_time', { ascending: false, nullsFirst: false })
 
   if (candError) throw candError
 
