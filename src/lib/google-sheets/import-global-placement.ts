@@ -74,6 +74,16 @@ const PLACEMENT_COLUMN_MAP: Record<string, string[]> = {
   gp_priority: ['priority', 'prioridad'],
   gp_shots: ['shots', 'shots program', 'vacunas'],
   gp_has_profile: ['has global placement profile?', 'has gp profile', 'gp profile', 'tiene perfil gp', 'perfil gp'],
+  // Remaining GP columns (added migration 014)
+  gp_comments:              ['comments (coordinators)', 'comments (coordinato', 'comments'],
+  gp_cv_norsk:              ['cv norsk'],
+  gp_blind_cv_norsk:        ['blind cv norsk'],
+  gp_pk:                    ['pk (presenting card)', 'presenting card', 'pk'],
+  gp_criminal_record:       ['criminal record'],
+  gp_sarm:                  ['sarm'],
+  gp_mantux:                ['mantux'],
+  gp_last_update_placement: ['last update (placement)', 'last update placement', 'last update'],
+  gp_arrival_date:          ['arrival date', 'arrival'],
 }
 
 function mapPlacementHeader(header: string): string | null {
@@ -281,6 +291,44 @@ export async function importGlobalPlacement(): Promise<GlobalPlacementResult> {
     if (mapped['gp_has_profile'] !== undefined) {
       const val = mapped['gp_has_profile']?.toLowerCase().trim()
       updateData.gp_has_profile = val === 'yes' || val === 'sí' || val === 'si' || val === 'true' || val === '1'
+    }
+    // Remaining GP columns (migration 014)
+    if (mapped['gp_comments']) {
+      updateData.gp_comments = mapped['gp_comments']
+    }
+    if (mapped['gp_cv_norsk'] !== undefined) {
+      updateData.gp_cv_norsk = ['true', 'yes', 'si', 'sí', '1'].includes(
+        (mapped['gp_cv_norsk'] ?? '').toLowerCase().trim()
+      )
+    }
+    if (mapped['gp_blind_cv_norsk'] !== undefined) {
+      updateData.gp_blind_cv_norsk = ['true', 'yes', 'si', 'sí', '1'].includes(
+        (mapped['gp_blind_cv_norsk'] ?? '').toLowerCase().trim()
+      )
+    }
+    if (mapped['gp_pk']) {
+      updateData.gp_pk = mapped['gp_pk']
+    }
+    if (mapped['gp_criminal_record'] !== undefined) {
+      updateData.gp_criminal_record = ['true', 'yes', 'si', 'sí', '1'].includes(
+        (mapped['gp_criminal_record'] ?? '').toLowerCase().trim()
+      )
+    }
+    if (mapped['gp_sarm'] !== undefined) {
+      updateData.gp_sarm = ['true', 'yes', 'si', 'sí', '1'].includes(
+        (mapped['gp_sarm'] ?? '').toLowerCase().trim()
+      )
+    }
+    if (mapped['gp_mantux'] !== undefined) {
+      updateData.gp_mantux = ['true', 'yes', 'si', 'sí', '1'].includes(
+        (mapped['gp_mantux'] ?? '').toLowerCase().trim()
+      )
+    }
+    if (mapped['gp_last_update_placement']) {
+      updateData.gp_last_update_placement = mapped['gp_last_update_placement']
+    }
+    if (mapped['gp_arrival_date']) {
+      updateData.gp_arrival_date = parseDate(mapped['gp_arrival_date'])
     }
 
     // Skip rows with no placement data to update

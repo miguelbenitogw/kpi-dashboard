@@ -2,14 +2,19 @@
  * Excel madre import pipeline.
  *
  * Fetches data from the "Excel madre" Google Sheet and syncs it into Supabase.
- * Two tabs are imported:
- *   - Base Datos: individual candidate enrichment data
- *   - Resumen: promo-level aggregate targets
+ * Tabs imported:
+ *   - Base Datos (gid=1510708848): individual candidate enrichment data
+ *   - Resumen (gid=562297340): promo-level aggregate targets
+ *   - Global Placement (gid=1470777220): placement tracking per candidate
+ *   - Pagos - Proyectos (gid=1007684536): billing/payment data per candidate
+ *   - Curso Desarrollo (gid=244488307): training session attendance per promo
  */
 
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { buildCsvUrl, parseCSV, type SheetRow } from './client'
 import { importGlobalPlacement, type GlobalPlacementResult } from './import-global-placement'
+import { importPagos, type PagosResult } from './import-pagos'
+import { importCursoDesarrollo, type CursoDesarrolloResult } from './import-curso-desarrollo'
 import {
   extractPromoNumber,
   syncPromotionsFromCandidates,
@@ -388,6 +393,8 @@ export interface ExcelMadreResult {
   baseDatos: BaseDatosResult
   resumen: ResumenResult
   globalPlacement: GlobalPlacementResult
+  pagos: PagosResult
+  cursoDesarrollo: CursoDesarrolloResult
   promotionsCreate: PromotionsCreateResult
   promotionsSync: SyncPromotionCountsResult
   errors: string[]
@@ -471,7 +478,9 @@ async function createPromotionsFromCandidates(): Promise<PromotionsCreateResult>
  *   2. Resumen — import promo targets
  *   3. Create/update promotions from distinct promo names
  *   4. Global Placement — import placement data
- *   5. Sync promotion counts from candidates
+ *   5. Pagos — import billing/payment data into pagos_candidato
+ *   6. Curso Desarrollo — import training session attendance
+ *   7. Sync promotion counts from candidates (including new state counts)
  */
 export async function importExcelMadre(): Promise<ExcelMadreResult> {
   const errors: string[] = []
@@ -479,6 +488,8 @@ export async function importExcelMadre(): Promise<ExcelMadreResult> {
   let baseDatos: BaseDatosResult = { updated: 0, inserted: 0, skipped: 0, errors: [] }
   let resumen: ResumenResult = { upserted: 0, skipped: 0, errors: [] }
   let globalPlacement: GlobalPlacementResult = { updated: 0, skipped: 0, notMatched: 0, errors: [] }
+  let pagos: PagosResult = { updated: 0, inserted: 0, skipped: 0, errors: [] }
+  let cursoDesarrollo: CursoDesarrolloResult = { inserted: 0, deleted: 0, errors: [] }
   let promotionsCreate: PromotionsCreateResult = { created: 0, updated: 0, errors: [] }
   let promotionsSync: SyncPromotionCountsResult = { synced: 0, errors: [] }
 
@@ -526,7 +537,29 @@ export async function importExcelMadre(): Promise<ExcelMadreResult> {
     errors.push(`[GlobalPlacement] Fatal: ${msg}`)
   }
 
-  // Step 5: Sync promotion counts
+  // Step 5: Pagos
+  try {
+    pagos = await importPagos()
+    if (pagos.errors.length > 0) {
+      errors.push(...pagos.errors.map((e) => `[Pagos] ${e}`))
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    errors.push(`[Pagos] Fatal: ${msg}`)
+  }
+
+  // Step 6: Curso Desarrollo
+  try {
+    cursoDesarrollo = await importCursoDesarrollo()
+    if (cursoDesarrollo.errors.length > 0) {
+      errors.push(...cursoDesarrollo.errors.map((e) => `[CursoDesarrollo] ${e}`))
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    errors.push(`[CursoDesarrollo] Fatal: ${msg}`)
+  }
+
+  // Step 7: Sync promotion counts (includes new granular state counts from migration 014)
   try {
     promotionsSync = await syncPromotionsFromCandidates()
     if (promotionsSync.errors.length > 0) {
@@ -537,5 +570,5 @@ export async function importExcelMadre(): Promise<ExcelMadreResult> {
     errors.push(`[PromoSync] Fatal: ${msg}`)
   }
 
-  return { baseDatos, resumen, globalPlacement, promotionsCreate, promotionsSync, errors }
+  return { baseDatos, resumen, globalPlacement, pagos, cursoDesarrollo, promotionsCreate, promotionsSync, errors }
 }

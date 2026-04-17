@@ -42,6 +42,19 @@ const PROGRAM_STATUSES = [
   ...HIRED_STATUSES,
 ]
 
+// Granular state counts (migration 014)
+const STATUS_TRAINING_FINISHED   = 'Training Finished'
+const STATUS_TO_PLACE            = 'To Place'
+const STATUS_ASSIGNED            = 'Assigned'
+const STATUS_OFFER_WITHDRAWN     = 'Offer-Withdrawn'
+const STATUS_EXPELLED            = 'Expelled'
+const STATUS_OFFER_DECLINED      = 'Offer-Declined'
+const STATUS_APPROVED_BY_CLIENT  = 'Approved by Client'
+const STATUS_REJECTED_BY_CLIENT  = 'Rejected by Client'
+const STATUS_TRANSFERRED         = 'Transferred'
+const STATUS_STAND_BY            = 'Stand By'
+const STATUS_NEXT_PROJECT        = 'Next Project'
+
 // --- Read queries (use anon client) ---
 
 /**
@@ -177,6 +190,18 @@ export async function syncPromotionsFromCandidates(): Promise<SyncPromotionCount
       total_programa: number
       total_hired: number
       total_dropouts: number
+      // Granular state counts (migration 014)
+      total_training_finished: number
+      total_to_place: number
+      total_assigned: number
+      total_offer_withdrawn: number
+      total_expelled: number
+      total_offer_declined: number
+      total_approved_by_client: number
+      total_rejected_by_client: number
+      total_transferred: number
+      total_stand_by: number
+      total_next_project: number
       candidateIds: string[]
     }
   >()
@@ -190,6 +215,17 @@ export async function syncPromotionsFromCandidates(): Promise<SyncPromotionCount
         total_programa: 0,
         total_hired: 0,
         total_dropouts: 0,
+        total_training_finished: 0,
+        total_to_place: 0,
+        total_assigned: 0,
+        total_offer_withdrawn: 0,
+        total_expelled: 0,
+        total_offer_declined: 0,
+        total_approved_by_client: 0,
+        total_rejected_by_client: 0,
+        total_transferred: 0,
+        total_stand_by: 0,
+        total_next_project: 0,
         candidateIds: [],
       })
     }
@@ -203,6 +239,19 @@ export async function syncPromotionsFromCandidates(): Promise<SyncPromotionCount
     if (PROGRAM_STATUSES.includes(status)) entry.total_programa++
     if (HIRED_STATUSES.includes(status)) entry.total_hired++
     if (DROPOUT_STATUSES.includes(status)) entry.total_dropouts++
+
+    // Granular state counts
+    if (status === STATUS_TRAINING_FINISHED)   entry.total_training_finished++
+    if (status === STATUS_TO_PLACE)            entry.total_to_place++
+    if (status === STATUS_ASSIGNED)            entry.total_assigned++
+    if (status === STATUS_OFFER_WITHDRAWN)     entry.total_offer_withdrawn++
+    if (status === STATUS_EXPELLED)            entry.total_expelled++
+    if (status === STATUS_OFFER_DECLINED)      entry.total_offer_declined++
+    if (status === STATUS_APPROVED_BY_CLIENT)  entry.total_approved_by_client++
+    if (status === STATUS_REJECTED_BY_CLIENT)  entry.total_rejected_by_client++
+    if (status === STATUS_TRANSFERRED)         entry.total_transferred++
+    if (status === STATUS_STAND_BY)            entry.total_stand_by++
+    if (status === STATUS_NEXT_PROJECT)        entry.total_next_project++
   }
 
   // Step 4: update each promotion
@@ -221,8 +270,22 @@ export async function syncPromotionsFromCandidates(): Promise<SyncPromotionCount
         total_programa: counts.total_programa,
         total_hired: counts.total_hired,
         total_dropouts: counts.total_dropouts,
+        // Granular state counts (migration 014) — cast because types pre-date migration
+        ...(({
+          total_training_finished:  counts.total_training_finished,
+          total_to_place:           counts.total_to_place,
+          total_assigned:           counts.total_assigned,
+          total_offer_withdrawn:    counts.total_offer_withdrawn,
+          total_expelled:           counts.total_expelled,
+          total_offer_declined:     counts.total_offer_declined,
+          total_approved_by_client: counts.total_approved_by_client,
+          total_rejected_by_client: counts.total_rejected_by_client,
+          total_transferred:        counts.total_transferred,
+          total_stand_by:           counts.total_stand_by,
+          total_next_project:       counts.total_next_project,
+        }) as Record<string, unknown>),
         updated_at: new Date().toISOString(),
-      })
+      } as any)
       .eq('id', promoId)
 
     if (updateError) {
