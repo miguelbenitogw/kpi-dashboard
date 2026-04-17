@@ -36,7 +36,6 @@ export async function getGPPromotions(): Promise<PromoGPSummary[]> {
     (supabase as any)
       .from('candidates')
       .select('promocion_nombre')
-      .not('gp_training_status', 'is', null)
       .not('promocion_nombre', 'is', null),
     (supabase as any)
       .from('promo_job_link')
@@ -92,8 +91,9 @@ export async function getGPTrainingStatusCounts(
 ): Promise<GPStatusCount[]> {
   let query = (supabase as any)
     .from('candidates')
-    .select('gp_training_status')
-    .not('gp_training_status', 'is', null)
+    .select('current_status')
+    .not('current_status', 'is', null)
+    .not('promocion_nombre', 'is', null)
 
   if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
 
@@ -104,7 +104,7 @@ export async function getGPTrainingStatusCounts(
   const total = data.length
   const countMap = new Map<string, number>()
   for (const row of data) {
-    const val = (row.gp_training_status as string) || 'Sin dato'
+    const val = (row.current_status as string) || 'Sin dato'
     countMap.set(val, (countMap.get(val) ?? 0) + 1)
   }
 
@@ -158,7 +158,7 @@ export async function getGPCandidatesByStatus(
     .select(
       'id, full_name, gp_training_status, gp_open_to, gp_availability, assigned_agency',
     )
-    .eq('gp_training_status', status)
+    .eq('current_status', status)
     .order('full_name', { ascending: true, nullsFirst: false })
 
   if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)

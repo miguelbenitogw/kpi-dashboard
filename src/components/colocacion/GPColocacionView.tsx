@@ -384,7 +384,7 @@ export default function GPColocacionView() {
       {/* ── Two-column GP view ── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <SectionCard
-          title="Status (Training)"
+          title="Estado"
           subtitle={selectedPromo ? selectedPromo : 'Todos los candidatos GP'}
           data={statusData}
           loading={loadingCounts}
