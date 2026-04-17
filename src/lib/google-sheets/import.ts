@@ -509,7 +509,7 @@ async function syncDropoutsToCandidates(
     if (student.zoho_candidate_id) {
       const { error: updateError, data } = await supabaseAdmin
         .from('candidates')
-        .update(updatePayload)
+        .update(updatePayload as any)
         .eq('id', student.zoho_candidate_id)
         .select('id')
 
@@ -527,7 +527,7 @@ async function syncDropoutsToCandidates(
     if (!updated && student.email) {
       const { error: updateError, data } = await supabaseAdmin
         .from('candidates')
-        .update(updatePayload)
+        .update(updatePayload as any)
         .eq('email', student.email)
         .select('id')
 

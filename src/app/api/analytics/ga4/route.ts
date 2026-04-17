@@ -5,10 +5,11 @@ import {
   getTopLandingPages,
   getGeographicBreakdown,
   getOverviewMetrics,
+  getPageViewsByTitle,
   GA4Error,
 } from '@/lib/google-analytics/client';
 
-type MetricType = 'sessions' | 'traffic' | 'pages' | 'geo' | 'overview';
+type MetricType = 'sessions' | 'traffic' | 'pages' | 'geo' | 'overview' | 'page_titles';
 
 export async function GET(request: Request) {
   // Auth: same x-api-key pattern used across the project

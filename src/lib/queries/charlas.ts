@@ -43,12 +43,12 @@ export interface CharlasSummary {
 
 export async function getCharlasSummary(): Promise<CharlasSummary> {
   const [temporadaRes, totalesRes] = await Promise.all([
-    supabase
+    (supabase as any)
       .from('charlas_temporada')
       .select('*')
       .order('temporada', { ascending: true })
       .order('programa', { ascending: true }),
-    supabase.from('charlas_programa_totales').select('*'),
+    (supabase as any).from('charlas_programa_totales').select('*'),
   ])
 
   const porTemporada = (temporadaRes.data ?? []) as CharlaTemporadaRow[]
@@ -96,7 +96,7 @@ export interface CharlaTemporadaUpsert {
 
 export async function upsertCharlasTemporada(rows: CharlaTemporadaUpsert[]) {
   if (rows.length === 0) return { count: 0 }
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await (supabaseAdmin as any)
     .from('charlas_temporada')
     .upsert(rows, { onConflict: 'temporada,programa' })
     .select()
@@ -110,7 +110,7 @@ export async function upsertProgramaTotales(rows: {
   total_registros?: number | null
 }[]) {
   if (rows.length === 0) return { count: 0 }
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await (supabaseAdmin as any)
     .from('charlas_programa_totales')
     .upsert(rows, { onConflict: 'programa' })
     .select()

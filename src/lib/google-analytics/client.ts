@@ -36,6 +36,12 @@ export interface LandingPage {
   avgDuration: number;
 }
 
+export interface PageViewByTitle {
+  title: string;
+  pageviews: number;
+  sessions: number;
+}
+
 export interface GeoBreakdown {
   country: string;
   sessions: number;
@@ -262,6 +268,43 @@ export async function getGeographicBreakdown(
     }));
   } catch (err) {
     handleGoogleApiError(err, 'getGeographicBreakdown');
+  }
+}
+
+/**
+ * Page views grouped by page title (human-readable titles, not URL paths).
+ */
+export async function getPageViewsByTitle(
+  startDate: string,
+  endDate: string,
+  limit = 20
+): Promise<PageViewByTitle[]> {
+  const client = getClient();
+  const property = getPropertyId();
+  if (!client || !property) return [];
+
+  try {
+    const [response] = await client.runReport({
+      property,
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: 'pageTitle' }],
+      metrics: [
+        { name: 'screenPageViews' },
+        { name: 'sessions' },
+      ],
+      orderBys: [
+        { metric: { metricName: 'screenPageViews' }, desc: true },
+      ],
+      limit,
+    });
+
+    return (response.rows ?? []).map((row) => ({
+      title: row.dimensionValues?.[0]?.value ?? '(sin titulo)',
+      pageviews: parseInt(row.metricValues?.[0]?.value ?? '0', 10),
+      sessions: parseInt(row.metricValues?.[1]?.value ?? '0', 10),
+    }));
+  } catch (err) {
+    handleGoogleApiError(err, 'getPageViewsByTitle');
   }
 }
 
