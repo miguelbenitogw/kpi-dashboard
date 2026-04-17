@@ -281,11 +281,13 @@ export default function GPColocacionView() {
     setRefreshMsg(null)
     startTransition(async () => {
       const result = await refreshGlobalPlacement()
-      if (result.success) {
-        const parts = [`✓ ${result.updated} actualizados`]
-        if (result.skipped > 0) parts.push(`${result.skipped} sin cambios`)
-        if (result.notMatched > 0) parts.push(`${result.notMatched} sin match`)
-        setRefreshMsg({ ok: result.updated > 0 || result.skipped > 0, text: parts.join(' · ') })
+      if (result.errors.length === 0 || result.gpUpdated > 0) {
+        const parts = []
+        if (result.madreUpdated + result.madreInserted > 0)
+          parts.push(`Base Datos: ${result.madreUpdated + result.madreInserted}`)
+        parts.push(`GP: ${result.gpUpdated} actualizados`)
+        if (result.gpNotMatched > 0) parts.push(`${result.gpNotMatched} sin match`)
+        setRefreshMsg({ ok: true, text: parts.join(' · ') })
       } else {
         setRefreshMsg({ ok: false, text: result.errors[0] ?? 'Error desconocido' })
       }
