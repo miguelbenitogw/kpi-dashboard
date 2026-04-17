@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 
-// ── GP-based queries (Global Placement tab) ──────────────────────────────────
+// ── Interfaces ────────────────────────────────────────────────────────────────
 
 export interface GPStatusCount {
   status: string
@@ -18,17 +18,88 @@ export interface GPCandidateSummary {
   assigned_agency: string | null
 }
 
-export async function getGPTrainingStatusCounts(): Promise<GPStatusCount[]> {
-  const { data, error } = await (supabase as any)
+export interface PromoGPSummary {
+  name: string
+  count: number
+  linked_job_opening_id: string | null
+  linked_job_opening_title: string | null
+}
+
+export interface JobOpeningOption {
+  id: string
+  title: string
+}
+
+// ── Promotions with GP data ───────────────────────────────────────────────────
+
+export async function getGPPromotions(): Promise<PromoGPSummary[]> {
+  const [candidatesRes, linksRes] = await Promise.all([
+    (supabase as any)
+      .from('candidates')
+      .select('promocion_nombre')
+      .not('gp_training_status', 'is', null)
+      .not('promocion_nombre', 'is', null),
+    (supabase as any)
+      .from('promo_job_link')
+      .select('promocion_nombre, job_opening_id, job_openings(id, title)'),
+  ])
+
+  const counts = new Map<string, number>()
+  for (const row of candidatesRes.data ?? []) {
+    const name = row.promocion_nombre as string
+    counts.set(name, (counts.get(name) ?? 0) + 1)
+  }
+
+  const links = new Map<string, { id: string; title: string }>()
+  for (const l of linksRes.data ?? []) {
+    if (l.job_opening_id && l.job_openings) {
+      links.set(l.promocion_nombre, {
+        id: l.job_opening_id,
+        title: l.job_openings.title,
+      })
+    }
+  }
+
+  return Array.from(counts.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, count]) => ({
+      name,
+      count,
+      linked_job_opening_id: links.get(name)?.id ?? null,
+      linked_job_opening_title: links.get(name)?.title ?? null,
+    }))
+}
+
+// ── Job opening search (for the linker UI) ────────────────────────────────────
+
+export async function searchJobOpenings(query: string): Promise<JobOpeningOption[]> {
+  if (!query || query.trim().length < 2) return []
+
+  const { data, error } = await supabase
+    .from('job_openings')
+    .select('id, title')
+    .ilike('title', `%${query.trim()}%`)
+    .order('title', { ascending: true })
+    .limit(15)
+
+  if (error) return []
+  return (data ?? []) as JobOpeningOption[]
+}
+
+// ── GP counts (filterable by promotion) ───────────────────────────────────────
+
+export async function getGPTrainingStatusCounts(
+  promocionNombre?: string | null,
+): Promise<GPStatusCount[]> {
+  let query = (supabase as any)
     .from('candidates')
     .select('gp_training_status')
     .not('gp_training_status', 'is', null)
 
-  if (error) {
-    console.error('Error fetching GP training status counts:', error)
-    return []
-  }
+  if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
 
+  const { data, error } = await query
+  if (error) return []
   if (!data || data.length === 0) return []
 
   const total = data.length
@@ -47,17 +118,18 @@ export async function getGPTrainingStatusCounts(): Promise<GPStatusCount[]> {
     .sort((a, b) => b.count - a.count)
 }
 
-export async function getGPOpenToCounts(): Promise<GPStatusCount[]> {
-  const { data, error } = await (supabase as any)
+export async function getGPOpenToCounts(
+  promocionNombre?: string | null,
+): Promise<GPStatusCount[]> {
+  let query = (supabase as any)
     .from('candidates')
     .select('gp_open_to')
     .not('gp_open_to', 'is', null)
 
-  if (error) {
-    console.error('Error fetching GP open to counts:', error)
-    return []
-  }
+  if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
 
+  const { data, error } = await query
+  if (error) return []
   if (!data || data.length === 0) return []
 
   const total = data.length
@@ -76,39 +148,47 @@ export async function getGPOpenToCounts(): Promise<GPStatusCount[]> {
     .sort((a, b) => b.count - a.count)
 }
 
+// ── GP candidate detail (filterable by promotion) ────────────────────────────
+
 export async function getGPCandidatesByStatus(
   status: string,
+  promocionNombre?: string | null,
 ): Promise<GPCandidateSummary[]> {
-  const { data, error } = await (supabase as any)
+  let query = (supabase as any)
     .from('candidates')
-    .select('id, full_name, gp_training_status, gp_open_to, gp_priority, gp_availability, assigned_agency')
+    .select(
+      'id, full_name, gp_training_status, gp_open_to, gp_priority, gp_availability, assigned_agency',
+    )
     .eq('gp_training_status', status)
     .order('full_name', { ascending: true, nullsFirst: false })
 
-  if (error) {
-    console.error('Error fetching GP candidates by status:', error)
-    return []
-  }
+  if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
 
+  const { data, error } = await query
+  if (error) return []
   return (data ?? []) as GPCandidateSummary[]
 }
 
 export async function getGPCandidatesByOpenTo(
   openTo: string,
+  promocionNombre?: string | null,
 ): Promise<GPCandidateSummary[]> {
-  const { data, error } = await (supabase as any)
+  let query = (supabase as any)
     .from('candidates')
-    .select('id, full_name, gp_training_status, gp_open_to, gp_priority, gp_availability, assigned_agency')
+    .select(
+      'id, full_name, gp_training_status, gp_open_to, gp_priority, gp_availability, assigned_agency',
+    )
     .eq('gp_open_to', openTo)
     .order('full_name', { ascending: true, nullsFirst: false })
 
-  if (error) {
-    console.error('Error fetching GP candidates by open to:', error)
-    return []
-  }
+  if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
 
+  const { data, error } = await query
+  if (error) return []
   return (data ?? []) as GPCandidateSummary[]
 }
+
+// ── Legacy (kept for backward compat with other components) ──────────────────
 
 export interface PlacementPreferenceCount {
   preference: string
@@ -125,147 +205,4 @@ export interface PlacementStatusCount {
 export interface PlacementClient {
   client: string
   candidateCount: number
-}
-
-const PLACEMENT_PREFERENCES = [
-  'Kommuner',
-  'Vikar',
-  'Vikar_Kommuner',
-  'No_feedback',
-  'Training_Vikar',
-  'Training_Kommuner_Fast',
-] as const
-
-const PLACEMENT_STATUSES = [
-  'Not ready to present',
-  'Working on it',
-  'Interview in process',
-  'Out/on boarding job',
-  'Hired by Kommuner Fast',
-  'Hired by Kommuner temporary',
-  'Hired by agency',
-  'Resign',
-  'Registration ready',
-  'Presented to an Agency',
-] as const
-
-export async function getPlacementPreferenceCounts(
-  promotionId?: string
-): Promise<PlacementPreferenceCount[]> {
-  let query = (supabase
-    .from('candidates') as any)
-    .select('placement_preference')
-    .not('placement_preference', 'is', null)
-
-  if (promotionId) {
-    query = query.eq('promotion_id', promotionId)
-  }
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error('Error fetching placement preferences:', error)
-    return []
-  }
-
-  if (!data || data.length === 0) return []
-
-  const total = data.length
-  const countMap = new Map<string, number>()
-
-  for (const pref of PLACEMENT_PREFERENCES) {
-    countMap.set(pref, 0)
-  }
-
-  for (const row of data) {
-    const pref = row.placement_preference as string
-    countMap.set(pref, (countMap.get(pref) ?? 0) + 1)
-  }
-
-  return Array.from(countMap.entries())
-    .filter(([, count]) => count > 0)
-    .map(([preference, count]) => ({
-      preference,
-      count,
-      percentage: Math.round((count / total) * 10000) / 100,
-    }))
-    .sort((a, b) => b.count - a.count)
-}
-
-export async function getPlacementStatusCounts(
-  promotionId?: string
-): Promise<PlacementStatusCount[]> {
-  let query = supabase
-    .from('candidates')
-    .select('placement_status')
-    .not('placement_status', 'is', null)
-
-  if (promotionId) {
-    query = query.eq('promotion_id', promotionId)
-  }
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error('Error fetching placement statuses:', error)
-    return []
-  }
-
-  if (!data || data.length === 0) return []
-
-  const total = data.length
-  const countMap = new Map<string, number>()
-
-  for (const status of PLACEMENT_STATUSES) {
-    countMap.set(status, 0)
-  }
-
-  for (const row of data) {
-    const status = row.placement_status as string
-    countMap.set(status, (countMap.get(status) ?? 0) + 1)
-  }
-
-  return Array.from(countMap.entries())
-    .filter(([, count]) => count > 0)
-    .map(([status, count]) => ({
-      status,
-      count,
-      percentage: Math.round((count / total) * 10000) / 100,
-    }))
-    .sort((a, b) => b.count - a.count)
-}
-
-export async function getPlacementClients(
-  promotionId?: string
-): Promise<PlacementClient[]> {
-  let query = supabase
-    .from('candidates')
-    .select('placement_client')
-    .not('placement_client', 'is', null)
-
-  if (promotionId) {
-    query = query.eq('promotion_id', promotionId)
-  }
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error('Error fetching placement clients:', error)
-    return []
-  }
-
-  if (!data || data.length === 0) return []
-
-  const countMap = new Map<string, number>()
-
-  for (const row of data) {
-    const client = row.placement_client as string
-    if (client) {
-      countMap.set(client, (countMap.get(client) ?? 0) + 1)
-    }
-  }
-
-  return Array.from(countMap.entries())
-    .map(([client, candidateCount]) => ({ client, candidateCount }))
-    .sort((a, b) => b.candidateCount - a.candidateCount)
 }

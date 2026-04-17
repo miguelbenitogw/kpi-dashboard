@@ -3,6 +3,8 @@
 import { importExcelMadre } from '@/lib/google-sheets/import-madre'
 import { importGlobalPlacement } from '@/lib/google-sheets/import-global-placement'
 
+// ── Refresh GP data ───────────────────────────────────────────────────────────
+
 export interface RefreshGPResult {
   success: boolean
   madreUpdated: number
@@ -13,17 +15,11 @@ export interface RefreshGPResult {
   errors: string[]
 }
 
-/**
- * Runs both imports in sequence:
- *   1. Excel Madre (Base Datos) → creates/updates candidates
- *   2. Global Placement → enriches candidates with gp_* fields
- */
 export async function refreshGlobalPlacement(): Promise<RefreshGPResult> {
   const errors: string[] = []
-
-  // Phase 1: Base Datos
   let madreUpdated = 0
   let madreInserted = 0
+
   try {
     const madre = await importExcelMadre()
     madreUpdated = madre.baseDatos.updated
@@ -33,7 +29,6 @@ export async function refreshGlobalPlacement(): Promise<RefreshGPResult> {
     errors.push(`Base Datos: ${err instanceof Error ? err.message : String(err)}`)
   }
 
-  // Phase 2: Global Placement
   let gpUpdated = 0
   let gpSkipped = 0
   let gpNotMatched = 0
@@ -47,13 +42,43 @@ export async function refreshGlobalPlacement(): Promise<RefreshGPResult> {
     errors.push(`GP: ${err instanceof Error ? err.message : String(err)}`)
   }
 
-  return {
-    success: errors.length === 0,
-    madreUpdated,
-    madreInserted,
-    gpUpdated,
-    gpSkipped,
-    gpNotMatched,
-    errors,
+  return { success: errors.length === 0, madreUpdated, madreInserted, gpUpdated, gpSkipped, gpNotMatched, errors }
+}
+
+// ── Promo ↔ Vacancy link ──────────────────────────────────────────────────────
+
+export interface LinkPromoResult {
+  success: boolean
+  error?: string
+}
+
+export async function linkPromoToJobOpening(
+  promocionNombre: string,
+  jobOpeningId: string | null,
+): Promise<LinkPromoResult> {
+  try {
+    const { supabaseAdmin } = await import('@/lib/supabase/server')
+
+    if (!jobOpeningId) {
+      // Remove link
+      const { error } = await supabaseAdmin
+        .from('promo_job_link' as any)
+        .delete()
+        .eq('promocion_nombre', promocionNombre)
+      if (error) throw error
+    } else {
+      // Upsert link
+      const { error } = await (supabaseAdmin as any)
+        .from('promo_job_link')
+        .upsert(
+          { promocion_nombre: promocionNombre, job_opening_id: jobOpeningId, updated_at: new Date().toISOString() },
+          { onConflict: 'promocion_nombre' },
+        )
+      if (error) throw error
+    }
+
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
