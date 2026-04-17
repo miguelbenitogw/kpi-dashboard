@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 import type { JobOpening, Candidate, StageHistory } from '@/lib/supabase/types'
 import type { RealtimeChannel } from '@supabase/supabase-js'
-import { TERMINAL_STATUSES } from '@/lib/zoho/transform'
+import { TERMINAL_STATUSES } from '@/lib/constants'
 
 export interface PromoStatusCount {
   status: string

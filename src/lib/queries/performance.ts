@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 import type { Candidate } from '@/lib/supabase/types'
 import type { PromoTarget } from '@/lib/supabase/types'
-import { TERMINAL_STATUSES } from '@/lib/zoho/transform'
+import { TERMINAL_STATUSES } from '@/lib/constants'
 
 // --- Types ---
 

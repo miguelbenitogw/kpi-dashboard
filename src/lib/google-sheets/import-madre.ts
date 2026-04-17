@@ -196,7 +196,7 @@ export async function importBaseDatos(): Promise<BaseDatosResult> {
     if (fullName) updateData.full_name = fullName
     if (estado) updateData.current_status = estado
 
-    // Try UPDATE first (candidate already exists from Zoho sync)
+    // Try UPDATE first (candidate may already exist from a previous Madre import)
     const { data: existing, error: selectError } = await supabaseAdmin
       .from('candidates')
       .select('id')

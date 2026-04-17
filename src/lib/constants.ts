@@ -1,0 +1,20 @@
+// Terminal statuses - candidates in these states are no longer actively in pipeline
+export const TERMINAL_STATUSES = [
+  'Hired',
+  'Rejected',
+  'Offer-Declined',
+  'Offer-Withdrawn',
+  'Expelled',
+  'Transferred',
+  'In Training out of GW',
+  'Not Valid',
+  'Un-Qualified',
+  'Out of Network',
+  'Permanent Kommune',
+  'Temporary Kommune',
+  'Permanent Agency',
+  'Temporary Agency',
+  'Not in Norway/Germany',
+  'Converted - Temp',
+  'Converted - Employee',
+]

@@ -1,7 +1,7 @@
 'use client'
 
 import type { PromoStatusCount } from '@/lib/queries/promos'
-import { TERMINAL_STATUSES } from '@/lib/zoho/transform'
+import { TERMINAL_STATUSES } from '@/lib/constants'
 
 const STATUS_COLORS: Record<string, string> = {
   // Pipeline / Early stages

@@ -4,15 +4,13 @@ import { useState, useEffect, useCallback } from 'react'
 import VacancySelector from '@/components/pipeline/VacancySelector'
 import PipelineChart from '@/components/pipeline/PipelineChart'
 import CandidateTable from '@/components/pipeline/CandidateTable'
-import StageComparison from '@/components/pipeline/StageComparison'
 import {
   getJobOpenings,
   getCandidatesByVacancy,
   getPipelineStats,
-  getStageAvgTimes,
 } from '@/lib/queries/pipeline'
 import type { JobOpening, Candidate } from '@/lib/supabase/types'
-import type { PipelineStatusCount, StageAvgTime } from '@/lib/queries/pipeline'
+import type { PipelineStatusCount } from '@/lib/queries/pipeline'
 
 type CandidateRow = Candidate & {
   alert_level: string | null
@@ -24,10 +22,6 @@ export default function PipelinePage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [candidates, setCandidates] = useState<CandidateRow[]>([])
   const [stats, setStats] = useState<PipelineStatusCount[]>([])
-  const [stageData, setStageData] = useState<{
-    vacancy: StageAvgTime[]
-    global: StageAvgTime[]
-  }>({ vacancy: [], global: [] })
   const [loading, setLoading] = useState(true)
   const [loadingData, setLoadingData] = useState(false)
 
@@ -48,14 +42,12 @@ export default function PipelinePage() {
   const loadVacancyData = useCallback(async (id: string) => {
     setLoadingData(true)
     try {
-      const [cands, pipeStats, stages] = await Promise.all([
+      const [cands, pipeStats] = await Promise.all([
         getCandidatesByVacancy(id),
         getPipelineStats(id),
-        getStageAvgTimes(id),
       ])
       setCandidates(cands)
       setStats(pipeStats)
-      setStageData(stages)
     } catch (err) {
       console.error('Error loading vacancy data:', err)
     } finally {
@@ -150,16 +142,6 @@ export default function PipelinePage() {
             </div>
           </div>
 
-          {/* Stage comparison */}
-          <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-6">
-            <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-gray-400">
-              Avg. Time per Stage: This Vacancy vs Global
-            </h2>
-            <StageComparison
-              vacancy={stageData.vacancy}
-              global={stageData.global}
-            />
-          </div>
         </>
       ) : (
         <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-12 text-center text-gray-500">

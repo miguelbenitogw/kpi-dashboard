@@ -9,7 +9,7 @@ import {
   type CandidateStats,
   type AttractionVacancy,
 } from '@/lib/queries/candidates'
-import { TERMINAL_STATUSES } from '@/lib/zoho/transform'
+import { TERMINAL_STATUSES } from '@/lib/constants'
 
 function StatCard({
   label,

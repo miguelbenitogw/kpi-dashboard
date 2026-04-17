@@ -4,7 +4,7 @@ import { Star } from 'lucide-react'
 import type { JobOpening } from '@/lib/supabase/types'
 import type { PromoStatusCount } from '@/lib/queries/promos'
 import { getStatusColor } from './StatusBreakdown'
-import { TERMINAL_STATUSES } from '@/lib/zoho/transform'
+import { TERMINAL_STATUSES } from '@/lib/constants'
 
 interface PromoCardProps {
   promo: JobOpening
