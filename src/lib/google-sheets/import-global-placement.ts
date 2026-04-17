@@ -66,6 +66,7 @@ const PLACEMENT_COLUMN_MAP: Record<string, string[]> = {
   ],
   // Extended GP fields (added 2026-04-17, from migration 010)
   assigned_agency: ['assigned agency', 'agency', 'agencia asignada', 'agencia'],
+  gp_assignment: ['assignment'],
   gp_kontaktperson: ['kontaktperson', 'kontakt', 'contact person', 'contacto'],
   gp_training_status: ['status (training)', 'training status', 'estado formación', 'estado formacion'],
   gp_availability: ['availability', 'disponibilidad', 'available'],
@@ -254,6 +255,9 @@ export async function importGlobalPlacement(): Promise<GlobalPlacementResult> {
     // Assigned Agency (migration 011)
     if (mapped['assigned_agency']) {
       updateData.assigned_agency = mapped['assigned_agency']
+    }
+    if (mapped['gp_assignment']) {
+      updateData.gp_assignment = mapped['gp_assignment']
     }
     // Extended GP fields (migration 010)
     if (mapped['gp_kontaktperson']) {

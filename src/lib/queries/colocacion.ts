@@ -15,6 +15,7 @@ export interface GPCandidateSummary {
   gp_open_to: string | null
   gp_availability: string | null
   assigned_agency: string | null
+  gp_assignment: string | null
 }
 
 export interface PromoGPSummary {
@@ -36,7 +37,9 @@ export async function getGPPromotions(): Promise<PromoGPSummary[]> {
     (supabase as any)
       .from('candidates')
       .select('promocion_nombre')
-      .not('promocion_nombre', 'is', null),
+      .not('promocion_nombre', 'is', null)
+      .neq('current_status', 'Offer Withdrawn')
+      .neq('current_status', 'Offer Declined'),
     (supabase as any)
       .from('promo_job_link')
       .select('promocion_nombre, job_opening_id, job_openings(id, title)'),
@@ -94,6 +97,8 @@ export async function getGPTrainingStatusCounts(
     .select('current_status')
     .not('current_status', 'is', null)
     .not('promocion_nombre', 'is', null)
+    .neq('current_status', 'Offer Withdrawn')
+    .neq('current_status', 'Offer Declined')
 
   if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
 
@@ -124,6 +129,8 @@ export async function getGPOpenToCounts(
     .from('candidates')
     .select('gp_open_to')
     .not('gp_open_to', 'is', null)
+    .neq('current_status', 'Offer Withdrawn')
+    .neq('current_status', 'Offer Declined')
 
   if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
 
@@ -156,7 +163,7 @@ export async function getGPCandidatesByStatus(
   let query = (supabase as any)
     .from('candidates')
     .select(
-      'id, full_name, gp_training_status, gp_open_to, gp_availability, assigned_agency',
+      'id, full_name, gp_training_status, gp_open_to, gp_availability, assigned_agency, gp_assignment',
     )
     .eq('current_status', status)
     .order('full_name', { ascending: true, nullsFirst: false })
@@ -175,7 +182,7 @@ export async function getGPCandidatesByOpenTo(
   let query = (supabase as any)
     .from('candidates')
     .select(
-      'id, full_name, gp_training_status, gp_open_to, gp_availability, assigned_agency',
+      'id, full_name, gp_training_status, gp_open_to, gp_availability, assigned_agency, gp_assignment',
     )
     .eq('gp_open_to', openTo)
     .order('full_name', { ascending: true, nullsFirst: false })
