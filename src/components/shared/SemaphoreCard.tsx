@@ -2,19 +2,20 @@
 
 import type { LucideIcon } from 'lucide-react'
 import { CheckCircle2, AlertTriangle, XCircle, HelpCircle } from 'lucide-react'
-import type { TrafficLight } from '@/lib/queries/atraccion'
+
+export type TrafficLightStatus = 'green' | 'yellow' | 'red' | 'unknown'
 
 type Props = {
   title: string
   subtitle?: string
-  status: TrafficLight
+  status: TrafficLightStatus
   ratio?: number // 0..1 or more
   metrics?: { label: string; value: string | number }[]
   icon?: LucideIcon
 }
 
 const STATUS_STYLES: Record<
-  TrafficLight,
+  TrafficLightStatus,
   {
     border: string
     iconBg: string
