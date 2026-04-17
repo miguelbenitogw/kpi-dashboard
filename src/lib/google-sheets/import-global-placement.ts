@@ -66,6 +66,7 @@ const PLACEMENT_COLUMN_MAP: Record<string, string[]> = {
   hpr_number: [
     'hpr',
     'hpr number',
+    'hpr-nummer',
     'número hpr',
     'numero hpr',
     'n° hpr',

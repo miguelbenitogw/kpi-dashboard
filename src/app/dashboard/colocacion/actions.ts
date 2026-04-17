@@ -1,7 +1,6 @@
 'use server'
 
 import { importExcelMadre } from '@/lib/google-sheets/import-madre'
-import { importGlobalPlacement } from '@/lib/google-sheets/import-global-placement'
 
 // ── Refresh GP data ───────────────────────────────────────────────────────────
 
@@ -16,33 +15,21 @@ export interface RefreshGPResult {
 }
 
 export async function refreshGlobalPlacement(): Promise<RefreshGPResult> {
-  const errors: string[] = []
-  let madreUpdated = 0
-  let madreInserted = 0
-
   try {
-    const madre = await importExcelMadre()
-    madreUpdated = madre.baseDatos.updated
-    madreInserted = madre.baseDatos.inserted
-    if (madre.errors.length > 0) errors.push(...madre.errors.slice(0, 3))
+    const result = await importExcelMadre()
+    return {
+      success: result.errors.length === 0,
+      madreUpdated: result.baseDatos.updated,
+      madreInserted: result.baseDatos.inserted,
+      gpUpdated: result.globalPlacement.updated,
+      gpSkipped: result.globalPlacement.skipped,
+      gpNotMatched: result.globalPlacement.notMatched,
+      errors: result.errors.slice(0, 3),
+    }
   } catch (err) {
-    errors.push(`Base Datos: ${err instanceof Error ? err.message : String(err)}`)
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, madreUpdated: 0, madreInserted: 0, gpUpdated: 0, gpSkipped: 0, gpNotMatched: 0, errors: [msg] }
   }
-
-  let gpUpdated = 0
-  let gpSkipped = 0
-  let gpNotMatched = 0
-  try {
-    const gp = await importGlobalPlacement()
-    gpUpdated = gp.updated
-    gpSkipped = gp.skipped
-    gpNotMatched = gp.notMatched
-    if (gp.errors.length > 0) errors.push(...gp.errors.slice(0, 3))
-  } catch (err) {
-    errors.push(`GP: ${err instanceof Error ? err.message : String(err)}`)
-  }
-
-  return { success: errors.length === 0, madreUpdated, madreInserted, gpUpdated, gpSkipped, gpNotMatched, errors }
 }
 
 // ── Promo ↔ Vacancy link ──────────────────────────────────────────────────────
