@@ -24,7 +24,7 @@ export const GLOBAL_PLACEMENT_GID = '1470777220'
 // ---------------------------------------------------------------------------
 
 const PLACEMENT_COLUMN_MAP: Record<string, string[]> = {
-  id: ['id'],
+  id: ['id', 'zoho id', 'zoho_id', 'candidate id', 'candidateid'],
   full_name: ['nombre y apellidos', 'nombre completo', 'nombre', 'name'],
   promocion: ['promocion', 'promoción', 'promo'],
   placement_status: [
@@ -127,6 +127,7 @@ function parseDate(value: string): string | null {
 function normalizeName(name: string): string {
   return name
     .toLowerCase()
+    .replace(/\([^)]*\)/g, '') // strip parenthetical nicknames like "(Alex)"
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // strip accents
     .replace(/[^a-z0-9\s]/g, '') // strip non-alphanumeric
