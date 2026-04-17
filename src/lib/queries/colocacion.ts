@@ -15,6 +15,7 @@ export interface GPCandidateSummary {
   gp_open_to: string | null
   gp_priority: string | null
   gp_availability: string | null
+  assigned_agency: string | null
 }
 
 export async function getGPTrainingStatusCounts(): Promise<GPStatusCount[]> {
@@ -80,7 +81,7 @@ export async function getGPCandidatesByStatus(
 ): Promise<GPCandidateSummary[]> {
   const { data, error } = await (supabase as any)
     .from('candidates')
-    .select('id, full_name, gp_training_status, gp_open_to, gp_priority, gp_availability')
+    .select('id, full_name, gp_training_status, gp_open_to, gp_priority, gp_availability, assigned_agency')
     .eq('gp_training_status', status)
     .order('full_name', { ascending: true, nullsFirst: false })
 
@@ -97,7 +98,7 @@ export async function getGPCandidatesByOpenTo(
 ): Promise<GPCandidateSummary[]> {
   const { data, error } = await (supabase as any)
     .from('candidates')
-    .select('id, full_name, gp_training_status, gp_open_to, gp_priority, gp_availability')
+    .select('id, full_name, gp_training_status, gp_open_to, gp_priority, gp_availability, assigned_agency')
     .eq('gp_open_to', openTo)
     .order('full_name', { ascending: true, nullsFirst: false })
 

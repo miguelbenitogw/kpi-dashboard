@@ -72,6 +72,7 @@ const PLACEMENT_COLUMN_MAP: Record<string, string[]> = {
     'nº hpr',
   ],
   // Extended GP fields (added 2026-04-17, from migration 010)
+  assigned_agency: ['assigned agency', 'agency', 'agencia asignada', 'agencia'],
   gp_kontaktperson: ['kontaktperson', 'kontakt', 'contact person', 'contacto'],
   gp_training_status: ['status (training)', 'training status', 'estado formación', 'estado formacion'],
   gp_availability: ['availability', 'disponibilidad', 'available'],
@@ -259,6 +260,10 @@ export async function importGlobalPlacement(): Promise<GlobalPlacementResult> {
     }
     if (mapped['hpr_number']) {
       updateData.hpr_number = mapped['hpr_number']
+    }
+    // Assigned Agency (migration 011)
+    if (mapped['assigned_agency']) {
+      updateData.assigned_agency = mapped['assigned_agency']
     }
     // Extended GP fields (migration 010)
     if (mapped['gp_kontaktperson']) {
