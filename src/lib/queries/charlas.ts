@@ -4,7 +4,6 @@
  */
 
 import { supabase } from '@/lib/supabase/client'
-import { supabaseAdmin } from '@/lib/supabase/server'
 
 export interface CharlaTemporadaRow {
   id: string
@@ -96,6 +95,8 @@ export interface CharlaTemporadaUpsert {
 
 export async function upsertCharlasTemporada(rows: CharlaTemporadaUpsert[]) {
   if (rows.length === 0) return { count: 0 }
+  // Dynamic import keeps supabaseAdmin out of the client bundle
+  const { supabaseAdmin } = await import('@/lib/supabase/server')
   const { data, error } = await (supabaseAdmin as any)
     .from('charlas_temporada')
     .upsert(rows, { onConflict: 'temporada,programa' })
@@ -110,6 +111,8 @@ export async function upsertProgramaTotales(rows: {
   total_registros?: number | null
 }[]) {
   if (rows.length === 0) return { count: 0 }
+  // Dynamic import keeps supabaseAdmin out of the client bundle
+  const { supabaseAdmin } = await import('@/lib/supabase/server')
   const { data, error } = await (supabaseAdmin as any)
     .from('charlas_programa_totales')
     .upsert(rows, { onConflict: 'programa' })
