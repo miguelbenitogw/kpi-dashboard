@@ -32,8 +32,7 @@ function CandidateRow({
       {showOpenTo && <td className="py-1.5 pr-4 text-gray-400">{c.gp_open_to ?? '—'}</td>}
       {showStatus && <td className="py-1.5 pr-4 text-gray-400">{c.gp_training_status ?? '—'}</td>}
       <td className="py-1.5 pr-4 text-gray-400">{c.assigned_agency ?? '—'}</td>
-      <td className="py-1.5 pr-4 text-gray-400">{c.gp_availability ?? '—'}</td>
-      <td className="py-1.5 text-gray-500">{c.gp_priority ?? '—'}</td>
+      <td className="py-1.5 text-gray-400">{c.gp_availability ?? '—'}</td>
     </tr>
   )
 }
@@ -104,7 +103,6 @@ function GroupRow({
                       {showStatusCol && <th className="pb-1.5 text-left font-medium">Status</th>}
                       <th className="pb-1.5 text-left font-medium">Agencia</th>
                       <th className="pb-1.5 text-left font-medium">Disponibilidad</th>
-                      <th className="pb-1.5 text-left font-medium">Prioridad</th>
                     </tr>
                   </thead>
                   <tbody>

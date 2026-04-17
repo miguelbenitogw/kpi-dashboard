@@ -13,7 +13,6 @@ export interface GPCandidateSummary {
   full_name: string | null
   gp_training_status: string | null
   gp_open_to: string | null
-  gp_priority: string | null
   gp_availability: string | null
   assigned_agency: string | null
 }
@@ -157,7 +156,7 @@ export async function getGPCandidatesByStatus(
   let query = (supabase as any)
     .from('candidates')
     .select(
-      'id, full_name, gp_training_status, gp_open_to, gp_priority, gp_availability, assigned_agency',
+      'id, full_name, gp_training_status, gp_open_to, gp_availability, assigned_agency',
     )
     .eq('gp_training_status', status)
     .order('full_name', { ascending: true, nullsFirst: false })
@@ -176,7 +175,7 @@ export async function getGPCandidatesByOpenTo(
   let query = (supabase as any)
     .from('candidates')
     .select(
-      'id, full_name, gp_training_status, gp_open_to, gp_priority, gp_availability, assigned_agency',
+      'id, full_name, gp_training_status, gp_open_to, gp_availability, assigned_agency',
     )
     .eq('gp_open_to', openTo)
     .order('full_name', { ascending: true, nullsFirst: false })
