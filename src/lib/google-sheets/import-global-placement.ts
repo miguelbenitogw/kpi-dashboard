@@ -3,7 +3,7 @@
  *
  * Imports the "Global Placement" tab (gid=1470777220) from Excel madre.
  * This tab tracks placement status for candidates who have completed training.
- * Maps placement data to candidates: placement_status, placement_client,
+ * Maps placement data to candidates: placement_client,
  * placement_location, hpr_number, flight_date, hospitering_dates.
  *
  * Matching strategy: by candidate ID first, then by full name cross-reference.
@@ -27,14 +27,6 @@ const PLACEMENT_COLUMN_MAP: Record<string, string[]> = {
   id: ['id', 'zoho id', 'zoho_id', 'candidate id', 'candidateid'],
   full_name: ['nombre y apellidos', 'nombre completo', 'nombre', 'name'],
   promocion: ['promocion', 'promoción', 'promo'],
-  placement_status: [
-    'placement status',
-    'estado de colocación',
-    'estado colocacion',
-    'estado colocación',
-    'status placement',
-    'placement',
-  ],
   placement_client: ['cliente', 'client', 'empresa', 'company'],
   placement_location: [
     'ubicación',
@@ -241,9 +233,6 @@ export async function importGlobalPlacement(): Promise<GlobalPlacementResult> {
     // Build update payload
     const updateData: Record<string, unknown> = {}
 
-    if (mapped['placement_status']) {
-      updateData.placement_status = mapped['placement_status']
-    }
     if (mapped['placement_client']) {
       updateData.placement_client = mapped['placement_client']
     }
