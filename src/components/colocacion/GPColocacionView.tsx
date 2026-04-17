@@ -281,11 +281,14 @@ export default function GPColocacionView() {
     setRefreshMsg(null)
     startTransition(async () => {
       const result = await refreshGlobalPlacement()
-      setRefreshMsg(
-        result.success
-          ? { ok: true, text: `Actualizado: ${result.updated} candidatos` }
-          : { ok: false, text: result.errors[0] ?? 'Error desconocido' }
-      )
+      if (result.success) {
+        const parts = [`✓ ${result.updated} actualizados`]
+        if (result.skipped > 0) parts.push(`${result.skipped} sin cambios`)
+        if (result.notMatched > 0) parts.push(`${result.notMatched} sin match`)
+        setRefreshMsg({ ok: result.updated > 0 || result.skipped > 0, text: parts.join(' · ') })
+      } else {
+        setRefreshMsg({ ok: false, text: result.errors[0] ?? 'Error desconocido' })
+      }
       if (result.success) {
         // Reload counts after successful import
         setExpandedStatus(null)
