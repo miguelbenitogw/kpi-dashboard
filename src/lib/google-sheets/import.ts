@@ -436,7 +436,7 @@ export async function importPromoSheet(
 
       const { error: upsertError } = await supabaseAdmin
         .from('promo_students')
-        .upsert(upsertPayload, {
+        .upsert(upsertPayload as any, {
           onConflict: 'promo_sheet_id,tab_name,row_number',
         })
 
@@ -479,8 +479,8 @@ async function syncDropoutsToCandidates(
   const syncResult = { synced: 0, errors: [] as string[] }
 
   // Get all dropout rows from promo_students that have a Zoho match
-  const { data: dropoutStudents, error } = await supabaseAdmin
-    .from('promo_students')
+  const { data: dropoutStudents, error } = await (supabaseAdmin
+    .from('promo_students') as any)
     .select('zoho_candidate_id, email, full_name, dropout_reason, dropout_date, dropout_notes, sheet_status, start_date, dropout_modality, dropout_days_of_training')
     .eq('promo_sheet_id', promoSheetId)
     .eq('tab_name', 'Dropouts')
@@ -736,7 +736,7 @@ export async function importDropoutsTab(
 
     const { error: upsertError } = await supabaseAdmin
       .from('promo_students')
-      .upsert(upsertPayload, {
+      .upsert(upsertPayload as any, {
         onConflict: 'promo_sheet_id,tab_name,row_number',
       })
 
