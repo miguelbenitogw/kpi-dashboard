@@ -189,6 +189,8 @@ export async function importBaseDatos(): Promise<BaseDatosResult> {
       tiempo_colocacion: mapped['tiempo_colocacion'] ?? null,
       notas_excel: mapped['notas_excel'] ?? null,
       promocion_nombre: mapped['promocion_nombre'] ?? null,
+      quincena: mapped['quincena'] ?? null,
+      mes_llegada: mapped['mes_ano_llegada'] ?? null,
     }
     // Always set name and status from Excel if available
     if (fullName) updateData.full_name = fullName

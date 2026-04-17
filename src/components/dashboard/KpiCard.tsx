@@ -14,19 +14,19 @@ interface KpiCardProps {
 }
 
 const statusAccent: Record<Status, string> = {
-  good: 'border-l-emerald-500',
-  warning: 'border-l-amber-500',
-  danger: 'border-l-red-500',
+  good: 'border-l-ok-500',
+  warning: 'border-l-warn-500',
+  danger: 'border-l-danger-500',
 }
 
 const statusIconBg: Record<Status, string> = {
-  good: 'bg-emerald-500/10 text-emerald-400',
-  warning: 'bg-amber-500/10 text-amber-400',
-  danger: 'bg-red-500/10 text-red-400',
+  good: 'bg-ok-500/10 text-ok-400',
+  warning: 'bg-warn-500/10 text-warn-400',
+  danger: 'bg-danger-500/10 text-danger-400',
 }
 
 const trendColor = (trend: number) =>
-  trend >= 0 ? 'text-emerald-400' : 'text-red-400'
+  trend >= 0 ? 'text-ok-400' : 'text-danger-400'
 
 export default function KpiCard({
   title,
@@ -39,9 +39,9 @@ export default function KpiCard({
   return (
     <div
       className={`
-        rounded-xl border border-gray-700/50 bg-gray-800/50 p-5
+        rounded-xl border border-surface-700/60 bg-surface-850/60 p-5
         border-l-4 ${statusAccent[status]}
-        transition-colors hover:bg-gray-800/70
+        transition-colors hover:bg-surface-800/80 hover:border-brand-600/40
       `}
     >
       <div className="flex items-start justify-between">

@@ -71,6 +71,14 @@ const PLACEMENT_COLUMN_MAP: Record<string, string[]> = {
     'n° hpr',
     'nº hpr',
   ],
+  // Extended GP fields (added 2026-04-17, from migration 010)
+  gp_kontaktperson: ['kontaktperson', 'kontakt', 'contact person', 'contacto'],
+  gp_training_status: ['status (training)', 'training status', 'estado formación', 'estado formacion'],
+  gp_availability: ['availability', 'disponibilidad', 'available'],
+  gp_open_to: ['open to', 'abierto a', 'abierta a'],
+  gp_priority: ['priority', 'prioridad'],
+  gp_shots: ['shots', 'shots program', 'vacunas'],
+  gp_has_profile: ['has global placement profile?', 'has gp profile', 'gp profile', 'tiene perfil gp', 'perfil gp'],
 }
 
 function mapPlacementHeader(header: string): string | null {
@@ -250,6 +258,29 @@ export async function importGlobalPlacement(): Promise<GlobalPlacementResult> {
     }
     if (mapped['hpr_number']) {
       updateData.hpr_number = mapped['hpr_number']
+    }
+    // Extended GP fields (migration 010)
+    if (mapped['gp_kontaktperson']) {
+      updateData.gp_kontaktperson = mapped['gp_kontaktperson']
+    }
+    if (mapped['gp_training_status']) {
+      updateData.gp_training_status = mapped['gp_training_status']
+    }
+    if (mapped['gp_availability']) {
+      updateData.gp_availability = mapped['gp_availability']
+    }
+    if (mapped['gp_open_to']) {
+      updateData.gp_open_to = mapped['gp_open_to']
+    }
+    if (mapped['gp_priority']) {
+      updateData.gp_priority = mapped['gp_priority']
+    }
+    if (mapped['gp_shots']) {
+      updateData.gp_shots = mapped['gp_shots']
+    }
+    if (mapped['gp_has_profile'] !== undefined) {
+      const val = mapped['gp_has_profile']?.toLowerCase().trim()
+      updateData.gp_has_profile = val === 'yes' || val === 'sí' || val === 'si' || val === 'true' || val === '1'
     }
 
     // Skip rows with no placement data to update

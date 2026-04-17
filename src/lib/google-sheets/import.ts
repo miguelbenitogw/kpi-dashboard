@@ -57,7 +57,9 @@ const COLUMN_MAP: Record<string, string[]> = {
 const DROPOUT_COLUMN_MAP: Record<string, string[]> = {
   full_name: ['name', 'nombre'],
   sheet_status: ['status', 'estado'],
+  dropout_modality: ['modality', 'modalidad'],
   start_date: ['start date', 'fecha inicio', 'fecha de inicio'],
+  dropout_days_of_training: ['days of training', 'días de entrenamiento', 'dias de entrenamiento', 'days training'],
   dropout_date: ['dropout date', 'fecha de baja', 'fecha baja'],
   dropout_reason: ['reason for dropout', 'dropout reason', 'razón de baja', 'motivo de baja'],
   dropout_notes: ['motivos que dan', 'observaciones baja'],
@@ -112,6 +114,8 @@ export interface StudentRecord {
   start_date: string | null
   end_date: string | null
   enrollment_date: string | null
+  dropout_modality: string | null
+  dropout_days_of_training: number | null
   dropout_reason: string | null
   dropout_date: string | null
   dropout_notes: string | null
@@ -162,6 +166,8 @@ function rowToStudentRecord(
     start_date: null,
     end_date: null,
     enrollment_date: null,
+    dropout_modality: null,
+    dropout_days_of_training: null,
     dropout_reason: null,
     dropout_date: null,
     dropout_notes: null,
@@ -181,6 +187,12 @@ function rowToStudentRecord(
       case 'dropout_date': {
         const typed = mapped as Record<string, string | null | SheetRow | number>
         typed[canonical] = parseDate(value)
+        break
+      }
+      case 'dropout_days_of_training': {
+        const typed = mapped as Record<string, string | null | SheetRow | number>
+        const parsed = parseInt(value.replace(/[^\d]/g, ''), 10)
+        typed[canonical] = Number.isNaN(parsed) ? null : parsed
         break
       }
       default: {
@@ -407,6 +419,8 @@ export async function importPromoSheet(
         start_date: student.start_date,
         end_date: student.end_date,
         enrollment_date: student.enrollment_date,
+        dropout_modality: student.dropout_modality,
+        dropout_days_of_training: student.dropout_days_of_training,
         dropout_reason: student.dropout_reason,
         dropout_date: student.dropout_date,
         dropout_notes: student.dropout_notes,
@@ -467,7 +481,7 @@ async function syncDropoutsToCandidates(
   // Get all dropout rows from promo_students that have a Zoho match
   const { data: dropoutStudents, error } = await supabaseAdmin
     .from('promo_students')
-    .select('zoho_candidate_id, email, full_name, dropout_reason, dropout_date, dropout_notes, sheet_status')
+    .select('zoho_candidate_id, email, full_name, dropout_reason, dropout_date, dropout_notes, sheet_status, start_date, dropout_modality, dropout_days_of_training')
     .eq('promo_sheet_id', promoSheetId)
     .eq('tab_name', 'Dropouts')
 
@@ -484,6 +498,9 @@ async function syncDropoutsToCandidates(
       dropout_reason: student.dropout_reason,
       dropout_date: student.dropout_date,
       dropout_notes: student.dropout_notes,
+      dropout_start_date: student.start_date ?? null,
+      dropout_modality: student.dropout_modality ?? null,
+      dropout_days_of_training: student.dropout_days_of_training ?? null,
     }
 
     let updated = false
@@ -702,6 +719,8 @@ export async function importDropoutsTab(
       start_date: student.start_date,
       end_date: student.end_date,
       enrollment_date: student.enrollment_date,
+      dropout_modality: student.dropout_modality,
+      dropout_days_of_training: student.dropout_days_of_training,
       dropout_reason: student.dropout_reason,
       dropout_date: student.dropout_date,
       dropout_notes: student.dropout_notes,

@@ -9,8 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "KPI Dashboard",
-  description: "Dashboard de indicadores clave de rendimiento",
+  title: "Globalworking · Cuadro de Mando",
+  description: "Cuadro de mando de indicadores clave — Globalworking",
 };
 
 export default function RootLayout({
@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${inter.variable} h-full antialiased`}>
-      <body className="flex h-full bg-gray-950 text-gray-100">
+      <body className="flex h-full bg-surface-950 text-gray-100">
         <Sidebar />
         <main className="flex-1 overflow-y-auto lg:pl-0">
           <div className="mx-auto max-w-7xl px-4 py-6 pt-16 lg:pt-6">
