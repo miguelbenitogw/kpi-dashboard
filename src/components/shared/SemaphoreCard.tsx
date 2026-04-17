@@ -2,7 +2,7 @@
 
 import type { LucideIcon } from 'lucide-react'
 import { CheckCircle2, AlertTriangle, XCircle, HelpCircle } from 'lucide-react'
-import type { TrafficLight } from '@/lib/queries/semaphore'
+import type { TrafficLight } from '@/lib/queries/atraccion'
 
 type Props = {
   title: string
