@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { syncJobOpenings } from '@/lib/zoho/sync-job-openings'
+import { syncCandidatesForActiveVacancies } from '@/lib/zoho/sync-candidates'
 
-export const maxDuration = 60
+// Candidates sync across ~23 vacancies with 500 ms delays between each =
+// up to ~12 s of sleep alone, plus Zoho round-trips.  Raise the timeout
+// ceiling so Vercel does not cut the function short.
+export const maxDuration = 300
 
 /**
  * GET /api/cron/sync
  *
- * Daily cron — syncs job openings from Zoho Recruit into job_openings_kpi.
+ * Daily cron — syncs job openings AND their candidate associations from Zoho
+ * Recruit into job_openings_kpi / candidate_job_history_kpi.
  * Scheduled: 0 2 * * * (every day at 02:00 UTC)
  *
  * Protected by Bearer CRON_SECRET (same as all cron routes).
@@ -37,11 +42,17 @@ export async function GET(request: NextRequest) {
   const logId = logRow?.id ?? null
 
   try {
-    // Daily sync: only touch vacancies tagged as "Proceso atracción actual"
-    const result = await syncJobOpenings('active_only')
+    // Step 1 — Job openings: only touch vacancies tagged "Proceso atracción actual"
+    const jobOpeningsResult = await syncJobOpenings('active_only')
+
+    // Step 2 — Candidate associations: pull all candidates per active vacancy
+    // and upsert into candidate_job_history_kpi so the status pivot table has data.
+    const candidatesResult = await syncCandidatesForActiveVacancies()
 
     const finishedAt = new Date().toISOString()
-    const hasErrors = result.errors.length > 0
+    const allErrors = [...jobOpeningsResult.errors, ...candidatesResult.errors]
+    const hasErrors = allErrors.length > 0
+    const totalApiCalls = jobOpeningsResult.api_calls + candidatesResult.api_calls
 
     // Update log entry
     if (logId) {
@@ -50,9 +61,9 @@ export async function GET(request: NextRequest) {
         .update({
           status: hasErrors ? 'partial' : 'success',
           finished_at: finishedAt,
-          records_processed: result.synced,
-          api_calls_used: result.api_calls,
-          error_message: hasErrors ? result.errors.join(' | ') : null,
+          records_processed: jobOpeningsResult.synced + candidatesResult.candidates_synced,
+          api_calls_used: totalApiCalls,
+          error_message: hasErrors ? allErrors.join(' | ') : null,
         })
         .eq('id', logId)
     }
@@ -61,10 +72,18 @@ export async function GET(request: NextRequest) {
       {
         success: true,
         duration_ms: Date.now() - startTime,
-        synced: result.synced,
-        skipped_inactive: result.skipped_inactive,
-        api_calls: result.api_calls,
-        errors: result.errors,
+        job_openings: {
+          synced: jobOpeningsResult.synced,
+          skipped_inactive: jobOpeningsResult.skipped_inactive,
+          api_calls: jobOpeningsResult.api_calls,
+          errors: jobOpeningsResult.errors,
+        },
+        candidates: {
+          vacancies_processed: candidatesResult.vacancies_processed,
+          synced: candidatesResult.candidates_synced,
+          api_calls: candidatesResult.api_calls,
+          errors: candidatesResult.errors,
+        },
       },
       { status: hasErrors ? 207 : 200 }
     )
