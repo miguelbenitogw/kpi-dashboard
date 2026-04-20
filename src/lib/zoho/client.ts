@@ -184,6 +184,7 @@ const JOB_OPENING_FIELDS = [
   'Job_Type',
   'Type_of_Contract',
   'Idioma_Principal_Main_Language_Required',
+  'Job_Description',
 ].join(',')
 
 export async function fetchJobOpenings(): Promise<Record<string, unknown>[]> {
