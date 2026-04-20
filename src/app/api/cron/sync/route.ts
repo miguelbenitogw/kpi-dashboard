@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
   const logId = logRow?.id ?? null
 
   try {
-    const result = await syncJobOpenings()
+    // Daily sync: only touch vacancies tagged as "Proceso atracción actual"
+    const result = await syncJobOpenings('active_only')
 
     const finishedAt = new Date().toISOString()
     const hasErrors = result.errors.length > 0
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
         success: true,
         duration_ms: Date.now() - startTime,
         synced: result.synced,
+        skipped_inactive: result.skipped_inactive,
         api_calls: result.api_calls,
         errors: result.errors,
       },
