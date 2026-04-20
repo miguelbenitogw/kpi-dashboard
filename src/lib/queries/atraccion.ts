@@ -280,6 +280,88 @@ export interface AtraccionVacancy {
 }
 
 // ---------------------------------------------------------------------------
+// Vacancy × Status recruitment table (es_proceso_atraccion_actual)
+// ---------------------------------------------------------------------------
+
+export interface VacancyStatusRow {
+  id: string
+  title: string
+  client_name: string | null
+  owner: string | null
+  status: string | null
+  date_opened: string | null
+  total_candidates: number
+  hired_count: number
+  byStatus: Record<string, number>   // candidate_status_in_jo → count
+  total: number
+}
+
+export interface VacancyRecruitmentStats {
+  rows: VacancyStatusRow[]
+  statuses: string[]
+}
+
+export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentStats> {
+  // 1. Active vacancies tagged "Proceso atracción actual"
+  const { data: vacancies, error: vacError } = await supabase
+    .from('job_openings_kpi')
+    .select('id, title, client_name, owner, status, date_opened, total_candidates, hired_count')
+    .eq('es_proceso_atraccion_actual', true)
+    .order('total_candidates', { ascending: false })
+
+  if (vacError) console.error('Error fetching vacancies:', vacError)
+
+  const vacList = vacancies ?? []
+  if (vacList.length === 0) return { rows: [], statuses: [] }
+
+  const vacIds = vacList.map((v) => v.id)
+
+  // 2. Candidate history for those vacancies
+  const { data: history, error: histError } = await supabase
+    .from('candidate_job_history_kpi')
+    .select('job_opening_id, candidate_status_in_jo')
+    .in('job_opening_id', vacIds)
+    .eq('association_type', 'atraccion')
+
+  if (histError) console.error('Error fetching candidate history:', histError)
+
+  // 3. Aggregate by vacancy + status
+  const vacMap = new Map<string, Record<string, number>>()
+  for (const h of history ?? []) {
+    const jid = h.job_opening_id as string
+    const st = (h.candidate_status_in_jo as string) ?? 'Sin estado'
+    if (!vacMap.has(jid)) vacMap.set(jid, {})
+    const m = vacMap.get(jid)!
+    m[st] = (m[st] ?? 0) + 1
+  }
+
+  // 4. Collect all distinct statuses (sorted, pinned first)
+  const allStatuses = new Set<string>()
+  for (const m of vacMap.values()) for (const s of Object.keys(m)) allStatuses.add(s)
+  const statuses = Array.from(allStatuses).sort()
+
+  // 5. Build rows
+  const rows: VacancyStatusRow[] = vacList.map((v) => {
+    const byStatus = vacMap.get(v.id) ?? {}
+    const total = Object.values(byStatus).reduce((s, n) => s + n, 0)
+    return {
+      id: v.id,
+      title: v.title,
+      client_name: v.client_name ?? null,
+      owner: v.owner ?? null,
+      status: v.status ?? null,
+      date_opened: v.date_opened ?? null,
+      total_candidates: v.total_candidates ?? 0,
+      hired_count: v.hired_count ?? 0,
+      byStatus,
+      total,
+    }
+  })
+
+  return { rows, statuses }
+}
+
+// ---------------------------------------------------------------------------
 // Promo × Status recruitment table
 // ---------------------------------------------------------------------------
 

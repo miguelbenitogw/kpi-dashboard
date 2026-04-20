@@ -7,7 +7,9 @@ import {
   TrendingUp,
   FileText,
   Radio,
+  Share2,
 } from 'lucide-react';
+import RRSSOverview from '@/components/atraccion/RRSSOverview';
 import DateRangeSelector from '@/components/analytics/DateRangeSelector';
 import AnalyticsKpiCards from '@/components/analytics/AnalyticsKpiCards';
 import SessionsTimeChart from '@/components/analytics/SessionsTimeChart';
@@ -300,6 +302,17 @@ export default function AnalyticsPage() {
         <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-6">
           <TopLandingPages data={pages} loading={loading} />
         </div>
+      </section>
+
+      {/* Redes Sociales */}
+      <section>
+        <div className="mb-4 flex items-center gap-2">
+          <Share2 className="h-5 w-5 text-pink-400" />
+          <h2 className="text-lg font-semibold text-gray-100">
+            Redes Sociales
+          </h2>
+        </div>
+        <RRSSOverview />
       </section>
     </div>
   );

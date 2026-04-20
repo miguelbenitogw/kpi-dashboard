@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   ChevronLeft,
   ChevronRight,
@@ -389,9 +389,9 @@ export default function CandidateDetailTable({
   const to = Math.min(page * perPage, total)
 
   // Filter options for dropdowns
-  const statusOptions = useMemo(() => initialStatusOptions, [initialStatusOptions])
-  const nationalityOptions = useMemo(() => initialNationalityOptions, [initialNationalityOptions])
-  const sourceOptions = useMemo(() => initialSourceOptions, [initialSourceOptions])
+  const statusOptions = initialStatusOptions
+  const nationalityOptions = initialNationalityOptions
+  const sourceOptions = initialSourceOptions
 
   return (
     <div className="space-y-4">

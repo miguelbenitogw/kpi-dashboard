@@ -1,5 +1,5 @@
 import { zohoFetch, fetchAllPages } from './client'
-import { transformCandidate, transformJobOpening, ALL_STATUSES } from './transform'
+import { transformCandidate, transformJobOpening } from './transform'
 
 interface ZohoListResponse<T> {
   data: T[]

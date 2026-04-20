@@ -36,8 +36,8 @@ export function transformJobOpening(zoho: Record<string, unknown>) {
   const title =
     (zoho.Job_Opening_Name as string) || (zoho.Posting_Title as string) || ''
 
-  // Tags: Zoho returns Associated_Tags as { name, id, color_code }[] — handle both forms
-  const rawTags = (zoho.Associated_Tags ?? zoho.tags) as Array<string | { name: string }> | null | undefined
+  // Tags: Zoho returns Associated_Tags as { name, id, color_code }[]
+  const rawTags = zoho.Associated_Tags as Array<string | { name: string }> | null | undefined
   const tags: string[] = (rawTags ?? [])
     .map(t => (typeof t === 'string' ? t : ((t as { name: string }).name ?? '')))
     .filter(Boolean)
