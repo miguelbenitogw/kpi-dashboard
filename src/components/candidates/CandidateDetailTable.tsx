@@ -1,17 +1,21 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ChevronDown,
+  ChevronRight as ChevronExpandRight,
 } from 'lucide-react'
 import type { Candidate } from '@/lib/supabase/types'
 import {
   getCandidates,
+  getCandidateJobHistory,
   type CandidateQueryOptions,
   type CandidateQueryResult,
+  type CandidateJobHistory,
 } from '@/lib/queries/candidates'
 import StatusBadge from './StatusBadge'
 import CandidateFilters from './CandidateFilters'
@@ -118,6 +122,100 @@ function formatLanguages(
   return parts.length > 0 ? parts.join(' / ') : '\u2014'
 }
 
+// --- Job history status colors ---
+
+const STATUS_GREEN = new Set([
+  'Hired', 'Approved by client', 'Offer-Accepted', 'To-be-Offered',
+])
+const STATUS_RED = new Set([
+  'Rejected', 'Rejected by client', 'Offer-Declined', 'Not Valid',
+])
+const STATUS_YELLOW = new Set([
+  'On Hold', 'No Answer', 'Next Project',
+])
+
+function getStatusInJoClass(status: string | null): string {
+  if (!status) return 'bg-gray-700/50 text-gray-400'
+  if (STATUS_GREEN.has(status)) return 'bg-emerald-500/15 text-emerald-400'
+  if (STATUS_RED.has(status)) return 'bg-red-500/15 text-red-400'
+  if (STATUS_YELLOW.has(status)) return 'bg-yellow-500/15 text-yellow-300'
+  return 'bg-blue-500/15 text-blue-400'
+}
+
+function getAssocTypeClass(type: string | null): string {
+  if (type === 'formacion') return 'bg-emerald-600/20 text-emerald-300'
+  return 'bg-violet-600/20 text-violet-300'
+}
+
+// --- Job History Cards ---
+
+function JobHistoryCards({ candidateId }: { candidateId: string }) {
+  const [history, setHistory] = useState<CandidateJobHistory[] | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getCandidateJobHistory(candidateId)
+      .then(setHistory)
+      .catch(() => setHistory([]))
+      .finally(() => setLoading(false))
+  }, [candidateId])
+
+  if (loading) {
+    return (
+      <div className="flex gap-3 px-4 py-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-20 w-48 animate-pulse rounded-lg bg-gray-700/40" />
+        ))}
+      </div>
+    )
+  }
+
+  if (!history || history.length === 0) {
+    return (
+      <div className="px-4 py-3 text-xs text-gray-600 italic">
+        Sin historial de vacantes
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-wrap gap-3 px-4 py-3">
+      {history.map((h) => (
+        <div
+          key={h.id}
+          className="flex min-w-[200px] max-w-[260px] flex-col gap-1.5 rounded-lg border border-gray-700/60 bg-gray-800/60 p-3 break-words"
+        >
+          {/* Titulo de vacante — max 2 lineas */}
+          <p className="line-clamp-2 text-xs font-medium leading-snug text-gray-200">
+            {h.job_opening_title ?? '—'}
+          </p>
+
+          {/* Status en esa vacante */}
+          <span
+            className={`inline-block self-start rounded px-1.5 py-0.5 text-[10px] font-medium ${getStatusInJoClass(h.candidate_status_in_jo)}`}
+          >
+            {h.candidate_status_in_jo ?? 'Sin estado'}
+          </span>
+
+          {/* Footer: tipo + fecha */}
+          <div className="mt-auto flex items-center justify-between gap-1 pt-1">
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${getAssocTypeClass(h.association_type)}`}
+            >
+              {h.association_type ?? 'N/A'}
+            </span>
+            {h.fetched_at && (
+              <span className="text-[10px] text-gray-500">
+                Visto: {relativeDate(h.fetched_at)}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // --- Filter option type ---
 
 interface FilterOption {
@@ -169,6 +267,21 @@ export default function CandidateDetailTable({
   const [result, setResult] = useState<CandidateQueryResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [allFilteredCandidates, setAllFilteredCandidates] = useState<Candidate[]>([])
+
+  // Expanded rows
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
 
   // Sort state
   const [sort, setSort] = useState<SortState>({
@@ -322,12 +435,14 @@ export default function CandidateDetailTable({
         <table className="w-full min-w-[1200px] text-left text-sm">
           <thead>
             <tr className="border-b border-gray-700/50 bg-gray-800/80 text-[11px] uppercase tracking-wider text-gray-400">
+              {/* Expand toggle column */}
+              <th className="sticky left-0 z-10 w-8 bg-gray-800/80 px-2 py-3" />
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
                   className={`whitespace-nowrap px-3 py-3 ${
                     col.sticky
-                      ? 'sticky left-0 z-10 bg-gray-800/80'
+                      ? 'sticky left-8 z-10 bg-gray-800/80'
                       : ''
                   }`}
                   style={{ minWidth: col.minWidth }}
@@ -353,6 +468,9 @@ export default function CandidateDetailTable({
               // Skeleton rows
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={`skel-${i}`} className="animate-pulse">
+                  <td className="px-2 py-3">
+                    <div className="h-4 w-4 rounded bg-gray-700/40" />
+                  </td>
                   {COLUMNS.map((col) => (
                     <td key={col.key} className="px-3 py-3">
                       <div className="h-4 w-3/4 rounded bg-gray-700/40" />
@@ -361,101 +479,139 @@ export default function CandidateDetailTable({
                 </tr>
               ))
             ) : result && result.data.length > 0 ? (
-              result.data.map((c) => (
-                <tr
-                  key={c.id}
-                  className="transition hover:bg-gray-700/20"
-                >
-                  {/* Name - sticky */}
-                  <td className="sticky left-0 z-10 whitespace-nowrap bg-gray-900/95 px-3 py-2.5 font-medium text-gray-100">
-                    {c.full_name ?? '\u2014'}
-                  </td>
+              result.data.map((c) => {
+                const isExpanded = expandedIds.has(c.id)
+                return (
+                  <React.Fragment key={c.id}>
+                    <tr
+                      className="transition hover:bg-gray-700/20"
+                    >
+                      {/* Expand toggle */}
+                      <td className="sticky left-0 z-10 w-8 bg-gray-900/95 px-2 py-2.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(c.id)}
+                          className="flex items-center justify-center rounded p-0.5 text-gray-500 transition hover:bg-gray-700/50 hover:text-gray-300"
+                          title={isExpanded ? 'Colapsar vacantes' : 'Ver vacantes asociadas'}
+                        >
+                          {isExpanded
+                            ? <ChevronDown className="h-3.5 w-3.5" />
+                            : <ChevronExpandRight className="h-3.5 w-3.5" />
+                          }
+                        </button>
+                      </td>
 
-                  {/* Email */}
-                  <td className="max-w-[200px] truncate px-3 py-2.5 text-gray-300">
-                    {c.email ? (
-                      <a
-                        href={`mailto:${c.email}`}
-                        className="hover:text-blue-400 hover:underline"
-                        title={c.email}
+                      {/* Name - sticky */}
+                      <td className="sticky left-8 z-10 whitespace-nowrap bg-gray-900/95 px-3 py-2.5 font-medium text-gray-100">
+                        {c.full_name ?? '\u2014'}
+                      </td>
+
+                      {/* Email */}
+                      <td className="max-w-[200px] truncate px-3 py-2.5 text-gray-300">
+                        {c.email ? (
+                          <a
+                            href={`mailto:${c.email}`}
+                            className="hover:text-blue-400 hover:underline"
+                            title={c.email}
+                          >
+                            {c.email}
+                          </a>
+                        ) : (
+                          '\u2014'
+                        )}
+                      </td>
+
+                      {/* Phone */}
+                      <td className="whitespace-nowrap px-3 py-2.5 text-gray-400">
+                        {c.phone ?? '\u2014'}
+                      </td>
+
+                      {/* Status */}
+                      <td className="whitespace-nowrap px-3 py-2.5">
+                        <StatusBadge status={c.current_status} />
+                      </td>
+
+                      {/* Nationality */}
+                      <td className="whitespace-nowrap px-3 py-2.5 text-gray-300">
+                        {c.nationality ?? '\u2014'}
+                      </td>
+
+                      {/* Languages */}
+                      <td className="whitespace-nowrap px-3 py-2.5 text-xs text-gray-400">
+                        {formatLanguages(
+                          c.native_language,
+                          c.english_level,
+                          c.german_level
+                        )}
+                      </td>
+
+                      {/* Source */}
+                      <td className="whitespace-nowrap px-3 py-2.5 text-gray-400">
+                        {c.source ?? '\u2014'}
+                      </td>
+
+                      {/* Owner */}
+                      <td className="whitespace-nowrap px-3 py-2.5 text-gray-400">
+                        {c.owner ?? '\u2014'}
+                      </td>
+
+                      {/* Job Opening / Promo */}
+                      <td
+                        className="max-w-[150px] truncate px-3 py-2.5 text-gray-400"
+                        title={c.job_opening_title ?? ''}
                       >
-                        {c.email}
-                      </a>
-                    ) : (
-                      '\u2014'
+                        {c.job_opening_title ?? '\u2014'}
+                      </td>
+
+                      {/* Created — con etiqueta "CV:" */}
+                      <td
+                        className="whitespace-nowrap px-3 py-2.5 text-gray-500"
+                        title={formatFullDate(c.created_time)}
+                      >
+                        {c.created_time ? (
+                          <span>
+                            <span className="text-gray-600">CV: </span>
+                            {relativeDate(c.created_time)}
+                          </span>
+                        ) : '\u2014'}
+                      </td>
+
+                      {/* Last Activity — con etiqueta "Act:" */}
+                      <td
+                        className="whitespace-nowrap px-3 py-2.5 text-gray-500"
+                        title={formatFullDate(c.last_activity_time)}
+                      >
+                        {c.last_activity_time ? (
+                          <span>
+                            <span className="text-gray-600">Act: </span>
+                            {relativeDate(c.last_activity_time)}
+                          </span>
+                        ) : '\u2014'}
+                      </td>
+
+                      {/* Days in process */}
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-gray-400">
+                        {c.days_in_process != null
+                          ? `${c.days_in_process}d`
+                          : '\u2014'}
+                      </td>
+                    </tr>
+
+                    {/* Expanded row — job history cards */}
+                    {isExpanded && (
+                      <tr className="bg-gray-900/60">
+                        <td colSpan={COLUMNS.length + 1} className="border-t border-gray-700/30 py-0">
+                          <JobHistoryCards candidateId={c.id} />
+                        </td>
+                      </tr>
                     )}
-                  </td>
-
-                  {/* Phone */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-400">
-                    {c.phone ?? '\u2014'}
-                  </td>
-
-                  {/* Status */}
-                  <td className="whitespace-nowrap px-3 py-2.5">
-                    <StatusBadge status={c.current_status} />
-                  </td>
-
-                  {/* Nationality */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-300">
-                    {c.nationality ?? '\u2014'}
-                  </td>
-
-                  {/* Languages */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-xs text-gray-400">
-                    {formatLanguages(
-                      c.native_language,
-                      c.english_level,
-                      c.german_level
-                    )}
-                  </td>
-
-                  {/* Source */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-400">
-                    {c.source ?? '\u2014'}
-                  </td>
-
-                  {/* Owner */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-gray-400">
-                    {c.owner ?? '\u2014'}
-                  </td>
-
-                  {/* Job Opening / Promo */}
-                  <td
-                    className="max-w-[150px] truncate px-3 py-2.5 text-gray-400"
-                    title={c.job_opening_title ?? ''}
-                  >
-                    {c.job_opening_title ?? '\u2014'}
-                  </td>
-
-                  {/* Created */}
-                  <td
-                    className="whitespace-nowrap px-3 py-2.5 text-gray-500"
-                    title={formatFullDate(c.created_time)}
-                  >
-                    {relativeDate(c.created_time)}
-                  </td>
-
-                  {/* Last Activity */}
-                  <td
-                    className="whitespace-nowrap px-3 py-2.5 text-gray-500"
-                    title={formatFullDate(c.last_activity_time)}
-                  >
-                    {relativeDate(c.last_activity_time)}
-                  </td>
-
-                  {/* Days in process */}
-                  <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-gray-400">
-                    {c.days_in_process != null
-                      ? `${c.days_in_process}d`
-                      : '\u2014'}
-                  </td>
-                </tr>
-              ))
+                  </React.Fragment>
+                )
+              })
             ) : (
               <tr>
                 <td
-                  colSpan={COLUMNS.length}
+                  colSpan={COLUMNS.length + 1}
                   className="px-3 py-12 text-center text-gray-500"
                 >
                   {hasActiveFilters ? (

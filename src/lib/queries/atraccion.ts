@@ -49,9 +49,27 @@ export interface ActivePromotion {
 export async function getRecruitmentStatusCounts(
   jobOpeningId?: string,
 ): Promise<StatusCount[]> {
+  // Fetch candidate IDs linked to atraccion vacantes
+  const { data: historyRows, error: historyError } = await supabase
+    .from('candidate_job_history_kpi')
+    .select('candidate_id')
+    .eq('association_type', 'atraccion')
+
+  if (historyError) {
+    console.error('Error fetching atraccion candidate ids:', historyError)
+    return []
+  }
+
+  const candidateIds = [
+    ...new Set((historyRows ?? []).map((r) => r.candidate_id)),
+  ]
+
+  if (candidateIds.length === 0) return []
+
   let query = supabase
     .from('candidates_kpi')
     .select('current_status')
+    .in('id', candidateIds)
 
   if (jobOpeningId) {
     query = query.eq('job_opening_id', jobOpeningId)
@@ -126,9 +144,29 @@ function formatWeekLabel(mondayDate: string): string {
 export async function getConversionRates(
   jobOpeningId?: string,
 ): Promise<ConversionRates> {
+  // Fetch candidate IDs linked to atraccion vacantes
+  const { data: historyRows, error: historyError } = await supabase
+    .from('candidate_job_history_kpi')
+    .select('candidate_id')
+    .eq('association_type', 'atraccion')
+
+  if (historyError) {
+    console.error('Error fetching atraccion candidate ids for conversion:', historyError)
+    return { cvToApproved: 0, contactedToApproved: 0 }
+  }
+
+  const candidateIds = [
+    ...new Set((historyRows ?? []).map((r) => r.candidate_id)),
+  ]
+
+  if (candidateIds.length === 0) {
+    return { cvToApproved: 0, contactedToApproved: 0 }
+  }
+
   let query = supabase
     .from('candidates_kpi')
     .select('current_status')
+    .in('id', candidateIds)
 
   if (jobOpeningId) {
     query = query.eq('job_opening_id', jobOpeningId)
@@ -222,6 +260,37 @@ export async function getActivePromotions(): Promise<ActivePromotion[]> {
 
   if (error) {
     console.error('Error fetching active promotions:', error)
+    return []
+  }
+
+  return data ?? []
+}
+
+export interface AtraccionVacancy {
+  id: string
+  title: string
+  status: string | null
+  client_name: string | null
+  owner: string | null
+  tipo_profesional: string
+  total_candidates: number
+  hired_count: number
+  es_proceso_atraccion_actual: boolean
+  date_opened: string | null
+}
+
+export async function getAtraccionVacancies(): Promise<AtraccionVacancy[]> {
+  const { data, error } = await supabase
+    .from('job_openings_kpi')
+    .select(
+      'id, title, status, client_name, owner, tipo_profesional, total_candidates, hired_count, es_proceso_atraccion_actual, date_opened',
+    )
+    .eq('category', 'atraccion')
+    .eq('is_active', true)
+    .order('total_candidates', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching atraccion vacancies:', error)
     return []
   }
 

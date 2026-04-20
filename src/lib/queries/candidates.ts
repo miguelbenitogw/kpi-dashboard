@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
-import type { Candidate, JobOpening } from '@/lib/supabase/types'
+import type { Candidate, JobOpening, CandidateJobHistory } from '@/lib/supabase/types'
 import { TERMINAL_STATUSES } from '@/lib/constants'
 
 export interface CandidateQueryOptions {
@@ -279,4 +279,31 @@ export async function getCandidatesByVacancy(
   options: Omit<CandidateQueryOptions, 'jobOpeningId'> = {}
 ): Promise<CandidateQueryResult> {
   return getCandidates({ ...options, jobOpeningId })
+}
+
+// ---------------------------------------------------------------------------
+// Candidate job history (vacantes asociadas a un candidato)
+// ---------------------------------------------------------------------------
+
+export type { CandidateJobHistory }
+
+/**
+ * Returns all job openings associated with a given candidate
+ * from candidate_job_history_kpi, ordered by fetched_at desc.
+ */
+export async function getCandidateJobHistory(
+  candidateId: string
+): Promise<CandidateJobHistory[]> {
+  const { data, error } = await supabase
+    .from('candidate_job_history_kpi')
+    .select('*')
+    .eq('candidate_id', candidateId)
+    .order('fetched_at', { ascending: false, nullsFirst: false })
+
+  if (error) {
+    console.error('getCandidateJobHistory error:', error)
+    throw error
+  }
+
+  return data ?? []
 }

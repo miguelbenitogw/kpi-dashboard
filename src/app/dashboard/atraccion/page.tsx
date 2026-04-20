@@ -1,20 +1,18 @@
+'use client'
+
+import { useState } from 'react'
 import RecruitmentStatusGrid from '@/components/atraccion/RecruitmentStatusGrid'
 import ConversionRates from '@/components/atraccion/ConversionRates'
 import WeeklyCVChart from '@/components/atraccion/WeeklyCVChart'
 import AttractionTrafficLights from '@/components/atraccion/AttractionTrafficLights'
 import CharlasSummary from '@/components/atraccion/CharlasSummary'
+import AtraccionVacanciesList from '@/components/atraccion/AtraccionVacanciesList'
 
-export default function AtraccionPage() {
+type Tab = 'candidatos' | 'vacantes'
+
+function CandidatosTab() {
   return (
-    <div>
-      <div>
-        <h1 className="text-2xl font-bold text-gray-100">Atracción</h1>
-        <p className="mt-1 text-sm text-gray-400">
-          Indicadores de reclutamiento, selección e instituciones (Cuadro de
-          Mando GW · columnas A–AL).
-        </p>
-      </div>
-
+    <>
       {/* V3-AE3: Candidates by status */}
       <div className="mt-8">
         <RecruitmentStatusGrid />
@@ -39,6 +37,55 @@ export default function AtraccionPage() {
       <div className="mt-6">
         <CharlasSummary />
       </div>
+    </>
+  )
+}
+
+function VacantesTab() {
+  return <AtraccionVacanciesList />
+}
+
+export default function AtraccionPage() {
+  const [activeTab, setActiveTab] = useState<Tab>('candidatos')
+
+  return (
+    <div>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-100">Atracción</h1>
+        <p className="mt-1 text-sm text-gray-400">
+          Indicadores de reclutamiento, selección e instituciones (Cuadro de
+          Mando GW · columnas A–AL).
+        </p>
+      </div>
+
+      {/* Tab switcher */}
+      <div className="mt-6 flex w-fit gap-1 rounded-lg bg-gray-800/50 p-1">
+        <button
+          onClick={() => setActiveTab('candidatos')}
+          className={[
+            'rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+            activeTab === 'candidatos'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200',
+          ].join(' ')}
+        >
+          Candidatos
+        </button>
+        <button
+          onClick={() => setActiveTab('vacantes')}
+          className={[
+            'rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+            activeTab === 'vacantes'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200',
+          ].join(' ')}
+        >
+          Vacantes Activas
+        </button>
+      </div>
+
+      {activeTab === 'candidatos' && <CandidatosTab />}
+      {activeTab === 'vacantes' && <VacantesTab />}
     </div>
   )
 }
