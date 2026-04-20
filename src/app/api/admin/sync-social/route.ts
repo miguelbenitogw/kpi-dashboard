@@ -41,7 +41,7 @@ export async function POST(request: Request) {
         subscribers_count: stats.subscriberCount,
         posts_count: stats.videoCount,
         total_views: stats.viewCount,
-        raw_data: { channelId: stats.channelId },
+        raw_data: { channelId: stats.channelId, topVideos: stats.topVideos },
         captured_at: capturedAt,
       })
 
