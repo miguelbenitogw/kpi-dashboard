@@ -279,6 +279,105 @@ export interface AtraccionVacancy {
   date_opened: string | null
 }
 
+// ---------------------------------------------------------------------------
+// Promo × Status recruitment table
+// ---------------------------------------------------------------------------
+
+export interface PromoStatusRow {
+  /** Promotion name, e.g. "Promoción 113" */
+  nombre: string
+  /** Recruitment target (objetivo_atraccion from promotions_kpi) */
+  objetivo: number | null
+  /** Currently accepted (total_aceptados) */
+  aceptados: number | null
+  /** End date */
+  fecha_fin: string | null
+  /** Coordinator */
+  coordinador: string | null
+  /** Map status → count for this promo */
+  byStatus: Record<string, number>
+  /** Total candidates in this promo */
+  total: number
+}
+
+export interface PromoRecruitmentStats {
+  rows: PromoStatusRow[]
+  /** All distinct statuses that appear in the data (for column headers) */
+  statuses: string[]
+}
+
+export async function getPromoRecruitmentStats(): Promise<PromoRecruitmentStats> {
+  // Fetch active promos
+  const { data: promos, error: promosError } = await supabase
+    .from('promotions_kpi')
+    .select('nombre, objetivo_atraccion, total_aceptados, fecha_fin, coordinador')
+    .eq('is_active', true)
+    .order('nombre', { ascending: true })
+
+  if (promosError) {
+    console.error('Error fetching promos:', promosError)
+  }
+
+  const activePromos = promos ?? []
+  const activePromoNames = new Set(activePromos.map((p) => p.nombre))
+
+  // Fetch all candidates that belong to any active promo
+  const { data: candidates, error: candError } = await supabase
+    .from('candidates_kpi')
+    .select('promocion_nombre, current_status')
+    .not('promocion_nombre', 'is', null)
+
+  if (candError) {
+    console.error('Error fetching candidates for promo stats:', candError)
+  }
+
+  // Aggregate candidates by promo + status
+  const promoMap = new Map<string, Record<string, number>>()
+
+  for (const c of candidates ?? []) {
+    const promo = c.promocion_nombre as string
+    const status = (c.current_status as string) ?? 'Sin estado'
+    if (!promoMap.has(promo)) promoMap.set(promo, {})
+    const statusMap = promoMap.get(promo)!
+    statusMap[status] = (statusMap[status] ?? 0) + 1
+  }
+
+  // Collect all distinct statuses across all promos (sorted)
+  const allStatuses = new Set<string>()
+  for (const statusMap of promoMap.values()) {
+    for (const s of Object.keys(statusMap)) allStatuses.add(s)
+  }
+  const statuses = Array.from(allStatuses).sort()
+
+  // Build rows — include all active promos even if they have 0 candidates
+  const rows: PromoStatusRow[] = activePromos.map((p) => {
+    const byStatus = promoMap.get(p.nombre) ?? {}
+    const total = Object.values(byStatus).reduce((sum, n) => sum + n, 0)
+    return {
+      nombre: p.nombre,
+      objetivo: p.objetivo_atraccion ?? null,
+      aceptados: p.total_aceptados ?? null,
+      fecha_fin: p.fecha_fin ?? null,
+      coordinador: p.coordinador ?? null,
+      byStatus,
+      total,
+    }
+  })
+
+  // Also include promos that appear in candidates but aren't in promotions_kpi
+  for (const [nombre, byStatus] of promoMap.entries()) {
+    if (!activePromoNames.has(nombre)) {
+      const total = Object.values(byStatus).reduce((sum, n) => sum + n, 0)
+      rows.push({ nombre, objetivo: null, aceptados: null, fecha_fin: null, coordinador: null, byStatus, total })
+    }
+  }
+
+  // Sort by nombre
+  rows.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+
+  return { rows, statuses }
+}
+
 export async function getAtraccionVacancies(): Promise<AtraccionVacancy[]> {
   const { data, error } = await supabase
     .from('job_openings_kpi')

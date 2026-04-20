@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import RecruitmentStatusGrid from '@/components/atraccion/RecruitmentStatusGrid'
+import PromoRecruitmentTable from '@/components/atraccion/PromoRecruitmentTable'
 import ConversionRates from '@/components/atraccion/ConversionRates'
 import WeeklyCVChart from '@/components/atraccion/WeeklyCVChart'
 import AttractionTrafficLights from '@/components/atraccion/AttractionTrafficLights'
@@ -14,9 +14,9 @@ type Tab = 'candidatos' | 'vacantes' | 'rrss'
 function CandidatosTab() {
   return (
     <>
-      {/* V3-AE3: Candidates by status */}
+      {/* Main: promos activas × estados */}
       <div className="mt-8">
-        <RecruitmentStatusGrid />
+        <PromoRecruitmentTable />
       </div>
 
       {/* AF3-AG3: Conversion rates */}
