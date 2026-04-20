@@ -7,8 +7,9 @@ import WeeklyCVChart from '@/components/atraccion/WeeklyCVChart'
 import AttractionTrafficLights from '@/components/atraccion/AttractionTrafficLights'
 import CharlasSummary from '@/components/atraccion/CharlasSummary'
 import AtraccionVacanciesList from '@/components/atraccion/AtraccionVacanciesList'
+import RRSSOverview from '@/components/atraccion/RRSSOverview'
 
-type Tab = 'candidatos' | 'vacantes'
+type Tab = 'candidatos' | 'vacantes' | 'rrss'
 
 function CandidatosTab() {
   return (
@@ -43,6 +44,10 @@ function CandidatosTab() {
 
 function VacantesTab() {
   return <AtraccionVacanciesList />
+}
+
+function RRSSTab() {
+  return <RRSSOverview />
 }
 
 export default function AtraccionPage() {
@@ -82,10 +87,22 @@ export default function AtraccionPage() {
         >
           Vacantes Activas
         </button>
+        <button
+          onClick={() => setActiveTab('rrss')}
+          className={[
+            'rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+            activeTab === 'rrss'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200',
+          ].join(' ')}
+        >
+          RRSS
+        </button>
       </div>
 
       {activeTab === 'candidatos' && <CandidatosTab />}
       {activeTab === 'vacantes' && <VacantesTab />}
+      {activeTab === 'rrss' && <RRSSTab />}
     </div>
   )
 }
