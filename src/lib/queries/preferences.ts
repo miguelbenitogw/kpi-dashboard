@@ -14,7 +14,7 @@ interface FavoriteIdsValue {
 
 async function getFavoriteIds(preferenceType: FavoriteType): Promise<string[]> {
   const { data, error } = await supabaseAdmin
-    .from('user_preferences')
+    .from('user_preferences_kpi')
     .select('value')
     .eq('user_key', USER_KEY)
     .eq('preference_type', preferenceType)
@@ -56,7 +56,7 @@ async function upsertFavoriteIds(
   const value = { ids } as unknown as import('@/lib/supabase/types').Json
 
   const { error } = await supabaseAdmin
-    .from('user_preferences')
+    .from('user_preferences_kpi')
     .upsert(
       {
         user_key: USER_KEY,

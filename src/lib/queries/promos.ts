@@ -29,7 +29,7 @@ export interface CandidateWithHistory extends Candidate {
 
 export async function getActivePromos(): Promise<JobOpening[]> {
   const { data, error } = await supabase
-    .from('job_openings')
+    .from('job_openings_kpi')
     .select('*')
     .ilike('title', '%promo%')
     .eq('is_active', true)
@@ -43,7 +43,7 @@ export async function getPromoCandidates(
   jobOpeningId: string
 ): Promise<Candidate[]> {
   const { data, error } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('*')
     .eq('job_opening_id', jobOpeningId)
     .order('modified_time', { ascending: false })
@@ -87,7 +87,7 @@ export async function getPromoStatusBreakdown(
   jobOpeningId: string
 ): Promise<PromoStatusCount[]> {
   const { data, error } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('current_status')
     .eq('job_opening_id', jobOpeningId)
 
@@ -101,7 +101,7 @@ export async function getPromoBreakdownFull(
   jobOpeningId: string
 ): Promise<PromoBreakdownResult> {
   const { data, error } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('current_status')
     .eq('job_opening_id', jobOpeningId)
 
@@ -114,7 +114,7 @@ export async function getPromoTimeline(
 ): Promise<CandidateWithHistory[]> {
   // Get candidates
   const { data: candidates, error: candError } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('*')
     .eq('job_opening_id', jobOpeningId)
     .order('modified_time', { ascending: false })
@@ -124,7 +124,7 @@ export async function getPromoTimeline(
 
   // Get stage history for this job opening
   const { data: history, error: histError } = await supabase
-    .from('stage_history')
+    .from('stage_history_kpi')
     .select('*')
     .eq('job_opening_id', jobOpeningId)
     .order('changed_at', { ascending: false })
@@ -155,7 +155,7 @@ export async function getPromoSummary(): Promise<PromoSummaryItem[]> {
 
   // Get all candidates for all promos in one query
   const { data: allCandidates, error } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('job_opening_id, current_status, modified_time, last_synced_at')
     .in('job_opening_id', promoIds)
 
@@ -204,7 +204,7 @@ export function subscribeToPromoChanges(
       {
         event: '*',
         schema: 'public',
-        table: 'candidates',
+        table: 'candidates_kpi',
         filter: `job_opening_id=eq.${jobOpeningId}`,
       },
       (payload) => {
@@ -231,7 +231,7 @@ export function subscribeToAllPromoChanges(
       {
         event: '*',
         schema: 'public',
-        table: 'candidates',
+        table: 'candidates_kpi',
       },
       (payload) => {
         const candidate = payload.new as Candidate | null

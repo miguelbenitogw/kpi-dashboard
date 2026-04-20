@@ -3,7 +3,7 @@ import type { JobOpening, Candidate } from '@/lib/supabase/types'
 
 export async function getJobOpenings(): Promise<JobOpening[]> {
   const { data, error } = await supabase
-    .from('job_openings')
+    .from('job_openings_kpi')
     .select('*')
     .eq('is_active', true)
     .order('date_opened', { ascending: false, nullsFirst: false })
@@ -16,7 +16,7 @@ export async function getCandidatesByVacancy(jobOpeningId: string): Promise<
   (Candidate & { alert_level: string | null; days_stuck: number | null })[]
 > {
   const { data: candidates, error: candError } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('*')
     .eq('job_opening_id', jobOpeningId)
     .order('modified_time', { ascending: false, nullsFirst: false })
@@ -24,7 +24,7 @@ export async function getCandidatesByVacancy(jobOpeningId: string): Promise<
   if (candError) throw candError
 
   const { data: alerts, error: alertError } = await supabase
-    .from('sla_alerts')
+    .from('sla_alerts_kpi')
     .select('candidate_id, alert_level, days_stuck')
     .eq('job_opening_id', jobOpeningId)
     .is('resolved_at', null)
@@ -54,7 +54,7 @@ export async function getPipelineStats(
   jobOpeningId: string
 ): Promise<PipelineStatusCount[]> {
   const { data, error } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('current_status')
     .eq('job_opening_id', jobOpeningId)
 

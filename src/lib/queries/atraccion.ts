@@ -50,7 +50,7 @@ export async function getRecruitmentStatusCounts(
   jobOpeningId?: string,
 ): Promise<StatusCount[]> {
   let query = supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('current_status')
 
   if (jobOpeningId) {
@@ -83,7 +83,7 @@ export async function getWeeklyCVCount(days = 84): Promise<WeeklyCVData[]> {
   since.setDate(since.getDate() - days)
 
   const { data, error } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('created_time')
     .gte('created_time', since.toISOString())
     .order('created_time', { ascending: true })
@@ -127,7 +127,7 @@ export async function getConversionRates(
   jobOpeningId?: string,
 ): Promise<ConversionRates> {
   let query = supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('current_status')
 
   if (jobOpeningId) {
@@ -165,7 +165,7 @@ export async function getAttractionTrafficLight(
   promotionId: string,
 ): Promise<TrafficLight> {
   const { data, error } = await supabase
-    .from('promotions')
+    .from('promotions_kpi')
     .select(
       'objetivo_atraccion, total_aceptados, fecha_inicio, fecha_fin',
     )
@@ -213,7 +213,7 @@ export async function getAttractionTrafficLight(
 
 export async function getActivePromotions(): Promise<ActivePromotion[]> {
   const { data, error } = await supabase
-    .from('promotions')
+    .from('promotions_kpi')
     .select(
       'id, nombre, coordinador, cliente, fecha_fin, objetivo_atraccion, total_aceptados',
     )

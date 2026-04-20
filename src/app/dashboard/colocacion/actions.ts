@@ -49,14 +49,14 @@ export async function linkPromoToJobOpening(
     if (!jobOpeningId) {
       // Remove link
       const { error } = await supabaseAdmin
-        .from('promo_job_link' as any)
+        .from('promo_job_link_kpi' as any)
         .delete()
         .eq('promocion_nombre', promocionNombre)
       if (error) throw error
     } else {
       // Upsert link
       const { error } = await (supabaseAdmin as any)
-        .from('promo_job_link')
+        .from('promo_job_link_kpi')
         .upsert(
           { promocion_nombre: promocionNombre, job_opening_id: jobOpeningId, updated_at: new Date().toISOString() },
           { onConflict: 'promocion_nombre' },

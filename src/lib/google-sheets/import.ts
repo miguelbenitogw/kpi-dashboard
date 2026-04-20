@@ -325,7 +325,7 @@ export async function importPromoSheet(
 
   // ---- Step 1: Upsert promo_sheets record --------------------------------
   const { data: sheetRecord, error: sheetUpsertError } = await supabaseAdmin
-    .from('promo_sheets')
+    .from('promo_sheets_kpi')
     .upsert(
       {
         sheet_url: sheetUrl,
@@ -352,7 +352,7 @@ export async function importPromoSheet(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     await supabaseAdmin
-      .from('promo_sheets')
+      .from('promo_sheets_kpi')
       .update({ sync_status: 'error', sync_error: msg })
       .eq('id', promoSheetId)
     throw new Error(`Failed to fetch Google Sheet: ${msg}`)
@@ -360,7 +360,7 @@ export async function importPromoSheet(
 
   if (tabs.length === 0) {
     await supabaseAdmin
-      .from('promo_sheets')
+      .from('promo_sheets_kpi')
       .update({
         sync_status: 'error',
         sync_error: 'No tabs found — sheet may be private or empty',
@@ -435,7 +435,7 @@ export async function importPromoSheet(
       }
 
       const { error: upsertError } = await supabaseAdmin
-        .from('promo_students')
+        .from('promo_students_kpi')
         .upsert(upsertPayload as any, {
           onConflict: 'promo_sheet_id,tab_name,row_number',
         })
@@ -452,7 +452,7 @@ export async function importPromoSheet(
 
   // ---- Step 6: Mark sync as done -----------------------------------------
   await supabaseAdmin
-    .from('promo_sheets')
+    .from('promo_sheets_kpi')
     .update({
       sync_status: 'done',
       sync_error: null,
@@ -480,7 +480,7 @@ async function syncDropoutsToCandidates(
 
   // Get all dropout rows from promo_students that have a Zoho match
   const { data: dropoutStudents, error } = await (supabaseAdmin
-    .from('promo_students') as any)
+    .from('promo_students_kpi') as any)
     .select('zoho_candidate_id, email, full_name, dropout_reason, dropout_date, dropout_notes, sheet_status, start_date, dropout_modality, dropout_days_of_training')
     .eq('promo_sheet_id', promoSheetId)
     .eq('tab_name', 'Dropouts')
@@ -508,7 +508,7 @@ async function syncDropoutsToCandidates(
     // Try matching by zoho_candidate_id first (= candidates.id)
     if (student.zoho_candidate_id) {
       const { error: updateError, data } = await supabaseAdmin
-        .from('candidates')
+        .from('candidates_kpi')
         .update(updatePayload as any)
         .eq('id', student.zoho_candidate_id)
         .select('id')
@@ -526,7 +526,7 @@ async function syncDropoutsToCandidates(
     // Fallback: try matching by email
     if (!updated && student.email) {
       const { error: updateError, data } = await supabaseAdmin
-        .from('candidates')
+        .from('candidates_kpi')
         .update(updatePayload as any)
         .eq('email', student.email)
         .select('id')
@@ -612,7 +612,7 @@ export async function importDropoutsTab(
 
   // ---- Step 1: Upsert promo_sheets record --------------------------------
   const { data: sheetRecord, error: sheetUpsertError } = await supabaseAdmin
-    .from('promo_sheets')
+    .from('promo_sheets_kpi')
     .upsert(
       {
         sheet_url: sheetUrl,
@@ -639,7 +639,7 @@ export async function importDropoutsTab(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     await supabaseAdmin
-      .from('promo_sheets')
+      .from('promo_sheets_kpi')
       .update({ sync_status: 'error', sync_error: `Dropouts tab: ${msg}` })
       .eq('id', promoSheetId)
     throw new Error(`Failed to fetch Dropouts tab: ${msg}`)
@@ -735,7 +735,7 @@ export async function importDropoutsTab(
     }
 
     const { error: upsertError } = await supabaseAdmin
-      .from('promo_students')
+      .from('promo_students_kpi')
       .upsert(upsertPayload as any, {
         onConflict: 'promo_sheet_id,tab_name,row_number',
       })
@@ -763,7 +763,7 @@ export async function importDropoutsTab(
 
   // ---- Step 6: Mark sync as done -----------------------------------------
   await supabaseAdmin
-    .from('promo_sheets')
+    .from('promo_sheets_kpi')
     .update({
       sync_status: 'done',
       sync_error: null,
@@ -781,7 +781,7 @@ export async function syncAllPromoSheets(): Promise<
   Array<{ sheet_name: string | null; sheet_url: string } & ImportResult>
 > {
   const { data: sheets, error } = await supabaseAdmin
-    .from('promo_sheets')
+    .from('promo_sheets_kpi')
     .select('id, sheet_url, sheet_name, job_opening_id')
     .in('sync_status', ['done', 'error', 'pending'])
 

@@ -81,7 +81,7 @@ export async function getFunnelData(
 ): Promise<FunnelStageData[]> {
   // Get all candidate IDs and their current status
   let candidatesQuery = supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('id, current_status');
   if (jobOpeningId) {
     candidatesQuery = candidatesQuery.eq('job_opening_id', jobOpeningId);
@@ -102,7 +102,7 @@ export async function getFunnelData(
 
   // Get stage history for these candidates
   let historyQuery = supabase
-    .from('stage_history')
+    .from('stage_history_kpi')
     .select('candidate_id, to_status');
   if (jobOpeningId) {
     historyQuery = historyQuery.eq('job_opening_id', jobOpeningId);
@@ -162,7 +162,7 @@ export async function getConversionRates(
 
   // Get avg days in stage from stage_history
   let daysQuery = supabase
-    .from('stage_history')
+    .from('stage_history_kpi')
     .select('from_status, days_in_stage');
   if (jobOpeningId) {
     daysQuery = daysQuery.eq('job_opening_id', jobOpeningId);
@@ -214,7 +214,7 @@ export async function getConversionRates(
  */
 export async function getSourceStats(): Promise<SourceStat[]> {
   const { data: candidates, error } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('source, current_status');
   if (error) throw error;
 
@@ -242,12 +242,12 @@ export async function getSourceStats(): Promise<SourceStat[]> {
  */
 export async function getRecruiterStats(): Promise<RecruiterStat[]> {
   const { data: candidates, error: candError } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('id, owner, current_status, created_time');
   if (candError) throw candError;
 
   const { data: history, error: histError } = await supabase
-    .from('stage_history')
+    .from('stage_history_kpi')
     .select('candidate_id, to_status, changed_at');
   if (histError) throw histError;
 
@@ -348,7 +348,7 @@ export async function getFunnelComparison(
 ): Promise<{ jobOpeningId: string; title: string; stages: FunnelStageData[] }[]> {
   // Get titles
   const { data: jobs } = await supabase
-    .from('job_openings')
+    .from('job_openings_kpi')
     .select('id, title')
     .in('id', jobOpeningIds);
 
@@ -372,7 +372,7 @@ export async function getFunnelComparison(
  */
 export async function getJobOpenings() {
   const { data, error } = await supabase
-    .from('job_openings')
+    .from('job_openings_kpi')
     .select('id, title, client_name, status, total_candidates')
     .order('title');
   if (error) throw error;

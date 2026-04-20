@@ -9,7 +9,7 @@ export async function POST(request: Request) {
 
   try {
     const { data: openings, error: openingsError } = await supabaseAdmin
-      .from('job_openings')
+      .from('job_openings_kpi')
       .select('id')
       .eq('is_active', true);
 
@@ -22,14 +22,14 @@ export async function POST(request: Request) {
 
     for (const opening of openings) {
       const { count: totalCandidates, error: totalError } = await supabaseAdmin
-        .from('candidates')
+        .from('candidates_kpi')
         .select('*', { count: 'exact', head: true })
         .eq('job_opening_id', opening.id);
 
       if (totalError) throw totalError;
 
       const { count: hiredCount, error: hiredError } = await supabaseAdmin
-        .from('candidates')
+        .from('candidates_kpi')
         .select('*', { count: 'exact', head: true })
         .eq('job_opening_id', opening.id)
         .eq('current_status', 'Hired');
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       if (hiredError) throw hiredError;
 
       const { error: updateError } = await supabaseAdmin
-        .from('job_openings')
+        .from('job_openings_kpi')
         .update({
           total_candidates: totalCandidates ?? 0,
           hired_count: hiredCount ?? 0,

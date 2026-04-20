@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 
   // ---- Phase 3: Re-sync all registered promo sheets -----------------------
   const { data: sheets, error: sheetsError } = await supabaseAdmin
-    .from('promo_sheets')
+    .from('promo_sheets_kpi')
     .select('id, sheet_url, sheet_name, job_opening_id, sync_status')
     .neq('sync_status', 'disabled')
 
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
 
       try {
         await supabaseAdmin
-          .from('promo_sheets')
+          .from('promo_sheets_kpi')
           .update({ sync_status: 'syncing' })
           .eq('id', sheet.id)
 
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
         const msg = err instanceof Error ? err.message : String(err)
 
         await supabaseAdmin
-          .from('promo_sheets')
+          .from('promo_sheets_kpi')
           .update({ sync_status: 'error', sync_error: msg })
           .eq('id', sheet.id)
 

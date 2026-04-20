@@ -43,11 +43,11 @@ export interface CharlasSummary {
 export async function getCharlasSummary(): Promise<CharlasSummary> {
   const [temporadaRes, totalesRes] = await Promise.all([
     (supabase as any)
-      .from('charlas_temporada')
+      .from('charlas_temporada_kpi')
       .select('*')
       .order('temporada', { ascending: true })
       .order('programa', { ascending: true }),
-    (supabase as any).from('charlas_programa_totales').select('*'),
+    (supabase as any).from('charlas_programa_totales_kpi').select('*'),
   ])
 
   const porTemporada = (temporadaRes.data ?? []) as CharlaTemporadaRow[]
@@ -98,7 +98,7 @@ export async function upsertCharlasTemporada(rows: CharlaTemporadaUpsert[]) {
   // Dynamic import keeps supabaseAdmin out of the client bundle
   const { supabaseAdmin } = await import('@/lib/supabase/server')
   const { data, error } = await (supabaseAdmin as any)
-    .from('charlas_temporada')
+    .from('charlas_temporada_kpi')
     .upsert(rows, { onConflict: 'temporada,programa' })
     .select()
   if (error) throw error
@@ -114,7 +114,7 @@ export async function upsertProgramaTotales(rows: {
   // Dynamic import keeps supabaseAdmin out of the client bundle
   const { supabaseAdmin } = await import('@/lib/supabase/server')
   const { data, error } = await (supabaseAdmin as any)
-    .from('charlas_programa_totales')
+    .from('charlas_programa_totales_kpi')
     .upsert(rows, { onConflict: 'programa' })
     .select()
   if (error) throw error

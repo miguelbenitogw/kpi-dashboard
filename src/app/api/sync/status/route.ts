@@ -10,7 +10,7 @@ export async function GET(request: Request) {
 
     // Get last sync log entry
     const { data: lastSync } = await supabaseAdmin
-      .from('sync_log')
+      .from('sync_log_kpi')
       .select('*')
       .order('started_at', { ascending: false })
       .limit(1)
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
     // Get last failed sync
     const { data: lastError } = await supabaseAdmin
-      .from('sync_log')
+      .from('sync_log_kpi')
       .select('*')
       .eq('status', 'failed')
       .order('started_at', { ascending: false })
@@ -28,12 +28,12 @@ export async function GET(request: Request) {
     // Get record counts for all tables
     const [candidates, jobOpenings, stageHistory, slaAlerts, dailySnapshots, syncLogs] =
       await Promise.all([
-        supabaseAdmin.from('candidates').select('*', { count: 'exact', head: true }),
-        supabaseAdmin.from('job_openings').select('*', { count: 'exact', head: true }),
-        supabaseAdmin.from('stage_history').select('*', { count: 'exact', head: true }),
-        supabaseAdmin.from('sla_alerts').select('*', { count: 'exact', head: true }),
-        supabaseAdmin.from('daily_snapshot').select('*', { count: 'exact', head: true }),
-        supabaseAdmin.from('sync_log').select('*', { count: 'exact', head: true }),
+        supabaseAdmin.from('candidates_kpi').select('*', { count: 'exact', head: true }),
+        supabaseAdmin.from('job_openings_kpi').select('*', { count: 'exact', head: true }),
+        supabaseAdmin.from('stage_history_kpi').select('*', { count: 'exact', head: true }),
+        supabaseAdmin.from('sla_alerts_kpi').select('*', { count: 'exact', head: true }),
+        supabaseAdmin.from('daily_snapshot_kpi').select('*', { count: 'exact', head: true }),
+        supabaseAdmin.from('sync_log_kpi').select('*', { count: 'exact', head: true }),
       ])
 
     return NextResponse.json({

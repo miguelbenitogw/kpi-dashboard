@@ -30,7 +30,7 @@ export async function getAccessToken(): Promise<string> {
 
 async function getStoredToken(): Promise<TokenConfig | null> {
   const { data, error } = await supabaseAdmin
-    .from('dashboard_config')
+    .from('dashboard_config_kpi')
     .select('config_value')
     .eq('config_key', 'zoho_token')
     .single()
@@ -100,7 +100,7 @@ async function refreshToken(): Promise<TokenConfig> {
 
 async function storeToken(token: TokenConfig): Promise<void> {
   const { error } = await supabaseAdmin
-    .from('dashboard_config')
+    .from('dashboard_config_kpi')
     .upsert(
       {
         config_key: 'zoho_token',

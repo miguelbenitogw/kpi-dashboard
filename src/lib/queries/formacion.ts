@@ -76,7 +76,7 @@ export async function getFormacionStates(
   promotionId?: string,
 ): Promise<FormacionStateRow[]> {
   let query = supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('current_status')
     .in('current_status', [...FORMATION_STATES])
 
@@ -116,13 +116,13 @@ export async function getRetentionMetrics(
 ): Promise<RetentionMetrics> {
   const [promoRes, retainedRes] = await Promise.all([
     supabase
-      .from('promotions')
+      .from('promotions_kpi')
       .select('expectativa_finalizan')
       .eq('id', promotionId)
       .single(),
 
     supabase
-      .from('candidates')
+      .from('candidates_kpi')
       .select('id', { count: 'exact', head: true })
       .eq('promotion_id', promotionId)
       .in('current_status', RETAINED_STATES),
@@ -146,7 +146,7 @@ export async function getDropoutAnalysis(
   const dropoutStatuses = ['Offer-Withdrawn', 'Expelled', 'Transferred']
 
   let query = supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select(
       'dropout_reason, dropout_date, dropout_language_level, current_status',
     )
@@ -173,7 +173,7 @@ export async function getDropoutAnalysis(
   const dropouts = data ?? []
 
   let totalProgramQuery = supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('id', { count: 'exact', head: true })
     .in('current_status', [...FORMATION_STATES])
 
@@ -235,7 +235,7 @@ export async function getPromotionsFormacionOverview(): Promise<
   PromotionFormacionOverview[]
 > {
   const { data: promotions, error } = await supabase
-    .from('promotions')
+    .from('promotions_kpi')
     .select('id, nombre, expectativa_finalizan, total_dropouts, is_active, fecha_fin')
     .eq('is_active', true)
     .order('fecha_fin', { ascending: true, nullsFirst: false })
@@ -251,7 +251,7 @@ export async function getPromotionsFormacionOverview(): Promise<
 
   for (const promo of promotions) {
     const { count } = await supabase
-      .from('candidates')
+      .from('candidates_kpi')
       .select('id', { count: 'exact', head: true })
       .eq('promotion_id', promo.id)
       .in('current_status', RETAINED_STATES)

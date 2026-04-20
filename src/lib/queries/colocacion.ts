@@ -35,13 +35,13 @@ export interface JobOpeningOption {
 export async function getGPPromotions(): Promise<PromoGPSummary[]> {
   const [candidatesRes, linksRes] = await Promise.all([
     (supabase as any)
-      .from('candidates')
+      .from('candidates_kpi')
       .select('promocion_nombre')
       .not('promocion_nombre', 'is', null)
       .neq('current_status', 'Offer Withdrawn')
       .neq('current_status', 'Offer Declined'),
     (supabase as any)
-      .from('promo_job_link')
+      .from('promo_job_link_kpi')
       .select('promocion_nombre, job_opening_id, job_openings(id, title)'),
   ])
 
@@ -77,7 +77,7 @@ export async function searchJobOpenings(query: string): Promise<JobOpeningOption
   if (!query || query.trim().length < 2) return []
 
   const { data, error } = await supabase
-    .from('job_openings')
+    .from('job_openings_kpi')
     .select('id, title')
     .ilike('title', `%${query.trim()}%`)
     .order('title', { ascending: true })
@@ -93,7 +93,7 @@ export async function getGPTrainingStatusCounts(
   promocionNombre?: string | null,
 ): Promise<GPStatusCount[]> {
   let query = (supabase as any)
-    .from('candidates')
+    .from('candidates_kpi')
     .select('current_status')
     .not('current_status', 'is', null)
     .not('promocion_nombre', 'is', null)
@@ -126,7 +126,7 @@ export async function getGPOpenToCounts(
   promocionNombre?: string | null,
 ): Promise<GPStatusCount[]> {
   let query = (supabase as any)
-    .from('candidates')
+    .from('candidates_kpi')
     .select('gp_open_to')
     .not('gp_open_to', 'is', null)
     .neq('current_status', 'Offer Withdrawn')
@@ -161,7 +161,7 @@ export async function getGPCandidatesByStatus(
   promocionNombre?: string | null,
 ): Promise<GPCandidateSummary[]> {
   let query = (supabase as any)
-    .from('candidates')
+    .from('candidates_kpi')
     .select(
       'id, full_name, gp_training_status, gp_open_to, gp_availability, assigned_agency, gp_assignment',
     )
@@ -180,7 +180,7 @@ export async function getGPCandidatesByOpenTo(
   promocionNombre?: string | null,
 ): Promise<GPCandidateSummary[]> {
   let query = (supabase as any)
-    .from('candidates')
+    .from('candidates_kpi')
     .select(
       'id, full_name, gp_training_status, gp_open_to, gp_availability, assigned_agency, gp_assignment',
     )

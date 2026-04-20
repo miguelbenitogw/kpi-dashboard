@@ -17,7 +17,7 @@ export async function POST(
   try {
     // Fetch the sheet record
     const { data: sheet, error: fetchError } = await supabaseAdmin
-      .from('promo_sheets')
+      .from('promo_sheets_kpi')
       .select('id, sheet_url, sheet_name, job_opening_id')
       .eq('id', id)
       .single()
@@ -38,7 +38,7 @@ export async function POST(
 
     // Mark as syncing
     await supabaseAdmin
-      .from('promo_sheets')
+      .from('promo_sheets_kpi')
       .update({ sync_status: 'syncing' })
       .eq('id', id)
 
@@ -75,7 +75,7 @@ export async function DELETE(
   try {
     // Delete students first
     const { error: studentsError } = await supabaseAdmin
-      .from('promo_students')
+      .from('promo_students_kpi')
       .delete()
       .eq('promo_sheet_id', id)
 
@@ -88,7 +88,7 @@ export async function DELETE(
 
     // Delete the sheet record
     const { error: sheetError } = await supabaseAdmin
-      .from('promo_sheets')
+      .from('promo_sheets_kpi')
       .delete()
       .eq('id', id)
 

@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     }))
 
     const { data, error } = await supabaseAdmin
-      .from('job_openings')
+      .from('job_openings_kpi')
       .upsert(records, { onConflict: 'id' })
       .select('id')
 
@@ -48,18 +48,18 @@ export async function POST(request: Request) {
     const jobIds = records.map((r) => r.id)
     for (const jobId of jobIds) {
       const { count: totalCandidates } = await supabaseAdmin
-        .from('candidates')
+        .from('candidates_kpi')
         .select('*', { count: 'exact', head: true })
         .eq('job_opening_id', jobId)
 
       const { count: hiredCount } = await supabaseAdmin
-        .from('candidates')
+        .from('candidates_kpi')
         .select('*', { count: 'exact', head: true })
         .eq('job_opening_id', jobId)
         .ilike('candidate_stage', '%hired%')
 
       await supabaseAdmin
-        .from('job_openings')
+        .from('job_openings_kpi')
         .update({
           total_candidates: totalCandidates ?? 0,
           hired_count: hiredCount ?? 0,

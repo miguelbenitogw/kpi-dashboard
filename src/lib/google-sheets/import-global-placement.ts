@@ -198,7 +198,7 @@ export async function importGlobalPlacement(): Promise<GlobalPlacementResult> {
 
   // Build a name->id index from candidates for fallback matching
   const { data: allCandidates, error: candError } = await supabaseAdmin
-    .from('candidates')
+    .from('candidates_kpi')
     .select('id, full_name')
     .not('full_name', 'is', null)
 
@@ -338,7 +338,7 @@ export async function importGlobalPlacement(): Promise<GlobalPlacementResult> {
     }
 
     const { error: updateError } = await supabaseAdmin
-      .from('candidates')
+      .from('candidates_kpi')
       .update(updateData as any)
       .eq('id', candidateId)
 

@@ -13,7 +13,7 @@ export async function POST(request: Request) {
 
     // Check if snapshot already exists for today
     const { count: existingCount, error: checkError } = await supabaseAdmin
-      .from('daily_snapshot')
+      .from('daily_snapshot_kpi')
       .select('*', { count: 'exact', head: true })
       .eq('snapshot_date', today);
 
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
     // Get all candidates grouped by job_opening_id and current_status
     const { data: candidates, error: fetchError } = await supabaseAdmin
-      .from('candidates')
+      .from('candidates_kpi')
       .select('job_opening_id, job_opening_title, current_status');
 
     if (fetchError) throw fetchError;
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     }));
 
     const { error: insertError } = await supabaseAdmin
-      .from('daily_snapshot')
+      .from('daily_snapshot_kpi')
       .insert(rows);
 
     if (insertError) throw insertError;

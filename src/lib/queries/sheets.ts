@@ -25,7 +25,7 @@ export interface PromoOption {
 export async function getRegisteredSheets(): Promise<RegisteredSheet[]> {
   // Fetch sheets with their linked job opening title
   const { data: sheets, error: sheetsError } = await supabase
-    .from('promo_sheets')
+    .from('promo_sheets_kpi')
     .select('*, job_openings(title)')
     .order('created_at', { ascending: false })
 
@@ -35,7 +35,7 @@ export async function getRegisteredSheets(): Promise<RegisteredSheet[]> {
   // Fetch student counts per sheet
   const sheetIds = sheets.map((s) => s.id)
   const { data: countRows, error: countError } = await supabase
-    .from('promo_students')
+    .from('promo_students_kpi')
     .select('promo_sheet_id')
     .in('promo_sheet_id', sheetIds)
 
@@ -71,7 +71,7 @@ export async function registerSheet(
   const sheetId = match ? match[1] : null
 
   const { data, error } = await supabase
-    .from('promo_sheets')
+    .from('promo_sheets_kpi')
     .insert({
       sheet_url: sheetUrl,
       sheet_id: sheetId,
@@ -92,12 +92,12 @@ export async function registerSheet(
 export async function unregisterSheet(sheetId: string): Promise<void> {
   // Delete students first (in case no cascade)
   await supabase
-    .from('promo_students')
+    .from('promo_students_kpi')
     .delete()
     .eq('promo_sheet_id', sheetId)
 
   const { error } = await supabase
-    .from('promo_sheets')
+    .from('promo_sheets_kpi')
     .delete()
     .eq('id', sheetId)
 
@@ -145,7 +145,7 @@ export async function triggerAllSheetsSync(): Promise<{
  */
 export async function getActivePromoOptions(): Promise<PromoOption[]> {
   const { data, error } = await supabase
-    .from('job_openings')
+    .from('job_openings_kpi')
     .select('id, title')
     .or('title.ilike.%promo%,title.ilike.%formacion%,title.ilike.%formación%')
     .order('title', { ascending: true })

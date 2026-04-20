@@ -123,7 +123,7 @@ const FINISHED_TRAINING_STATUSES = [
  */
 export async function getPerformancePromos(): Promise<PromoSummaryCard[]> {
   const { data, error } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('promocion_nombre, current_status, coordinador')
     .not('promocion_nombre', 'is', null)
 
@@ -209,7 +209,7 @@ export async function getPromoStudentList(
   const to = from + perPage - 1
 
   let query = supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('*', { count: 'exact' })
     .eq('promocion_nombre', promocion)
 
@@ -241,7 +241,7 @@ export async function getPromoDropouts(
   promocion: string
 ): Promise<DropoutCandidate[]> {
   const { data, error } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select(
       'id, full_name, current_status, dropout_date, dropout_reason, dropout_attendance_pct, dropout_language_level, transferred_to, dropout_notes'
     )
@@ -262,11 +262,11 @@ export async function getPromoConversionMetrics(
   // Fetch candidates and target in parallel
   const [candidatesResult, targetResult] = await Promise.all([
     supabase
-      .from('candidates')
+      .from('candidates_kpi')
       .select('current_status')
       .eq('promocion_nombre', promocion),
     supabase
-      .from('promo_targets')
+      .from('promo_targets_kpi')
       .select('*')
       .eq('promocion', promocion)
       .maybeSingle(),
@@ -339,11 +339,11 @@ export async function getPromoComparison(
   // Fetch all candidates + targets in parallel
   const [candidatesResult, targetsResult] = await Promise.all([
     supabase
-      .from('candidates')
+      .from('candidates_kpi')
       .select('promocion_nombre, current_status, coordinador')
       .in('promocion_nombre', promociones),
     supabase
-      .from('promo_targets')
+      .from('promo_targets_kpi')
       .select('*')
       .in('promocion', promociones),
   ])
@@ -420,7 +420,7 @@ export async function getPromoHistoryOverview(
 ): Promise<CandidateWithHistory[]> {
   // Step 1: get all candidates in this promo
   const { data: candidates, error: candError } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('id, full_name, current_status')
     .eq('promocion_nombre', promocion)
     .order('full_name', { ascending: true })
@@ -432,7 +432,7 @@ export async function getPromoHistoryOverview(
 
   // Step 2: get all history records for these candidates
   const { data: historyRows, error: histError } = await supabase
-    .from('candidate_job_history')
+    .from('candidate_job_history_kpi')
     .select('id, candidate_id, job_opening_title, candidate_status_in_jo, association_type')
     .in('candidate_id', candidateIds)
     .order('association_type', { ascending: true })
@@ -472,7 +472,7 @@ export async function getCandidateHistory(
   candidateId: string
 ): Promise<CandidateHistoryRecord[]> {
   const { data, error } = await supabase
-    .from('candidate_job_history')
+    .from('candidate_job_history_kpi')
     .select('id, job_opening_title, candidate_status_in_jo, association_type')
     .eq('candidate_id', candidateId)
     .order('association_type', { ascending: true })
@@ -488,7 +488,7 @@ export async function getPromoTargets(
   promocion: string
 ): Promise<PromoTarget | null> {
   const { data, error } = await supabase
-    .from('promo_targets')
+    .from('promo_targets_kpi')
     .select('*')
     .eq('promocion', promocion)
     .maybeSingle()

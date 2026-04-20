@@ -282,7 +282,7 @@ export async function importPagos(): Promise<PagosResult> {
 
   // Build a name+promo → candidate_id lookup
   const { data: allCandidates, error: candError } = await supabaseAdmin
-    .from('candidates')
+    .from('candidates_kpi')
     .select('id, full_name, promocion_nombre')
     .not('full_name', 'is', null)
 
@@ -447,7 +447,7 @@ export async function importPagos(): Promise<PagosResult> {
     // and the generated types haven't been regenerated yet.
     if (candidateId) {
       const { data: existing, error: selectError } = await (supabaseAdmin as any)
-        .from('pagos_candidato')
+        .from('pagos_candidato_kpi')
         .select('id')
         .eq('candidate_id', candidateId)
         .maybeSingle()
@@ -461,7 +461,7 @@ export async function importPagos(): Promise<PagosResult> {
 
       if (existing) {
         const { error: updateError } = await (supabaseAdmin as any)
-          .from('pagos_candidato')
+          .from('pagos_candidato_kpi')
           .update(payload)
           .eq('id', existing.id)
 
@@ -478,7 +478,7 @@ export async function importPagos(): Promise<PagosResult> {
 
     // Insert new record
     const { error: insertError } = await (supabaseAdmin as any)
-      .from('pagos_candidato')
+      .from('pagos_candidato_kpi')
       .insert(payload)
 
     if (insertError) {

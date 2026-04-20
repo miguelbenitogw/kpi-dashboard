@@ -265,7 +265,7 @@ export async function importCursoDesarrollo(): Promise<CursoDesarrolloResult> {
   // and the generated types haven't been regenerated yet.
   if (promosSeen.size > 0) {
     const { error: deleteError, count } = await (supabaseAdmin as any)
-      .from('curso_desarrollo')
+      .from('curso_desarrollo_kpi')
       .delete({ count: 'exact' })
       .in('promocion_nombre', [...promosSeen])
 
@@ -282,7 +282,7 @@ export async function importCursoDesarrollo(): Promise<CursoDesarrolloResult> {
     const batch = sessions.slice(start, start + BATCH_SIZE)
 
     const { error: insertError } = await (supabaseAdmin as any)
-      .from('curso_desarrollo')
+      .from('curso_desarrollo_kpi')
       .insert(batch)
 
     if (insertError) {

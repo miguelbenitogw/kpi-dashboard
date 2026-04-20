@@ -22,40 +22,40 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   ] = await Promise.all([
     // Active candidates (not hired, not rejected)
     supabase
-      .from('candidates')
+      .from('candidates_kpi')
       .select('id', { count: 'exact', head: true })
       .not('current_status', 'in', '("Hired","Rejected","Withdrawn")'),
 
     // Active job openings
     supabase
-      .from('job_openings')
+      .from('job_openings_kpi')
       .select('id', { count: 'exact', head: true })
       .eq('is_active', true),
 
     // Hired this month
     supabase
-      .from('candidates')
+      .from('candidates_kpi')
       .select('id', { count: 'exact', head: true })
       .eq('current_status', 'Hired')
       .gte('modified_time', firstOfMonth),
 
     // SLA alerts - red
     supabase
-      .from('sla_alerts')
+      .from('sla_alerts_kpi')
       .select('id', { count: 'exact', head: true })
       .eq('alert_level', 'red')
       .is('resolved_at', null),
 
     // SLA alerts - yellow
     supabase
-      .from('sla_alerts')
+      .from('sla_alerts_kpi')
       .select('id', { count: 'exact', head: true })
       .eq('alert_level', 'yellow')
       .is('resolved_at', null),
 
     // Total candidates for conversion rate
     supabase
-      .from('candidates')
+      .from('candidates_kpi')
       .select('id', { count: 'exact', head: true }),
   ])
 
@@ -79,7 +79,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
 export async function getActiveSlaAlerts(limit = 5) {
   const { data, error } = await supabase
-    .from('sla_alerts')
+    .from('sla_alerts_kpi')
     .select('*')
     .is('resolved_at', null)
     .order('days_stuck', { ascending: false })
@@ -96,12 +96,12 @@ export async function getActiveSlaAlerts(limit = 5) {
 export async function getAlertCountsByLevel() {
   const [redRes, yellowRes] = await Promise.all([
     supabase
-      .from('sla_alerts')
+      .from('sla_alerts_kpi')
       .select('id', { count: 'exact', head: true })
       .eq('alert_level', 'red')
       .is('resolved_at', null),
     supabase
-      .from('sla_alerts')
+      .from('sla_alerts_kpi')
       .select('id', { count: 'exact', head: true })
       .eq('alert_level', 'yellow')
       .is('resolved_at', null),
@@ -123,7 +123,7 @@ export async function getWeeklyTrend(): Promise<WeeklyDataPoint[]> {
   twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84) // 12 weeks
 
   const { data, error } = await supabase
-    .from('daily_snapshot')
+    .from('daily_snapshot_kpi')
     .select('snapshot_date, count')
     .gte('snapshot_date', twelveWeeksAgo.toISOString().split('T')[0])
     .order('snapshot_date', { ascending: true })
@@ -165,7 +165,7 @@ function formatWeekLabel(mondayDate: string): string {
 
 export async function getTopVacancies(limit = 5) {
   const { data, error } = await supabase
-    .from('job_openings')
+    .from('job_openings_kpi')
     .select('id, title, total_candidates, hired_count, client_name, status')
     .eq('is_active', true)
     .order('total_candidates', { ascending: false })

@@ -62,7 +62,7 @@ const STATUS_NEXT_PROJECT        = 'Next Project'
  */
 export async function getAllPromotions(): Promise<Promotion[]> {
   const { data, error } = await supabase
-    .from('promotions')
+    .from('promotions_kpi')
     .select('*')
     .order('nombre', { ascending: true })
 
@@ -75,7 +75,7 @@ export async function getAllPromotions(): Promise<Promotion[]> {
  */
 export async function getPromotion(nombre: string): Promise<Promotion | null> {
   const { data, error } = await supabase
-    .from('promotions')
+    .from('promotions_kpi')
     .select('*')
     .eq('nombre', nombre)
     .maybeSingle()
@@ -89,7 +89,7 @@ export async function getPromotion(nombre: string): Promise<Promotion | null> {
  */
 export async function getActivePromotions(): Promise<Promotion[]> {
   const { data, error } = await supabase
-    .from('promotions')
+    .from('promotions_kpi')
     .select('*')
     .eq('is_active', true)
     .order('nombre', { ascending: true })
@@ -108,7 +108,7 @@ export async function upsertPromotion(
   data: PromotionInsert
 ): Promise<Promotion> {
   const { data: result, error } = await supabaseAdmin
-    .from('promotions')
+    .from('promotions_kpi')
     .upsert(data, { onConflict: 'nombre' })
     .select()
     .single()
@@ -125,7 +125,7 @@ export async function updatePromotion(
   data: PromotionUpdate
 ): Promise<Promotion> {
   const { data: result, error } = await supabaseAdmin
-    .from('promotions')
+    .from('promotions_kpi')
     .update({ ...data, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
@@ -155,7 +155,7 @@ export async function syncPromotionsFromCandidates(): Promise<SyncPromotionCount
 
   // Step 1: get all candidates with a promocion_nombre
   const { data: candidates, error: candError } = await supabaseAdmin
-    .from('candidates')
+    .from('candidates_kpi')
     .select('id, promocion_nombre, current_status')
     .not('promocion_nombre', 'is', null)
 
@@ -168,7 +168,7 @@ export async function syncPromotionsFromCandidates(): Promise<SyncPromotionCount
 
   // Step 2: get all promotions (for id lookup)
   const { data: promotions, error: promoError } = await supabaseAdmin
-    .from('promotions')
+    .from('promotions_kpi')
     .select('id, nombre')
 
   if (promoError) {
@@ -263,7 +263,7 @@ export async function syncPromotionsFromCandidates(): Promise<SyncPromotionCount
     }
 
     const { error: updateError } = await supabaseAdmin
-      .from('promotions')
+      .from('promotions_kpi')
       .update({
         total_candidates: counts.total_candidates,
         total_aceptados: counts.total_aceptados,
@@ -297,7 +297,7 @@ export async function syncPromotionsFromCandidates(): Promise<SyncPromotionCount
     // Step 5: link candidates to this promotion via promotion_id
     if (counts.candidateIds.length > 0) {
       const { error: linkError } = await supabaseAdmin
-        .from('candidates')
+        .from('candidates_kpi')
         .update({ promotion_id: promoId } as any)
         .in('id', counts.candidateIds)
 

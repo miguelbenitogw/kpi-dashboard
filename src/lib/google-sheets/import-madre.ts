@@ -203,7 +203,7 @@ export async function importBaseDatos(): Promise<BaseDatosResult> {
 
     // Try UPDATE first (candidate may already exist from a previous Madre import)
     const { data: existing, error: selectError } = await supabaseAdmin
-      .from('candidates')
+      .from('candidates_kpi')
       .select('id')
       .eq('id', candidateId)
       .maybeSingle()
@@ -216,7 +216,7 @@ export async function importBaseDatos(): Promise<BaseDatosResult> {
     if (existing) {
       // UPDATE existing candidate
       const { error: updateError } = await supabaseAdmin
-        .from('candidates')
+        .from('candidates_kpi')
         .update(updateData as any)
         .eq('id', candidateId)
 
@@ -231,7 +231,7 @@ export async function importBaseDatos(): Promise<BaseDatosResult> {
       const estado = mapped['estado'] ?? null
 
       const { error: insertError } = await supabaseAdmin
-        .from('candidates')
+        .from('candidates_kpi')
         .insert({
           id: candidateId,
           full_name: fullName,
@@ -366,7 +366,7 @@ export async function importResumen(): Promise<ResumenResult> {
     }
 
     const { error: upsertError } = await supabaseAdmin
-      .from('promo_targets')
+      .from('promo_targets_kpi')
       .upsert(upsertPayload, { onConflict: 'promocion' })
 
     if (upsertError) {
@@ -409,7 +409,7 @@ async function createPromotionsFromCandidates(): Promise<PromotionsCreateResult>
 
   // Get distinct promocion_nombre values from candidates
   const { data: candidates, error: candError } = await supabaseAdmin
-    .from('candidates')
+    .from('candidates_kpi')
     .select('promocion_nombre')
     .not('promocion_nombre', 'is', null)
 
@@ -427,7 +427,7 @@ async function createPromotionsFromCandidates(): Promise<PromotionsCreateResult>
 
   // Get existing promo_targets for enrichment
   const { data: targets } = await supabaseAdmin
-    .from('promo_targets')
+    .from('promo_targets_kpi')
     .select('*')
 
   const targetMap = new Map<string, (typeof targets extends (infer T)[] | null ? T : never)>()
@@ -455,7 +455,7 @@ async function createPromotionsFromCandidates(): Promise<PromotionsCreateResult>
     }
 
     const { error: upsertError, data: upsertData } = await supabaseAdmin
-      .from('promotions')
+      .from('promotions_kpi')
       .upsert(payload as any, { onConflict: 'nombre' })
       .select('id')
       .single()

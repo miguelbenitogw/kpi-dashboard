@@ -28,7 +28,7 @@ export async function syncJobOpenings(): Promise<{
       // Preserve manually-edited fields: tipo_profesional (if set) and category='interna'
       const ids = batch.map((r) => r.id)
       const { data: existing } = await supabaseAdmin
-        .from('job_openings')
+        .from('job_openings_kpi')
         .select('id, tipo_profesional, category')
         .in('id', ids)
 
@@ -54,7 +54,7 @@ export async function syncJobOpenings(): Promise<{
       })
 
       const { error } = await supabaseAdmin
-        .from('job_openings')
+        .from('job_openings_kpi')
         .upsert(safeBatch, { onConflict: 'id' })
 
       if (error) {

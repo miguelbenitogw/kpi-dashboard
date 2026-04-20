@@ -32,7 +32,7 @@ export interface AlertFilter {
 
 export async function getSlaAlerts(filter?: AlertFilter) {
   let query = supabase
-    .from('sla_alerts')
+    .from('sla_alerts_kpi')
     .select('*')
     .is('resolved_at', null)
     .order('days_stuck', { ascending: false });
@@ -56,7 +56,7 @@ export async function getSlaAlerts(filter?: AlertFilter) {
 
 export async function getSlaThresholds(): Promise<SlaThresholds> {
   const { data, error } = await supabase
-    .from('dashboard_config')
+    .from('dashboard_config_kpi')
     .select('config_value')
     .eq('config_key', 'sla_thresholds')
     .single();
@@ -67,7 +67,7 @@ export async function getSlaThresholds(): Promise<SlaThresholds> {
 
 export async function updateSlaThresholds(thresholds: SlaThresholds) {
   const { error } = await supabase
-    .from('dashboard_config')
+    .from('dashboard_config_kpi')
     .update({ config_value: thresholds as unknown as DashboardConfig['config_value'] })
     .eq('config_key', 'sla_thresholds');
 
@@ -79,7 +79,7 @@ export async function updateSlaThresholds(thresholds: SlaThresholds) {
 export async function getHeatmapData(): Promise<HeatmapCell[]> {
   // Get all active (unresolved) alerts grouped by vacancy + status
   const { data: alerts, error } = await supabase
-    .from('sla_alerts')
+    .from('sla_alerts_kpi')
     .select('job_opening_id, job_opening_title, current_status, days_stuck')
     .is('resolved_at', null);
 
@@ -128,7 +128,7 @@ export async function getTimeHistory(weeks = 4): Promise<TimeHistoryPoint[]> {
   sinceDate.setDate(sinceDate.getDate() - weeks * 7);
 
   const { data, error } = await supabase
-    .from('stage_history')
+    .from('stage_history_kpi')
     .select('to_status, changed_at, days_in_stage')
     .gte('changed_at', sinceDate.toISOString())
     .not('days_in_stage', 'is', null);

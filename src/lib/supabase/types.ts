@@ -9,7 +9,7 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
-      candidates: {
+      candidates_kpi: {
         Row: {
           id: string
           full_name: string | null
@@ -173,19 +173,19 @@ export interface Database {
             foreignKeyName: 'candidates_job_opening_id_fkey'
             columns: ['job_opening_id']
             isOneToOne: false
-            referencedRelation: 'job_openings'
+            referencedRelation: 'job_openings_kpi'
             referencedColumns: ['id']
           },
           {
             foreignKeyName: 'candidates_promotion_id_fkey'
             columns: ['promotion_id']
             isOneToOne: false
-            referencedRelation: 'promotions'
+            referencedRelation: 'promotions_kpi'
             referencedColumns: ['id']
           },
         ]
       }
-      promotions: {
+      promotions_kpi: {
         Row: {
           id: string
           nombre: string
@@ -268,7 +268,7 @@ export interface Database {
         }
         Relationships: []
       }
-      job_openings: {
+      job_openings_kpi: {
         Row: {
           id: string
           title: string
@@ -354,14 +354,14 @@ export interface Database {
             foreignKeyName: 'stage_history_candidate_id_fkey'
             columns: ['candidate_id']
             isOneToOne: false
-            referencedRelation: 'candidates'
+            referencedRelation: 'candidates_kpi'
             referencedColumns: ['id']
           },
           {
             foreignKeyName: 'stage_history_job_opening_id_fkey'
             columns: ['job_opening_id']
             isOneToOne: false
-            referencedRelation: 'job_openings'
+            referencedRelation: 'job_openings_kpi'
             referencedColumns: ['id']
           },
         ]
@@ -416,14 +416,14 @@ export interface Database {
             foreignKeyName: 'sla_alerts_candidate_id_fkey'
             columns: ['candidate_id']
             isOneToOne: false
-            referencedRelation: 'candidates'
+            referencedRelation: 'candidates_kpi'
             referencedColumns: ['id']
           },
           {
             foreignKeyName: 'sla_alerts_job_opening_id_fkey'
             columns: ['job_opening_id']
             isOneToOne: false
-            referencedRelation: 'job_openings'
+            referencedRelation: 'job_openings_kpi'
             referencedColumns: ['id']
           },
         ]
@@ -458,12 +458,12 @@ export interface Database {
             foreignKeyName: 'daily_snapshot_job_opening_id_fkey'
             columns: ['job_opening_id']
             isOneToOne: false
-            referencedRelation: 'job_openings'
+            referencedRelation: 'job_openings_kpi'
             referencedColumns: ['id']
           },
         ]
       }
-      dashboard_config: {
+      dashboard_config_kpi: {
         Row: {
           id: number
           config_key: string
@@ -487,7 +487,7 @@ export interface Database {
         }
         Relationships: []
       }
-      user_preferences: {
+      user_preferences_kpi: {
         Row: {
           id: string
           user_key: string
@@ -576,7 +576,7 @@ export interface Database {
         }
         Relationships: []
       }
-      promo_sheets: {
+      promo_sheets_kpi: {
         Row: {
           id: string
           job_opening_id: string | null
@@ -617,12 +617,12 @@ export interface Database {
             foreignKeyName: 'promo_sheets_job_opening_id_fkey'
             columns: ['job_opening_id']
             isOneToOne: false
-            referencedRelation: 'job_openings'
+            referencedRelation: 'job_openings_kpi'
             referencedColumns: ['id']
           },
         ]
       }
-      promo_students: {
+      promo_students_kpi: {
         Row: {
           id: string
           promo_sheet_id: string
@@ -723,12 +723,12 @@ export interface Database {
             foreignKeyName: 'promo_students_promo_sheet_id_fkey'
             columns: ['promo_sheet_id']
             isOneToOne: false
-            referencedRelation: 'promo_sheets'
+            referencedRelation: 'promo_sheets_kpi'
             referencedColumns: ['id']
           },
         ]
       }
-      candidate_job_history: {
+      candidate_job_history_kpi: {
         Row: {
           id: string
           candidate_id: string
@@ -764,7 +764,7 @@ export interface Database {
         }
         Relationships: []
       }
-      promo_targets: {
+      promo_targets_kpi: {
         Row: {
           id: number
           promocion: string
@@ -849,13 +849,13 @@ export interface Database {
 }
 
 // Convenient type aliases
-export type Candidate = Database['public']['Tables']['candidates']['Row']
-export type CandidateInsert = Database['public']['Tables']['candidates']['Insert']
-export type CandidateUpdate = Database['public']['Tables']['candidates']['Update']
+export type Candidate = Database['public']['Tables']['candidates_kpi']['Row']
+export type CandidateInsert = Database['public']['Tables']['candidates_kpi']['Insert']
+export type CandidateUpdate = Database['public']['Tables']['candidates_kpi']['Update']
 
-export type JobOpening = Database['public']['Tables']['job_openings']['Row']
-export type JobOpeningInsert = Database['public']['Tables']['job_openings']['Insert']
-export type JobOpeningUpdate = Database['public']['Tables']['job_openings']['Update']
+export type JobOpening = Database['public']['Tables']['job_openings_kpi']['Row']
+export type JobOpeningInsert = Database['public']['Tables']['job_openings_kpi']['Insert']
+export type JobOpeningUpdate = Database['public']['Tables']['job_openings_kpi']['Update']
 
 export type StageHistory = Database['public']['Tables']['stage_history']['Row']
 export type StageHistoryInsert = Database['public']['Tables']['stage_history']['Insert']
@@ -869,9 +869,9 @@ export type DailySnapshot = Database['public']['Tables']['daily_snapshot']['Row'
 export type DailySnapshotInsert = Database['public']['Tables']['daily_snapshot']['Insert']
 export type DailySnapshotUpdate = Database['public']['Tables']['daily_snapshot']['Update']
 
-export type DashboardConfig = Database['public']['Tables']['dashboard_config']['Row']
-export type DashboardConfigInsert = Database['public']['Tables']['dashboard_config']['Insert']
-export type DashboardConfigUpdate = Database['public']['Tables']['dashboard_config']['Update']
+export type DashboardConfig = Database['public']['Tables']['dashboard_config_kpi']['Row']
+export type DashboardConfigInsert = Database['public']['Tables']['dashboard_config_kpi']['Insert']
+export type DashboardConfigUpdate = Database['public']['Tables']['dashboard_config_kpi']['Update']
 
 export type SyncLog = Database['public']['Tables']['sync_log']['Row']
 export type SyncLogInsert = Database['public']['Tables']['sync_log']['Insert']
@@ -881,26 +881,26 @@ export type WebhookEvent = Database['public']['Tables']['webhook_events']['Row']
 export type WebhookEventInsert = Database['public']['Tables']['webhook_events']['Insert']
 export type WebhookEventUpdate = Database['public']['Tables']['webhook_events']['Update']
 
-export type UserPreference = Database['public']['Tables']['user_preferences']['Row']
-export type UserPreferenceInsert = Database['public']['Tables']['user_preferences']['Insert']
-export type UserPreferenceUpdate = Database['public']['Tables']['user_preferences']['Update']
+export type UserPreference = Database['public']['Tables']['user_preferences_kpi']['Row']
+export type UserPreferenceInsert = Database['public']['Tables']['user_preferences_kpi']['Insert']
+export type UserPreferenceUpdate = Database['public']['Tables']['user_preferences_kpi']['Update']
 
-export type PromoSheet = Database['public']['Tables']['promo_sheets']['Row']
-export type PromoSheetInsert = Database['public']['Tables']['promo_sheets']['Insert']
-export type PromoSheetUpdate = Database['public']['Tables']['promo_sheets']['Update']
+export type PromoSheet = Database['public']['Tables']['promo_sheets_kpi']['Row']
+export type PromoSheetInsert = Database['public']['Tables']['promo_sheets_kpi']['Insert']
+export type PromoSheetUpdate = Database['public']['Tables']['promo_sheets_kpi']['Update']
 
-export type PromoStudent = Database['public']['Tables']['promo_students']['Row']
-export type PromoStudentInsert = Database['public']['Tables']['promo_students']['Insert']
-export type PromoStudentUpdate = Database['public']['Tables']['promo_students']['Update']
+export type PromoStudent = Database['public']['Tables']['promo_students_kpi']['Row']
+export type PromoStudentInsert = Database['public']['Tables']['promo_students_kpi']['Insert']
+export type PromoStudentUpdate = Database['public']['Tables']['promo_students_kpi']['Update']
 
-export type PromoTarget = Database['public']['Tables']['promo_targets']['Row']
-export type PromoTargetInsert = Database['public']['Tables']['promo_targets']['Insert']
-export type PromoTargetUpdate = Database['public']['Tables']['promo_targets']['Update']
+export type PromoTarget = Database['public']['Tables']['promo_targets_kpi']['Row']
+export type PromoTargetInsert = Database['public']['Tables']['promo_targets_kpi']['Insert']
+export type PromoTargetUpdate = Database['public']['Tables']['promo_targets_kpi']['Update']
 
-export type Promotion = Database['public']['Tables']['promotions']['Row']
-export type PromotionInsert = Database['public']['Tables']['promotions']['Insert']
-export type PromotionUpdate = Database['public']['Tables']['promotions']['Update']
+export type Promotion = Database['public']['Tables']['promotions_kpi']['Row']
+export type PromotionInsert = Database['public']['Tables']['promotions_kpi']['Insert']
+export type PromotionUpdate = Database['public']['Tables']['promotions_kpi']['Update']
 
-export type CandidateJobHistory = Database['public']['Tables']['candidate_job_history']['Row']
-export type CandidateJobHistoryInsert = Database['public']['Tables']['candidate_job_history']['Insert']
-export type CandidateJobHistoryUpdate = Database['public']['Tables']['candidate_job_history']['Update']
+export type CandidateJobHistory = Database['public']['Tables']['candidate_job_history_kpi']['Row']
+export type CandidateJobHistoryInsert = Database['public']['Tables']['candidate_job_history_kpi']['Insert']
+export type CandidateJobHistoryUpdate = Database['public']['Tables']['candidate_job_history_kpi']['Update']

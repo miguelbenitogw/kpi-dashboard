@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
     // Fetch SLA thresholds from config
     const { data: configRow, error: configError } = await supabaseAdmin
-      .from('dashboard_config')
+      .from('dashboard_config_kpi')
       .select('config_value')
       .eq('config_key', 'sla_thresholds')
       .single();
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
     // Get all active candidates
     const { data: candidates, error: fetchError } = await supabaseAdmin
-      .from('candidates')
+      .from('candidates_kpi')
       .select('id, full_name, job_opening_id, job_opening_title, current_status, last_activity_time, modified_time, owner')
       .not('current_status', 'in', `(${terminalStatuses.join(',')})`);
 
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
 
     // Get all unresolved alerts
     const { data: existingAlerts, error: alertsError } = await supabaseAdmin
-      .from('sla_alerts')
+      .from('sla_alerts_kpi')
       .select('id, candidate_id, alert_level')
       .is('resolved_at', null);
 
@@ -94,14 +94,14 @@ export async function POST(request: Request) {
         const existing = alertsByCandidate.get(candidate.id);
         if (existing) {
           await supabaseAdmin
-            .from('sla_alerts')
+            .from('sla_alerts_kpi')
             .update({ resolved_at: now.toISOString() })
             .eq('id', existing.id);
           alertsResolved++;
         }
         // Update candidate sla_status to green
         await supabaseAdmin
-          .from('candidates')
+          .from('candidates_kpi')
           .update({ sla_status: 'green' })
           .eq('id', candidate.id);
         continue;
@@ -125,7 +125,7 @@ export async function POST(request: Request) {
           // Update existing alert if level changed
           if (existingAlert.alert_level !== alertLevel) {
             const { error } = await supabaseAdmin
-              .from('sla_alerts')
+              .from('sla_alerts_kpi')
               .update({
                 alert_level: alertLevel,
                 days_stuck: daysStuck,
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
           } else {
             // Same level, just update days_stuck
             const { error } = await supabaseAdmin
-              .from('sla_alerts')
+              .from('sla_alerts_kpi')
               .update({
                 days_stuck: daysStuck,
                 updated_at: now.toISOString(),
@@ -149,7 +149,7 @@ export async function POST(request: Request) {
           }
         } else {
           // Create new alert
-          const { error } = await supabaseAdmin.from('sla_alerts').insert({
+          const { error } = await supabaseAdmin.from('sla_alerts_kpi').insert({
             candidate_id: candidate.id,
             candidate_name: candidate.full_name,
             job_opening_id: candidate.job_opening_id,
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
         // No alert needed - resolve if one exists
         if (existingAlert) {
           const { error } = await supabaseAdmin
-            .from('sla_alerts')
+            .from('sla_alerts_kpi')
             .update({ resolved_at: now.toISOString() })
             .eq('id', existingAlert.id);
           if (error) throw error;
@@ -176,7 +176,7 @@ export async function POST(request: Request) {
 
       // Update candidate sla_status
       await supabaseAdmin
-        .from('candidates')
+        .from('candidates_kpi')
         .update({ sla_status: slaStatus })
         .eq('id', candidate.id);
     }
@@ -185,7 +185,7 @@ export async function POST(request: Request) {
     for (const [candidateId, alert] of alertsByCandidate) {
       if (!activeCandidateIds.has(candidateId)) {
         const { error } = await supabaseAdmin
-          .from('sla_alerts')
+          .from('sla_alerts_kpi')
           .update({ resolved_at: now.toISOString() })
           .eq('id', alert.id);
         if (error) throw error;

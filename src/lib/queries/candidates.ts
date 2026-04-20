@@ -54,7 +54,7 @@ export async function getCandidates(
   const to = from + perPage - 1
 
   let query = supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('*', { count: 'exact' })
 
   if (jobOpeningId) {
@@ -110,7 +110,7 @@ export async function getCandidateById(
   zohoId: string
 ): Promise<Candidate | null> {
   const { data, error } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('*')
     .eq('id', zohoId)
     .single()
@@ -129,12 +129,12 @@ export async function getCandidateById(
 export async function getCandidateStats(): Promise<CandidateStats> {
   // Total count
   const { count: total } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('*', { count: 'exact', head: true })
 
   // Status breakdown — fetch all candidates' status (lightweight)
   const { data: statusRows } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('current_status')
 
   const statusMap = new Map<string, number>()
@@ -157,7 +157,7 @@ export async function getCandidateStats(): Promise<CandidateStats> {
 
   // Nationality breakdown
   const { data: natRows } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('nationality')
 
   const natMap = new Map<string, number>()
@@ -172,7 +172,7 @@ export async function getCandidateStats(): Promise<CandidateStats> {
 
   // Source breakdown
   const { data: srcRows } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('source')
 
   const srcMap = new Map<string, number>()
@@ -226,7 +226,7 @@ export interface AttractionVacancy {
 export async function getAttractionVacancies(): Promise<AttractionVacancy[]> {
   // Step 1: Get all job_openings whose title does NOT ilike '%promo%'
   const { data: openings, error: joError } = await supabase
-    .from('job_openings')
+    .from('job_openings_kpi')
     .select('id, title, status, client_name, date_opened')
     .not('title', 'ilike', '%promo%')
     .order('date_opened', { ascending: false, nullsFirst: false })
@@ -241,7 +241,7 @@ export async function getAttractionVacancies(): Promise<AttractionVacancy[]> {
   // Step 2: Get candidate counts per job_opening_id for these openings
   const openingIds = openings.map((o) => o.id)
   const { data: countRows, error: countError } = await supabase
-    .from('candidates')
+    .from('candidates_kpi')
     .select('job_opening_id')
     .in('job_opening_id', openingIds)
 

@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     ];
 
     const { data: candidates, error: fetchError } = await supabaseAdmin
-      .from('candidates')
+      .from('candidates_kpi')
       .select('id, created_time, last_activity_time, modified_time, current_status')
       .not('current_status', 'in', `(${terminalStatuses.join(',')})`);
 
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
             : now;
 
         return supabaseAdmin
-          .from('candidates')
+          .from('candidates_kpi')
           .update({
             days_in_process: differenceInDays(now, createdDate),
             days_since_activity: differenceInDays(now, activityDate),
