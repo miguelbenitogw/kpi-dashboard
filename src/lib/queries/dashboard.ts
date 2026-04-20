@@ -26,11 +26,11 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       .select('id', { count: 'exact', head: true })
       .not('current_status', 'in', '("Hired","Rejected","Withdrawn")'),
 
-    // Active job openings
+    // Active job openings = those tagged "Proceso atracción actual"
     supabase
       .from('job_openings_kpi')
       .select('id', { count: 'exact', head: true })
-      .eq('is_active', true),
+      .eq('es_proceso_atraccion_actual', true),
 
     // Hired this month
     supabase
@@ -167,7 +167,7 @@ export async function getTopVacancies(limit = 5) {
   const { data, error } = await supabase
     .from('job_openings_kpi')
     .select('id, title, total_candidates, hired_count, client_name, status')
-    .eq('is_active', true)
+    .eq('es_proceso_atraccion_actual', true)
     .order('total_candidates', { ascending: false })
     .limit(limit)
 

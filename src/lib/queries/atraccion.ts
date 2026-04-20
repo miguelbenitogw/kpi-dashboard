@@ -379,13 +379,15 @@ export async function getPromoRecruitmentStats(): Promise<PromoRecruitmentStats>
 }
 
 export async function getAtraccionVacancies(): Promise<AtraccionVacancy[]> {
+  // Only show vacancies tagged "Proceso atracción actual" — the ~20 active
+  // recruitment processes. This is the source of truth for what's actively
+  // being recruited right now, regardless of job opening status field.
   const { data, error } = await supabase
     .from('job_openings_kpi')
     .select(
       'id, title, status, client_name, owner, tipo_profesional, total_candidates, hired_count, es_proceso_atraccion_actual, date_opened',
     )
-    .eq('category', 'atraccion')
-    .eq('is_active', true)
+    .eq('es_proceso_atraccion_actual', true)
     .order('total_candidates', { ascending: false })
 
   if (error) {
