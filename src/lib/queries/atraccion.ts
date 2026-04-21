@@ -462,6 +462,43 @@ export async function getPromoRecruitmentStats(): Promise<PromoRecruitmentStats>
 }
 
 // ---------------------------------------------------------------------------
+// Pre-computed vacancy tag counts
+// ---------------------------------------------------------------------------
+
+export interface VacancyTagCount {
+  vacancy_id: string
+  tag: string
+  count: number
+}
+
+/**
+ * Get tag counts for a set of vacancy IDs from the pre-computed table.
+ * Returns a map: vacancy_id → { tag → count }
+ */
+export async function getVacancyTagCountsMap(
+  vacancyIds: string[]
+): Promise<Map<string, Record<string, number>>> {
+  if (vacancyIds.length === 0) return new Map()
+
+  const { data, error } = await supabase
+    .from('vacancy_tag_counts_kpi')
+    .select('vacancy_id, tag, count')
+    .in('vacancy_id', vacancyIds)
+
+  if (error) {
+    console.error('[atraccion] getVacancyTagCountsMap error:', error)
+    return new Map()
+  }
+
+  const result = new Map<string, Record<string, number>>()
+  for (const row of data ?? []) {
+    if (!result.has(row.vacancy_id)) result.set(row.vacancy_id, {})
+    result.get(row.vacancy_id)![row.tag] = row.count
+  }
+  return result
+}
+
+// ---------------------------------------------------------------------------
 // Closed / Inactive vacancies with aggregated candidate tags
 // ---------------------------------------------------------------------------
 
@@ -484,82 +521,33 @@ export interface ClosedVacanciesData {
 
 export async function getClosedVacanciesData(): Promise<ClosedVacanciesData> {
   // 1. Fetch all closed vacancies
-  const { data: vacancies, error: vacError } = await supabase
+  const { data: vacancies, error } = await supabase
     .from('job_openings_kpi')
     .select('id, title, status, date_opened, total_candidates, hired_count')
     .eq('is_active', false)
-    .order('date_opened', { ascending: false })
+    .order('date_opened', { ascending: false, nullsFirst: false })
 
-  if (vacError) {
-    console.error('Error fetching closed vacancies:', vacError)
+  if (error || !vacancies) {
+    console.error('[atraccion] getClosedVacanciesData error:', error)
     return { byYear: {}, allYears: [], allTags: {} }
   }
 
-  const vacList = vacancies ?? []
-  if (vacList.length === 0) return { byYear: {}, allYears: [], allTags: {} }
+  const vacancyIds = vacancies.map(v => v.id)
 
-  const vacIds = vacList.map((v) => v.id)
+  // 2. Get pre-computed tag counts from vacancy_tag_counts_kpi
+  const tagCountsMap = await getVacancyTagCountsMap(vacancyIds)
 
-  // 2. Fetch candidate history for those vacancy IDs
-  const { data: history, error: histError } = await supabase
-    .from('candidate_job_history_kpi')
-    .select('job_opening_id, candidate_id')
-    .in('job_opening_id', vacIds)
-
-  if (histError) {
-    console.error('Error fetching candidate history for closed vacancies:', histError)
-  }
-
-  const historyRows = history ?? []
-
-  // Build vacancy → candidate_ids map
-  const vacToCandidate = new Map<string, Set<string>>()
-  for (const row of historyRows) {
-    if (!vacToCandidate.has(row.job_opening_id)) {
-      vacToCandidate.set(row.job_opening_id, new Set())
-    }
-    vacToCandidate.get(row.job_opening_id)!.add(row.candidate_id)
-  }
-
-  // Collect all unique candidate IDs
-  const allCandidateIds = [...new Set(historyRows.map((r) => r.candidate_id))]
-
-  // 3. Fetch tags for all candidates in one batch
-  const candidateTagMap = new Map<string, string[]>()
-  if (allCandidateIds.length > 0) {
-    const { data: candidates, error: candError } = await supabase
-      .from('candidates_kpi')
-      .select('id, tags')
-      .in('id', allCandidateIds)
-
-    if (candError) {
-      console.error('Error fetching candidate tags:', candError)
-    }
-
-    for (const c of candidates ?? []) {
-      if (c.tags && Array.isArray(c.tags) && c.tags.length > 0) {
-        candidateTagMap.set(c.id, c.tags as string[])
-      }
-    }
-  }
-
-  // 4. Aggregate tags per vacancy and group by year
+  // 3. Build result
   const byYear: Record<number, ClosedVacancy[]> = {}
   const allTags: Record<string, number> = {}
 
-  for (const v of vacList) {
-    const year = v.date_opened ? new Date(v.date_opened).getFullYear() : null
-    if (year === null) continue
+  for (const v of vacancies) {
+    const year = v.date_opened ? new Date(v.date_opened).getFullYear() : 0
+    const tags = tagCountsMap.get(v.id) ?? {}
 
-    const candidateIds = vacToCandidate.get(v.id) ?? new Set()
-    const tags: Record<string, number> = {}
-
-    for (const candidateId of candidateIds) {
-      const candidateTags = candidateTagMap.get(candidateId) ?? []
-      for (const tag of candidateTags) {
-        tags[tag] = (tags[tag] ?? 0) + 1
-        allTags[tag] = (allTags[tag] ?? 0) + 1
-      }
+    // Aggregate allTags
+    for (const [tag, count] of Object.entries(tags)) {
+      allTags[tag] = (allTags[tag] ?? 0) + count
     }
 
     const vacancy: ClosedVacancy = {
@@ -567,19 +555,19 @@ export async function getClosedVacanciesData(): Promise<ClosedVacanciesData> {
       title: v.title,
       status: v.status ?? null,
       date_opened: v.date_opened ?? null,
-      year,
+      year: year || null,
       total_candidates: v.total_candidates ?? 0,
       hired_count: v.hired_count ?? 0,
       tags,
     }
 
-    if (!byYear[year]) byYear[year] = []
-    byYear[year].push(vacancy)
+    if (year > 0) {
+      if (!byYear[year]) byYear[year] = []
+      byYear[year].push(vacancy)
+    }
   }
 
-  const allYears = Object.keys(byYear)
-    .map(Number)
-    .sort((a, b) => b - a)
+  const allYears = Object.keys(byYear).map(Number).sort((a, b) => b - a)
 
   return { byYear, allYears, allTags }
 }

@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 import { syncJobOpenings } from '@/lib/zoho/sync-job-openings'
 import { importExcelMadre } from '@/lib/google-sheets/import-madre'
 import { syncCandidateTags } from '@/lib/zoho/sync-candidate-tags'
+import { syncVacancyTagCounts } from '@/lib/supabase/sync-vacancy-tags'
 
 export const maxDuration = 60
 
@@ -51,10 +52,12 @@ export async function GET(request: NextRequest) {
       api_calls: number
       errors: string[]
     } | null
+    vacancy_tag_counts: { processed: number; skipped_closed: number; upserted_rows: number; errors: string[] } | null
   } = {
     zoho_job_openings: null,
     excel_madre: { base_datos: null, resumen: null, errors: [] },
     candidate_tags: null,
+    vacancy_tag_counts: null,
   }
 
   // ---- Phase 1: Zoho job openings ----------------------------------------
@@ -108,10 +111,24 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // ---- Phase 4: Vacancy tag counts (active only in weekly sync) ---------------
+  try {
+    const vtcResult = await syncVacancyTagCounts({ onlyActive: true })
+    results.vacancy_tag_counts = vtcResult
+  } catch (err) {
+    results.vacancy_tag_counts = {
+      processed: 0,
+      skipped_closed: 0,
+      upserted_rows: 0,
+      errors: [err instanceof Error ? err.message : String(err)],
+    }
+  }
+
   const allErrors = [
     ...(results.zoho_job_openings?.errors ?? []),
     ...results.excel_madre.errors,
     ...(results.candidate_tags?.errors ?? []),
+    ...(results.vacancy_tag_counts?.errors ?? []),
   ]
   const hasErrors = allErrors.length > 0
   const totalRecords =

@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, Legend
 } from 'recharts'
-import { getVacancyRecruitmentStats, type VacancyRecruitmentStats } from '@/lib/queries/atraccion'
+import { getVacancyRecruitmentStats, getVacancyTagCountsMap, type VacancyRecruitmentStats } from '@/lib/queries/atraccion'
 
 const STATUS_COLORS: Record<string, string> = {
   'Hired': '#10B981',
@@ -44,9 +44,29 @@ function statusColor(s: string) {
 export default function VacancyStatusCharts() {
   const [data, setData] = useState<VacancyRecruitmentStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [tagData, setTagData] = useState<{ tag: string; count: number }[]>([])
 
   useEffect(() => {
-    getVacancyRecruitmentStats().then(d => { setData(d); setLoading(false) })
+    getVacancyRecruitmentStats().then(async (d) => {
+      setData(d)
+      // Fetch tag counts for active vacancies
+      const activeIds = (d?.rows ?? []).map(r => r.id)
+      if (activeIds.length > 0) {
+        const tagMap = await getVacancyTagCountsMap(activeIds)
+        const totals = new Map<string, number>()
+        for (const tags of tagMap.values()) {
+          for (const [tag, count] of Object.entries(tags)) {
+            totals.set(tag, (totals.get(tag) ?? 0) + count)
+          }
+        }
+        const sorted = [...totals.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 15)
+          .map(([tag, count]) => ({ tag, count }))
+        setTagData(sorted)
+      }
+      setLoading(false)
+    })
   }, [])
 
   if (loading) {
@@ -145,6 +165,29 @@ export default function VacancyStatusCharts() {
           </div>
         </div>
       </div>
+
+      {/* Chart C: Tag distribution for active vacancies */}
+      {tagData.length > 0 && (
+        <div className="mt-8 border-t border-gray-700/50 pt-6">
+          <h3 className="mb-3 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+            Etiquetas de candidatos
+          </h3>
+          <p className="mb-3 text-xs text-gray-600">
+            Total de candidatos con cada etiqueta en vacantes activas
+          </p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={tagData} layout="vertical" margin={{ left: 0, right: 24, top: 4, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={{ stroke: '#374151' }} tickLine={false} allowDecimals={false} />
+                <YAxis type="category" dataKey="tag" width={180} tick={{ fill: '#D1D5DB', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip {...TOOLTIP_STYLE} formatter={((v: number) => [v.toLocaleString('es-AR'), 'Candidatos']) as never} />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#6366f1" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
