@@ -1,21 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import {
-  BarChart3,
-  Globe,
-  TrendingUp,
-  FileText,
-  Radio,
-  Share2,
-} from 'lucide-react';
-import RRSSOverview from '@/components/atraccion/RRSSOverview';
 import DateRangeSelector from '@/components/analytics/DateRangeSelector';
-import AnalyticsKpiCards from '@/components/analytics/AnalyticsKpiCards';
-import SessionsTimeChart from '@/components/analytics/SessionsTimeChart';
-import TrafficSourcesChart from '@/components/analytics/TrafficSourcesChart';
-import TopLandingPages from '@/components/analytics/TopLandingPages';
-import GeoBreakdownTable from '@/components/analytics/GeoBreakdownTable';
+import AnalyticsCarousel from '@/components/analytics/AnalyticsCarousel';
 import type {
   DailyMetrics,
   TrafficSource,
@@ -150,16 +137,6 @@ export default function AnalyticsPage() {
     loadData();
   }, [loadData]);
 
-  // Check if GA4 is not configured (all zeros = no data)
-  const noData =
-    !loading &&
-    !error &&
-    overview !== null &&
-    overview.sessions === 0 &&
-    overview.users === 0 &&
-    overview.pageviews === 0 &&
-    sessions.length === 0;
-
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -169,151 +146,24 @@ export default function AnalyticsPage() {
             Alcance & Analytics
           </h1>
           <p className="mt-1 text-sm text-gray-400">
-            Trafico web y metricas de Google Analytics 4
+            Tráfico web, redes sociales y métricas de Google Analytics 4
           </p>
         </div>
         <DateRangeSelector selected={range} onChange={setRange} />
       </div>
 
-      {/* Error state */}
-      {error && errorCode === 'PERMISSION_DENIED' && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6">
-          <h3 className="text-lg font-semibold text-amber-300">
-            Configurar Google Analytics
-          </h3>
-          <p className="mt-2 text-sm text-amber-400/90">
-            La cuenta de servicio no tiene acceso a la propiedad de GA4.
-            Agrega la siguiente cuenta como <strong>Viewer</strong> en la
-            configuracion de la propiedad de Google Analytics 4:
-          </p>
-          <code className="mt-3 block rounded-lg bg-gray-900/60 px-4 py-2 text-sm text-amber-200">
-            kpi-dashboard@firmador-de-documentos.iam.gserviceaccount.com
-          </code>
-          <p className="mt-3 text-xs text-amber-400/70">
-            GA4 Admin &rarr; Property Access Management &rarr; Add user &rarr;
-            Viewer role &rarr; Guardar. Los datos apareceran automaticamente
-            despues de otorgar acceso.
-          </p>
-          <button
-            onClick={loadData}
-            className="mt-4 rounded-lg bg-amber-500/20 px-4 py-2 text-sm font-medium text-amber-300 hover:bg-amber-500/30"
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
-
-      {error && errorCode === 'NOT_CONFIGURED' && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6">
-          <h3 className="text-lg font-semibold text-amber-300">
-            API Key no configurada
-          </h3>
-          <p className="mt-2 text-sm text-amber-400/90">
-            Configurar la variable de entorno{' '}
-            <code className="rounded bg-gray-900/60 px-2 py-0.5 text-amber-200">
-              NEXT_PUBLIC_SYNC_API_KEY
-            </code>{' '}
-            en Vercel para conectar el dashboard con la API de analytics.
-          </p>
-        </div>
-      )}
-
-      {error && errorCode !== 'PERMISSION_DENIED' && errorCode !== 'NOT_CONFIGURED' && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6">
-          <p className="text-red-400">Error: {error}</p>
-          <button
-            onClick={loadData}
-            className="mt-3 rounded-lg bg-red-500/20 px-4 py-2 text-sm font-medium text-red-300 hover:bg-red-500/30"
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
-
-      {/* "No configurado" state */}
-      {noData && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-8 text-center">
-          <Radio className="mx-auto h-10 w-10 text-amber-400" />
-          <h3 className="mt-4 text-lg font-semibold text-amber-300">
-            No hay datos para este periodo
-          </h3>
-          <p className="mt-2 text-sm text-amber-400/80">
-            No se encontraron datos de Google Analytics para el rango
-            seleccionado. Si es la primera vez, verifica que las variables de
-            entorno GA4_PROPERTY_ID y GA4_SERVICE_ACCOUNT_KEY esten
-            configuradas correctamente.
-          </p>
-        </div>
-      )}
-
-      {/* KPI Cards */}
-      <AnalyticsKpiCards data={overview} loading={loading} />
-
-      {/* Sessions Over Time */}
-      <section>
-        <div className="mb-4 flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-blue-400" />
-          <h2 className="text-lg font-semibold text-gray-100">
-            Sesiones en el Tiempo
-          </h2>
-        </div>
-        <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-6">
-          <SessionsTimeChart data={sessions} loading={loading} />
-        </div>
-      </section>
-
-      {/* Traffic Sources + Geographic in a 2-col grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Traffic Sources */}
-        <section>
-          <div className="mb-4 flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-green-400" />
-            <h2 className="text-lg font-semibold text-gray-100">
-              Fuentes de Trafico
-            </h2>
-          </div>
-          <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-6">
-            <TrafficSourcesChart data={traffic} loading={loading} />
-          </div>
-        </section>
-
-        {/* Geographic */}
-        <section>
-          <div className="mb-4 flex items-center gap-2">
-            <Globe className="h-5 w-5 text-teal-400" />
-            <h2 className="text-lg font-semibold text-gray-100">
-              Distribucion Geografica
-            </h2>
-          </div>
-          <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-6">
-            <GeoBreakdownTable data={geo} loading={loading} />
-          </div>
-        </section>
-      </div>
-
-      {/* Top Landing Pages */}
-      <section>
-        <div className="mb-4 flex items-center gap-2">
-          <FileText className="h-5 w-5 text-purple-400" />
-          <h2 className="text-lg font-semibold text-gray-100">
-            Top Landing Pages
-          </h2>
-        </div>
-        <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-6">
-          <TopLandingPages data={pages} loading={loading} />
-        </div>
-      </section>
-
-      {/* Redes Sociales */}
-      <section>
-        <div className="mb-4 flex items-center gap-2">
-          <Share2 className="h-5 w-5 text-pink-400" />
-          <h2 className="text-lg font-semibold text-gray-100">
-            Redes Sociales
-          </h2>
-        </div>
-        <RRSSOverview />
-      </section>
+      {/* Carousel — handles both Web (GA4) and all social platforms */}
+      <AnalyticsCarousel
+        overview={overview}
+        sessions={sessions}
+        traffic={traffic}
+        pages={pages}
+        geo={geo}
+        loading={loading}
+        error={error}
+        errorCode={errorCode}
+        onRetry={loadData}
+      />
     </div>
   );
 }

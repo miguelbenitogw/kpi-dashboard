@@ -1,19 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { SlidersHorizontal } from 'lucide-react'
 import { getVacancyRecruitmentStats, type VacancyRecruitmentStats } from '@/lib/queries/atraccion'
 
-const PINNED_STATUSES = [
-  'Approved by client',
-  'Hired',
-  'Interview in Progress',
-  'Interview-Scheduled',
-  'First Call',
-  'Second Call',
-  'Check Interest',
-  'No Answer',
-  'On Hold',
-  'Rejected',
+const ALL_STATUSES = [
+  'Associated', 'Waiting for Evaluation', 'Rejected', 'First Call', 'Not Valid',
+  'On Hold', 'No Answer', 'Next Project', 'Approved by client', 'Check Interest',
+  'Second Call', 'Offer-Declined', 'Interview-Scheduled', 'Rejected by client',
+  'Interview to be Scheduled', 'No Show', 'Waiting for Consensus', 'Offer-Withdrawn',
+  'In Training out of GW', 'Expelled', 'To Place', 'Hired', 'Interview in Progress',
+]
+
+const DEFAULT_COLS = [
+  'Approved by client', 'Hired', 'Interview in Progress', 'Interview-Scheduled',
+  'First Call', 'Second Call', 'Check Interest', 'No Answer', 'On Hold', 'Rejected',
 ]
 
 function statusColor(status: string): string {
@@ -23,6 +24,19 @@ function statusColor(status: string): string {
   if (s.includes('first call') || s.includes('second call') || s.includes('check')) return 'text-violet-400'
   if (s.includes('rejected') || s.includes('no answer')) return 'text-red-400'
   if (s.includes('on hold')) return 'text-yellow-400'
+  if (s.includes('associated')) return 'text-gray-300'
+  if (s.includes('waiting for evaluation')) return 'text-violet-300'
+  if (s.includes('not valid')) return 'text-gray-500'
+  if (s.includes('next project')) return 'text-cyan-400'
+  if (s.includes('offer-declined') || s.includes('offer declined')) return 'text-orange-400'
+  if (s.includes('rejected by client')) return 'text-red-500'
+  if (s.includes('interview to be scheduled')) return 'text-blue-300'
+  if (s.includes('no show')) return 'text-rose-400'
+  if (s.includes('waiting for consensus')) return 'text-violet-400'
+  if (s.includes('offer-withdrawn') || s.includes('offer withdrawn')) return 'text-orange-500'
+  if (s.includes('in training')) return 'text-emerald-300'
+  if (s.includes('expelled')) return 'text-red-600'
+  if (s.includes('to place')) return 'text-teal-400'
   return 'text-gray-300'
 }
 
@@ -43,6 +57,17 @@ export default function VacancyRecruitmentTable() {
   const [search, setSearch] = useState('')
   const [syncState, setSyncState] = useState<SyncState>('idle')
   const [syncError, setSyncError] = useState<string | null>(null)
+  const [visibleCols, setVisibleCols] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('vacancy-table-cols')
+        if (saved) return JSON.parse(saved) as string[]
+      } catch {}
+    }
+    return DEFAULT_COLS
+  })
+  const [showColMenu, setShowColMenu] = useState(false)
+  const colMenuRef = useRef<HTMLDivElement>(null)
 
   const loadData = useCallback(() => {
     setLoading(true)
@@ -55,6 +80,21 @@ export default function VacancyRecruitmentTable() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  useEffect(() => {
+    localStorage.setItem('vacancy-table-cols', JSON.stringify(visibleCols))
+  }, [visibleCols])
+
+  useEffect(() => {
+    if (!showColMenu) return
+    function handleMouseDown(e: MouseEvent) {
+      if (colMenuRef.current && !colMenuRef.current.contains(e.target as Node)) {
+        setShowColMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [showColMenu])
 
   const handleSync = useCallback(async () => {
     setSyncState('syncing')
@@ -70,7 +110,7 @@ export default function VacancyRecruitmentTable() {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body?.error ?? `HTTP ${res.status}`)
+        throw new Error((body as { error?: string })?.error ?? `HTTP ${res.status}`)
       }
 
       setSyncState('success')
@@ -85,6 +125,12 @@ export default function VacancyRecruitmentTable() {
       setSyncState('error')
     }
   }, [loadData])
+
+  const toggleCol = (status: string) => {
+    setVisibleCols((prev) =>
+      prev.includes(status) ? prev.filter((c) => c !== status) : [...prev, status]
+    )
+  }
 
   if (loading) {
     return (
@@ -110,8 +156,8 @@ export default function VacancyRecruitmentTable() {
     )
   }
 
-  // Always show pinned status columns regardless of data — they show "—" when empty
-  const cols = PINNED_STATUSES
+  // Use visible columns for the table
+  const cols = visibleCols
   const filtered = search.trim()
     ? data.rows.filter((r) => r.title.toLowerCase().includes(search.toLowerCase()))
     : data.rows
@@ -183,6 +229,71 @@ export default function VacancyRecruitmentTable() {
             onChange={(e) => setSearch(e.target.value)}
             className="rounded-lg border border-gray-600/50 bg-gray-700/50 px-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 w-44"
           />
+
+          {/* Columns dropdown */}
+          <div className="relative" ref={colMenuRef}>
+            <button
+              onClick={() => setShowColMenu((v) => !v)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-600/50 bg-gray-700/50 px-3 py-1.5 text-xs font-medium text-gray-300 hover:bg-gray-700 hover:text-gray-100 transition-colors"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Columnas
+              {visibleCols.length !== DEFAULT_COLS.length && (
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-400 inline-block" />
+              )}
+            </button>
+
+            {showColMenu && (
+              <div className="absolute right-0 top-full mt-1.5 z-20 rounded-xl border border-gray-700/50 bg-gray-800 shadow-xl w-72 p-3">
+                {/* Dropdown header */}
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-gray-300">Columnas visibles</span>
+                  <button
+                    onClick={() => setShowColMenu(false)}
+                    className="text-gray-500 hover:text-gray-300 text-sm leading-none transition-colors"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Quick actions */}
+                <div className="flex gap-1.5 mb-2">
+                  <button
+                    onClick={() => setVisibleCols(DEFAULT_COLS)}
+                    className="flex-1 rounded-lg border border-gray-600/50 bg-gray-700/50 px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 hover:text-gray-100 transition-colors"
+                  >
+                    Predeterminado
+                  </button>
+                  <button
+                    onClick={() => setVisibleCols([...ALL_STATUSES])}
+                    className="flex-1 rounded-lg border border-gray-600/50 bg-gray-700/50 px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 hover:text-gray-100 transition-colors"
+                  >
+                    Todas
+                  </button>
+                </div>
+
+                <div className="border-t border-gray-700/50 my-2" />
+
+                {/* Status list */}
+                <div className="max-h-72 overflow-y-auto space-y-0.5">
+                  {ALL_STATUSES.map((status) => (
+                    <label
+                      key={status}
+                      className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-700/50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visibleCols.includes(status)}
+                        onChange={() => toggleCol(status)}
+                        className="h-3.5 w-3.5 rounded border-gray-600 bg-gray-700 accent-blue-500 cursor-pointer"
+                      />
+                      <span className={`text-xs ${statusColor(status)}`}>{status}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
