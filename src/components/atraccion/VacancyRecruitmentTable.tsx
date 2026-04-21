@@ -144,9 +144,6 @@ export default function VacancyRecruitmentTable() {
                 {/* Vacancy name */}
                 <td className="sticky left-0 z-10 bg-gray-800/95 px-4 py-3">
                   <div className="font-medium text-gray-200 leading-snug">{row.title}</div>
-                  {row.client_name && (
-                    <div className="text-gray-500 mt-0.5">{row.client_name}</div>
-                  )}
                 </td>
 
                 {/* Vacancy status badge */}
