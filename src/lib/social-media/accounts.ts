@@ -8,6 +8,7 @@ export interface SocialAccount {
   type: string
   active: boolean
   channelId?: string
+  igBusinessId?: string
 }
 
 export const SOCIAL_ACCOUNTS: SocialAccount[] = [
@@ -19,6 +20,7 @@ export const SOCIAL_ACCOUNTS: SocialAccount[] = [
     url: 'https://www.instagram.com/global_working/',
     type: 'creator',
     active: true,
+    igBusinessId: '17841402330903665',
   },
   {
     id: 'instagram_globalworkingfrance',
@@ -27,6 +29,7 @@ export const SOCIAL_ACCOUNTS: SocialAccount[] = [
     url: 'https://www.instagram.com/globalworkingfrance/',
     type: 'creator',
     active: true,
+    igBusinessId: '17841455364917617',
   },
   {
     id: 'instagram_spanskialicante',
@@ -35,6 +38,7 @@ export const SOCIAL_ACCOUNTS: SocialAccount[] = [
     url: 'https://www.instagram.com/spanskialicante/',
     type: 'business',
     active: true,
+    igBusinessId: '17841465347222275',
   },
 
   // Facebook
@@ -156,7 +160,7 @@ export const ACCOUNTS_BY_PLATFORM = (platform: SocialPlatform): SocialAccount[] 
   ACTIVE_ACCOUNTS.filter((a) => a.platform === platform)
 
 /** Platforms that have a real API integration implemented */
-export const PLATFORMS_WITH_API: SocialPlatform[] = ['youtube']
+export const PLATFORMS_WITH_API: SocialPlatform[] = ['youtube', 'instagram']
 
 /** Human-readable platform labels */
 export const PLATFORM_LABELS: Record<SocialPlatform, string> = {
