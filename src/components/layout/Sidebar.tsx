@@ -17,6 +17,7 @@ import {
   Tag,
   Menu,
   X,
+  Archive,
 } from "lucide-react";
 import SyncStatus from "./SyncStatus";
 
@@ -43,6 +44,7 @@ const navSections: NavSection[] = [
       { href: "/dashboard/analytics", label: "Web & RRSS", icon: Megaphone },
       { href: "/dashboard/funnel", label: "Funnel", icon: Filter },
       { href: "/dashboard/pipeline", label: "Pipeline", icon: GitBranch },
+      { href: "/dashboard/atraccion/cerradas", label: "Vacantes cerradas", icon: Archive },
     ],
   },
   {

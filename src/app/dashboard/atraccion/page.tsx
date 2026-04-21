@@ -1,4 +1,9 @@
-import AtraccionCarousel from '@/components/atraccion/AtraccionCarousel'
+import ConversionRates from '@/components/atraccion/ConversionRates'
+import WeeklyCVChart from '@/components/atraccion/WeeklyCVChart'
+import AttractionTrafficLights from '@/components/atraccion/AttractionTrafficLights'
+import CharlasSummary from '@/components/atraccion/CharlasSummary'
+import VacancyRecruitmentTable from '@/components/atraccion/VacancyRecruitmentTable'
+import VacancyStatusCharts from '@/components/atraccion/VacancyStatusCharts'
 
 export default function AtraccionPage() {
   return (
@@ -9,7 +14,19 @@ export default function AtraccionPage() {
           Indicadores de reclutamiento, selección e instituciones.
         </p>
       </div>
-      <AtraccionCarousel />
+
+      <ConversionRates />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2"><WeeklyCVChart /></div>
+        <div><AttractionTrafficLights /></div>
+      </div>
+
+      <CharlasSummary />
+
+      <VacancyStatusCharts />
+
+      <VacancyRecruitmentTable />
     </div>
   )
 }
