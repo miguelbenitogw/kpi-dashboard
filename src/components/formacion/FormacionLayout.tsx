@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import RetentionOverview from './RetentionOverview'
 import FormacionGraficos from './FormacionGraficos'
-import DropoutAnalysis from './DropoutAnalysis'
 
 /**
  * Manages promotion multi-select state and passes it down to all Formación charts.
@@ -36,10 +35,6 @@ export default function FormacionLayout() {
 
       <div className="mt-6">
         <FormacionGraficos promoNombres={activeFilter} />
-      </div>
-
-      <div className="mt-6">
-        <DropoutAnalysis promoNombres={activeFilter} />
       </div>
     </>
   )

@@ -17,8 +17,10 @@ import {
 import {
   getFormacionStates,
   getFormacionPreferences,
+  getDropoutAnalysis,
   type FormacionStateRow,
   type PreferenceRow,
+  type DropoutAnalysisData,
 } from '@/lib/queries/formacion'
 
 // ─── Color palettes ──────────────────────────────────────────────────────────
@@ -44,8 +46,25 @@ const PREF_COLORS: Record<string, string> = {
   'No feedback': '#6B7280',
 }
 
+const REASON_PALETTE = [
+  '#EF4444', '#F59E0B', '#8B5CF6', '#3B82F6',
+  '#EC4899', '#06B6D4', '#F97316', '#6B7280',
+]
+
+const LEVEL_PALETTE = [
+  '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6B7280',
+]
+
+const INTEREST_COLORS: Record<string, string> = {
+  'Yes': '#10B981',
+  'No': '#EF4444',
+  'Does not know': '#F59E0B',
+  'Sin dato': '#6B7280',
+}
+
 function stateColor(s: string) { return STATE_COLORS[s] ?? '#6B7280' }
 function prefColor(s: string) { return PREF_COLORS[s] ?? '#6B7280' }
+function interestColor(s: string) { return INTEREST_COLORS[s] ?? '#6B7280' }
 
 const TOOLTIP_STYLE = {
   contentStyle: {
@@ -66,11 +85,19 @@ const SLIDES = [
     id: 'estados',
     label: 'Estados',
     subtitle: 'Distribución de candidatos por estado post-contrato',
+    dot: 'bg-blue-400',
   },
   {
     id: 'preferencias',
     label: 'Preferencias de Colocación',
     subtitle: 'Tipo de trabajo al que están abiertos los candidatos en formación',
+    dot: 'bg-emerald-400',
+  },
+  {
+    id: 'abandonos',
+    label: 'Análisis de Abandonos',
+    subtitle: 'Causas, duración, asistencia e interés en proyectos futuros',
+    dot: 'bg-red-400',
   },
 ] as const
 
@@ -100,14 +127,15 @@ interface LegendRow {
   color: string
 }
 
-function LegendTable({ rows }: { rows: LegendRow[] }) {
+function LegendTable({ rows, countLabel = 'Candidatos' }: { rows: LegendRow[]; countLabel?: string }) {
+  const total = rows.reduce((s, r) => s + r.count, 0)
   return (
     <div className="mt-4 overflow-x-auto rounded-lg border border-gray-700/50">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-gray-700/50 bg-gray-800/80 text-[11px] uppercase tracking-wider text-gray-400">
             <th className="px-3 py-2.5">Etiqueta</th>
-            <th className="px-3 py-2.5 text-right">Candidatos</th>
+            <th className="px-3 py-2.5 text-right">{countLabel}</th>
             <th className="px-3 py-2.5 text-right">%</th>
           </tr>
         </thead>
@@ -127,7 +155,7 @@ function LegendTable({ rows }: { rows: LegendRow[] }) {
                 {row.count.toLocaleString('es-AR')}
               </td>
               <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-gray-400">
-                {row.percentage}%
+                {total > 0 ? Math.round((row.count / total) * 100) : row.percentage}%
               </td>
             </tr>
           ))}
@@ -158,7 +186,6 @@ function EstadosSlide({ data }: { data: FormacionStateRow[] }) {
       </p>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Bar chart */}
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={{ left: 10, right: 20 }}>
@@ -191,7 +218,6 @@ function EstadosSlide({ data }: { data: FormacionStateRow[] }) {
           </ResponsiveContainer>
         </div>
 
-        {/* Donut */}
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -235,7 +261,6 @@ function EstadosSlide({ data }: { data: FormacionStateRow[] }) {
 // ─── Slide 2: Preferencias ────────────────────────────────────────────────────
 
 function PreferenciasSlide({ data }: { data: PreferenceRow[] }) {
-  // Total = sum of all individual preference mentions (one candidate can have multiple)
   const total = data.reduce((acc, d) => acc + d.count, 0)
 
   if (data.length === 0) {
@@ -256,7 +281,6 @@ function PreferenciasSlide({ data }: { data: PreferenceRow[] }) {
       </p>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Horizontal bar */}
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={{ left: 10, right: 20 }}>
@@ -289,7 +313,6 @@ function PreferenciasSlide({ data }: { data: PreferenceRow[] }) {
           </ResponsiveContainer>
         </div>
 
-        {/* Donut */}
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -333,6 +356,214 @@ function PreferenciasSlide({ data }: { data: PreferenceRow[] }) {
   )
 }
 
+// ─── Slide 3: Abandonos ───────────────────────────────────────────────────────
+
+function AbandonosSlide({ data }: { data: DropoutAnalysisData | null }) {
+  if (!data || data.totalDropouts === 0) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-sm text-gray-400">Sin datos de abandonos</p>
+        <p className="mt-1 text-xs text-gray-500">No hay bajas registradas en formación</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+
+      {/* ── KPI summary ── */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="rounded-lg border border-gray-700/50 bg-gray-700/20 p-3 text-center">
+          <p className="text-[10px] uppercase tracking-wider text-gray-500">Total bajas</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-red-400">
+            {data.totalDropouts.toLocaleString('es-AR')}
+          </p>
+        </div>
+        <div className="rounded-lg border border-gray-700/50 bg-gray-700/20 p-3 text-center">
+          <p className="text-[10px] uppercase tracking-wider text-gray-500">Tasa abandono</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-orange-400">
+            {data.dropoutRate}%
+          </p>
+        </div>
+        {data.avgWeeksOfTraining !== null && (
+          <div className="rounded-lg border border-gray-700/50 bg-gray-700/20 p-3 text-center">
+            <p className="text-[10px] uppercase tracking-wider text-gray-500">Media semanas</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-blue-400">
+              {data.avgWeeksOfTraining}
+            </p>
+          </div>
+        )}
+        {data.avgAttendancePct !== null && (
+          <div className="rounded-lg border border-gray-700/50 bg-gray-700/20 p-3 text-center">
+            <p className="text-[10px] uppercase tracking-wider text-gray-500">Media asistencia</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-violet-400">
+              {data.avgAttendancePct}%
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Row 1: Motivos + Nivel de idioma ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {data.byReason.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+              Motivos de baja
+            </p>
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.byReason} layout="vertical" margin={{ left: 10, right: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+                  <XAxis
+                    type="number"
+                    tick={{ fill: '#9CA3AF', fontSize: 10 }}
+                    axisLine={{ stroke: '#374151' }}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="reason"
+                    tick={{ fill: '#D1D5DB', fontSize: 9 }}
+                    width={145}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    {...TOOLTIP_STYLE}
+                    formatter={((v: number) => [v.toLocaleString('es-AR'), 'Bajas']) as any}
+                  />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                    {data.byReason.map((_, i) => (
+                      <Cell key={i} fill={REASON_PALETTE[i % REASON_PALETTE.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {data.byLanguageLevel.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+              Nivel de idioma
+            </p>
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={data.byLanguageLevel}
+                    dataKey="count"
+                    nameKey="level"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    innerRadius={42}
+                    paddingAngle={2}
+                    label={({ payload }: any) => `${payload.level} (${payload.count})`}
+                    labelLine={{ stroke: '#4B5563' }}
+                  >
+                    {data.byLanguageLevel.map((_, i) => (
+                      <Cell key={i} fill={LEVEL_PALETTE[i % LEVEL_PALETTE.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    {...TOOLTIP_STYLE}
+                    formatter={((v: number) => [v.toLocaleString('es-AR'), 'Bajas']) as any}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Row 2: Por mes + Interés futuro ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {data.byMonth.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+              Bajas por mes
+            </p>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.byMonth} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fill: '#9CA3AF', fontSize: 10 }}
+                    axisLine={{ stroke: '#374151' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: '#9CA3AF', fontSize: 10 }}
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    {...TOOLTIP_STYLE}
+                    formatter={((v: number) => [v.toLocaleString('es-AR'), 'Bajas']) as any}
+                  />
+                  <Bar dataKey="count" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {data.byInterest.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
+              Interés en proyectos futuros
+            </p>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={data.byInterest}
+                    dataKey="count"
+                    nameKey="interest"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={70}
+                    innerRadius={36}
+                    paddingAngle={2}
+                    label={({ payload }: any) => `${payload.interest} (${payload.count})`}
+                    labelLine={{ stroke: '#4B5563' }}
+                  >
+                    {data.byInterest.map((e, i) => (
+                      <Cell key={i} fill={interestColor(e.interest)} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    {...TOOLTIP_STYLE}
+                    formatter={((v: number) => [v.toLocaleString('es-AR'), 'Bajas']) as any}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Legend table: motivos ── */}
+      {data.byReason.length > 0 && (
+        <LegendTable
+          countLabel="Bajas"
+          rows={data.byReason.map((d, i) => ({
+            label: d.reason,
+            count: d.count,
+            percentage: 0,
+            color: REASON_PALETTE[i % REASON_PALETTE.length],
+          }))}
+        />
+      )}
+    </div>
+  )
+}
+
 // ─── Main carousel ────────────────────────────────────────────────────────────
 
 interface Props {
@@ -344,21 +575,23 @@ export default function FormacionGraficos({ promoNombres }: Props) {
   const [visible, setVisible] = useState(true)
   const [statesData, setStatesData] = useState<FormacionStateRow[]>([])
   const [prefsData, setPrefsData] = useState<PreferenceRow[]>([])
+  const [dropoutData, setDropoutData] = useState<DropoutAnalysisData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Re-fetch whenever the promotion filter changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setLoading(true)
     const filter = promoNombres && promoNombres.length > 0 ? promoNombres : undefined
-    Promise.all([getFormacionStates(filter), getFormacionPreferences(filter)]).then(
-      ([states, prefs]) => {
-        setStatesData(states)
-        setPrefsData(prefs)
-        setLoading(false)
-      },
-    )
-  // JSON.stringify so deep equality works as dep
+    Promise.all([
+      getFormacionStates(filter),
+      getFormacionPreferences(filter),
+      getDropoutAnalysis(filter),
+    ]).then(([states, prefs, dropouts]) => {
+      setStatesData(states)
+      setPrefsData(prefs)
+      setDropoutData(dropouts)
+      setLoading(false)
+    })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(promoNombres)])
 
@@ -378,7 +611,6 @@ export default function FormacionGraficos({ promoNombres }: Props) {
     <div className="rounded-xl border border-gray-700/50 bg-gray-800/50">
       {/* ── Header ── */}
       <div className="flex items-center gap-3 border-b border-gray-700/50 px-5 py-4">
-        {/* Left arrow */}
         <button
           onClick={prev}
           aria-label="Gráfico anterior"
@@ -387,7 +619,6 @@ export default function FormacionGraficos({ promoNombres }: Props) {
           <ChevronLeft className="h-4 w-4" />
         </button>
 
-        {/* Center: title + subtitle + dots */}
         <div className="flex flex-1 flex-col items-center gap-1">
           <h3 className="text-sm font-semibold text-gray-200">
             {SLIDES[current].label}
@@ -396,7 +627,6 @@ export default function FormacionGraficos({ promoNombres }: Props) {
             {SLIDES[current].subtitle}
           </p>
 
-          {/* Dot indicators */}
           <div className="mt-1 flex items-center gap-1.5">
             {SLIDES.map((slide, i) => (
               <button
@@ -406,7 +636,7 @@ export default function FormacionGraficos({ promoNombres }: Props) {
                 className={[
                   'rounded-full transition-all duration-300',
                   i === current
-                    ? 'h-1.5 w-5 bg-blue-400'
+                    ? `h-1.5 w-5 ${slide.dot}`
                     : 'h-1.5 w-1.5 bg-gray-600 hover:bg-gray-400',
                 ].join(' ')}
               />
@@ -414,7 +644,6 @@ export default function FormacionGraficos({ promoNombres }: Props) {
           </div>
         </div>
 
-        {/* Right arrow */}
         <button
           onClick={next}
           aria-label="Siguiente gráfico"
@@ -432,11 +661,9 @@ export default function FormacionGraficos({ promoNombres }: Props) {
           className="transition-opacity duration-150"
           style={{ opacity: visible ? 1 : 0 }}
         >
-          {current === 0 ? (
-            <EstadosSlide data={statesData} />
-          ) : (
-            <PreferenciasSlide data={prefsData} />
-          )}
+          {current === 0 && <EstadosSlide data={statesData} />}
+          {current === 1 && <PreferenciasSlide data={prefsData} />}
+          {current === 2 && <AbandonosSlide data={dropoutData} />}
         </div>
       )}
     </div>
