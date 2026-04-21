@@ -18,6 +18,13 @@ import {
   type DropoutAnalysisData,
 } from '@/lib/queries/formacion'
 
+const INTEREST_COLORS: Record<string, string> = {
+  'Yes': '#10B981',
+  'No': '#EF4444',
+  'Does not know': '#F59E0B',
+  'Sin dato': '#6B7280',
+}
+
 const REASON_COLORS = [
   '#EF4444',
   '#F59E0B',
@@ -98,7 +105,7 @@ export default function DropoutAnalysis({ promoNombres }: Props) {
         <h3 className="text-sm font-semibold text-gray-200">
           Analisis de Abandonos
         </h3>
-        <div className="mt-3 grid grid-cols-2 gap-6">
+        <div className="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-4">
           <div>
             <p className="text-xs text-gray-500">Total bajas</p>
             <p className="mt-1 text-2xl font-bold tabular-nums text-red-400">
@@ -111,6 +118,22 @@ export default function DropoutAnalysis({ promoNombres }: Props) {
               {data.dropoutRate}%
             </p>
           </div>
+          {data.avgWeeksOfTraining !== null && (
+            <div>
+              <p className="text-xs text-gray-500">Media semanas</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-blue-400">
+                {data.avgWeeksOfTraining}
+              </p>
+            </div>
+          )}
+          {data.avgAttendancePct !== null && (
+            <div>
+              <p className="text-xs text-gray-500">Media asistencia</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-violet-400">
+                {data.avgAttendancePct}%
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -233,6 +256,46 @@ export default function DropoutAnalysis({ promoNombres }: Props) {
                       <Cell
                         key={i}
                         fill={LEVEL_COLORS[i % LEVEL_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={((value: number) => [
+                      value.toLocaleString('es-AR'),
+                      'Bajas',
+                    ]) as any}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {data.byInterest.length > 0 && (
+          <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
+            <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-gray-400">
+              Interés en Proyectos Futuros
+            </h4>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={data.byInterest}
+                    dataKey="count"
+                    nameKey="interest"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={75}
+                    innerRadius={40}
+                    paddingAngle={2}
+                    label={({ payload }: any) => `${payload.interest} (${payload.count})`}
+                    labelLine={{ stroke: '#4B5563' }}
+                  >
+                    {data.byInterest.map((entry, i) => (
+                      <Cell
+                        key={i}
+                        fill={INTEREST_COLORS[entry.interest] ?? REASON_COLORS[i % REASON_COLORS.length]}
                       />
                     ))}
                   </Pie>

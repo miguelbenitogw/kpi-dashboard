@@ -144,11 +144,14 @@ export type Database = {
           dropout_attendance_pct: number | null
           dropout_date: string | null
           dropout_days_of_training: number | null
+          dropout_interest_future: string | null
           dropout_language_level: string | null
           dropout_modality: string | null
+          dropout_months_of_training: number | null
           dropout_notes: string | null
           dropout_reason: string | null
           dropout_start_date: string | null
+          dropout_weeks_of_training: number | null
           email: string | null
           english_level: string | null
           fecha_fin_formacion: string | null
@@ -200,11 +203,14 @@ export type Database = {
           dropout_attendance_pct?: number | null
           dropout_date?: string | null
           dropout_days_of_training?: number | null
+          dropout_interest_future?: string | null
           dropout_language_level?: string | null
           dropout_modality?: string | null
+          dropout_months_of_training?: number | null
           dropout_notes?: string | null
           dropout_reason?: string | null
           dropout_start_date?: string | null
+          dropout_weeks_of_training?: number | null
           email?: string | null
           english_level?: string | null
           fecha_fin_formacion?: string | null
@@ -256,11 +262,14 @@ export type Database = {
           dropout_attendance_pct?: number | null
           dropout_date?: string | null
           dropout_days_of_training?: number | null
+          dropout_interest_future?: string | null
           dropout_language_level?: string | null
           dropout_modality?: string | null
+          dropout_months_of_training?: number | null
           dropout_notes?: string | null
           dropout_reason?: string | null
           dropout_start_date?: string | null
+          dropout_weeks_of_training?: number | null
           email?: string | null
           english_level?: string | null
           fecha_fin_formacion?: string | null

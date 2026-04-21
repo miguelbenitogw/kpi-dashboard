@@ -47,13 +47,21 @@ export interface DropoutByReason {
   count: number
 }
 
+export interface DropoutByInterest {
+  interest: string
+  count: number
+}
+
 export interface DropoutAnalysisData {
   byWeek: DropoutByWeek[]
   byMonth: DropoutByMonth[]
   byLanguageLevel: DropoutByLevel[]
   byReason: DropoutByReason[]
+  byInterest: DropoutByInterest[]
   totalDropouts: number
   dropoutRate: number
+  avgWeeksOfTraining: number | null
+  avgAttendancePct: number | null
 }
 
 export interface PromotionFormacionOverview {
@@ -148,7 +156,7 @@ export async function getDropoutAnalysis(
   let query = supabase
     .from('candidates_kpi')
     .select(
-      'dropout_reason, dropout_date, dropout_language_level, current_status',
+      'dropout_reason, dropout_date, dropout_language_level, dropout_attendance_pct, dropout_weeks_of_training, dropout_months_of_training, dropout_interest_future, current_status',
     )
     .in('current_status', dropoutStatuses)
 
@@ -165,8 +173,11 @@ export async function getDropoutAnalysis(
       byMonth: [],
       byLanguageLevel: [],
       byReason: [],
+      byInterest: [],
       totalDropouts: 0,
       dropoutRate: 0,
+      avgWeeksOfTraining: null,
+      avgAttendancePct: null,
     }
   }
 
@@ -188,6 +199,11 @@ export async function getDropoutAnalysis(
   const monthCounts = new Map<string, number>()
   const levelCounts = new Map<string, number>()
   const reasonCounts = new Map<string, number>()
+  const interestCounts = new Map<string, number>()
+  let weeksSum = 0
+  let weeksCount = 0
+  let attSum = 0
+  let attCount = 0
 
   for (const d of dropouts) {
     if (d.dropout_date) {
@@ -209,6 +225,18 @@ export async function getDropoutAnalysis(
 
     const reason = d.dropout_reason ?? d.current_status ?? 'Sin motivo'
     reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1)
+
+    const interest = d.dropout_interest_future ?? 'Sin dato'
+    interestCounts.set(interest, (interestCounts.get(interest) ?? 0) + 1)
+
+    if (d.dropout_weeks_of_training != null) {
+      weeksSum += Number(d.dropout_weeks_of_training)
+      weeksCount++
+    }
+    if (d.dropout_attendance_pct != null) {
+      attSum += Number(d.dropout_attendance_pct)
+      attCount++
+    }
   }
 
   return {
@@ -223,11 +251,20 @@ export async function getDropoutAnalysis(
     byReason: Array.from(reasonCounts.entries())
       .sort(([, a], [, b]) => b - a)
       .map(([reason, count]) => ({ reason, count })),
+    byInterest: Array.from(interestCounts.entries())
+      .sort(([, a], [, b]) => b - a)
+      .map(([interest, count]) => ({ interest, count })),
     totalDropouts: dropouts.length,
     dropoutRate:
       total > 0
         ? Math.round((dropouts.length / total) * 10000) / 100
         : 0,
+    avgWeeksOfTraining: weeksCount > 0
+      ? Math.round((weeksSum / weeksCount) * 10) / 10
+      : null,
+    avgAttendancePct: attCount > 0
+      ? Math.round((attSum / attCount) * 10) / 10
+      : null,
   }
 }
 
