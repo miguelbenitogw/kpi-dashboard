@@ -499,6 +499,32 @@ export async function getVacancyTagCountsMap(
 }
 
 // ---------------------------------------------------------------------------
+// Single-vacancy tag counts (lazy load for expandable rows)
+// ---------------------------------------------------------------------------
+
+export interface VacancyTagCount {
+  tag: string
+  count: number
+}
+
+export async function getVacancyTagCounts(
+  vacancyId: string
+): Promise<VacancyTagCount[]> {
+  const { data, error } = await supabase
+    .from('vacancy_tag_counts_kpi')
+    .select('tag, count')
+    .eq('vacancy_id', vacancyId)
+    .order('count', { ascending: false })
+
+  if (error) {
+    console.error('[atraccion] getVacancyTagCounts error:', error)
+    return []
+  }
+
+  return (data ?? []).map((r) => ({ tag: r.tag, count: r.count }))
+}
+
+// ---------------------------------------------------------------------------
 // Closed / Inactive vacancies with aggregated candidate tags
 // ---------------------------------------------------------------------------
 

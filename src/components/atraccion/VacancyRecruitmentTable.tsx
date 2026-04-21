@@ -1,8 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { SlidersHorizontal } from 'lucide-react'
-import { getVacancyRecruitmentStats, type VacancyRecruitmentStats } from '@/lib/queries/atraccion'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronRight, SlidersHorizontal } from 'lucide-react'
+import {
+  getVacancyRecruitmentStats,
+  getVacancyTagCounts,
+  type VacancyRecruitmentStats,
+  type VacancyTagCount,
+} from '@/lib/queries/atraccion'
 
 const ALL_STATUSES = [
   'Associated', 'Waiting for Evaluation', 'Rejected', 'First Call', 'Not Valid',
@@ -51,10 +56,69 @@ function formatSyncDate(iso: string): string {
 
 type SyncState = 'idle' | 'syncing' | 'success' | 'error'
 
+// ---------------------------------------------------------------------------
+// Tag chips — lazy loaded per vacancy
+// ---------------------------------------------------------------------------
+
+function VacancyTagRow({
+  vacancyId,
+  colSpan,
+}: {
+  vacancyId: string
+  colSpan: number
+}) {
+  const [tags, setTags] = useState<VacancyTagCount[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    getVacancyTagCounts(vacancyId).then((data) => {
+      if (!cancelled) { setTags(data); setLoading(false) }
+    })
+    return () => { cancelled = true }
+  }, [vacancyId])
+
+  return (
+    <tr>
+      <td
+        colSpan={colSpan}
+        className="bg-surface-800/40 px-5 py-3 border-b border-surface-700/40"
+      >
+        {loading ? (
+          <div className="flex gap-2">
+            {[80, 60, 96, 70, 56].map((w, i) => (
+              <div
+                key={i}
+                className="h-5 animate-pulse rounded-full bg-surface-700/60"
+                style={{ width: w }}
+              />
+            ))}
+          </div>
+        ) : tags.length === 0 ? (
+          <p className="text-xs text-gray-600 italic">Sin datos de etiquetas</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {tags.map(({ tag, count }) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 rounded-full border border-surface-600/50 bg-surface-700/60 px-2.5 py-0.5 text-[11px] text-gray-300"
+              >
+                {tag}
+                <span className="font-semibold tabular-nums text-accent-400">{count}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </td>
+    </tr>
+  )
+}
+
 export default function VacancyRecruitmentTable() {
   const [data, setData] = useState<VacancyRecruitmentStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [syncState, setSyncState] = useState<SyncState>('idle')
   const [syncError, setSyncError] = useState<string | null>(null)
   const [visibleCols, setVisibleCols] = useState<string[]>(() => {
@@ -312,31 +376,51 @@ export default function VacancyRecruitmentTable() {
               <th className="px-4 py-3 text-right font-semibold text-gray-300 whitespace-nowrap">
                 Total
               </th>
+              <th className="w-8" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-700/30">
-            {filtered.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-700/20 transition-colors">
-                <td className="sticky left-0 z-10 bg-gray-800/95 px-4 py-3">
-                  <div className="font-medium text-gray-200 leading-snug">{row.title}</div>
-                </td>
-
-                {cols.map((s) => {
-                  const count = row.byStatus[s] ?? 0
-                  return (
-                    <td key={s} className="px-3 py-3 text-right tabular-nums">
-                      <span className={count > 0 ? statusColor(s) : 'text-gray-600'}>
-                        {count > 0 ? count : '—'}
-                      </span>
+            {filtered.map((row) => {
+              const isExpanded = expandedId === row.id
+              return (
+                <Fragment key={row.id}>
+                  <tr
+                    onClick={() => setExpandedId(isExpanded ? null : row.id)}
+                    className="cursor-pointer hover:bg-gray-700/20 transition-colors"
+                  >
+                    <td className="sticky left-0 z-10 bg-gray-800/95 px-4 py-3">
+                      <div className="font-medium text-gray-200 leading-snug">{row.title}</div>
                     </td>
-                  )
-                })}
 
-                <td className="px-4 py-3 text-right font-semibold text-gray-200 tabular-nums">
-                  {row.total_candidates}
-                </td>
-              </tr>
-            ))}
+                    {cols.map((s) => {
+                      const count = row.byStatus[s] ?? 0
+                      return (
+                        <td key={s} className="px-3 py-3 text-right tabular-nums">
+                          <span className={count > 0 ? statusColor(s) : 'text-gray-600'}>
+                            {count > 0 ? count : '—'}
+                          </span>
+                        </td>
+                      )
+                    })}
+
+                    <td className="px-4 py-3 text-right font-semibold text-gray-200 tabular-nums">
+                      {row.total_candidates}
+                    </td>
+                    <td className="px-2 py-3 text-gray-500">
+                      {isExpanded
+                        ? <ChevronDown className="h-3.5 w-3.5" />
+                        : <ChevronRight className="h-3.5 w-3.5" />}
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <VacancyTagRow
+                      vacancyId={row.id}
+                      colSpan={cols.length + 3}
+                    />
+                  )}
+                </Fragment>
+              )
+            })}
           </tbody>
 
           {filtered.length > 1 && (

@@ -4,6 +4,7 @@ import { syncJobOpenings } from '@/lib/zoho/sync-job-openings'
 import { importExcelMadre } from '@/lib/google-sheets/import-madre'
 import { syncCandidateTags } from '@/lib/zoho/sync-candidate-tags'
 import { syncVacancyTagCounts } from '@/lib/supabase/sync-vacancy-tags'
+import { syncVacancyTagCountsFromZoho } from '@/lib/zoho/sync-vacancy-tags-zoho'
 
 export const maxDuration = 60
 
@@ -53,11 +54,19 @@ export async function GET(request: NextRequest) {
       errors: string[]
     } | null
     vacancy_tag_counts: { processed: number; skipped_closed: number; upserted_rows: number; errors: string[] } | null
+    vacancy_tag_counts_zoho: {
+      vacancies_processed: number
+      vacancies_skipped_closed: number
+      tag_rows_upserted: number
+      zoho_api_calls: number
+      errors: string[]
+    } | null
   } = {
     zoho_job_openings: null,
     excel_madre: { base_datos: null, resumen: null, errors: [] },
     candidate_tags: null,
     vacancy_tag_counts: null,
+    vacancy_tag_counts_zoho: null,
   }
 
   // ---- Phase 1: Zoho job openings ----------------------------------------
@@ -124,11 +133,27 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // ---- Phase 5: Vacancy tag counts from Zoho API (active only) ---------------
+  // Complements Phase 4 by covering candidates not yet imported from Excel.
+  try {
+    const vtcZohoResult = await syncVacancyTagCountsFromZoho({ onlyActive: true })
+    results.vacancy_tag_counts_zoho = vtcZohoResult
+  } catch (err) {
+    results.vacancy_tag_counts_zoho = {
+      vacancies_processed: 0,
+      vacancies_skipped_closed: 0,
+      tag_rows_upserted: 0,
+      zoho_api_calls: 0,
+      errors: [err instanceof Error ? err.message : String(err)],
+    }
+  }
+
   const allErrors = [
     ...(results.zoho_job_openings?.errors ?? []),
     ...results.excel_madre.errors,
     ...(results.candidate_tags?.errors ?? []),
     ...(results.vacancy_tag_counts?.errors ?? []),
+    ...(results.vacancy_tag_counts_zoho?.errors ?? []),
   ]
   const hasErrors = allErrors.length > 0
   const totalRecords =
