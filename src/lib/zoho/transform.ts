@@ -1,6 +1,12 @@
 // Real field mappings from Zoho Recruit API
 
 export function transformCandidate(zoho: Record<string, unknown>) {
+  // Associated_Tags: Zoho returns either string[] or {name, id, color_code}[]
+  const rawTags = zoho.Associated_Tags as Array<string | { name: string }> | null | undefined
+  const tags: string[] = (rawTags ?? [])
+    .map((t) => (typeof t === 'string' ? t : ((t as { name: string }).name ?? '')))
+    .filter(Boolean)
+
   return {
     id: String(zoho.id),
     full_name: (zoho.Full_Name as string) || null,
@@ -22,6 +28,7 @@ export function transformCandidate(zoho: Record<string, unknown>) {
       (zoho.Updated_On as string) || (zoho.Modified_Time as string) || null,
     last_activity_time: (zoho.Last_Activity_Time as string) || null,
     global_status: null as string | null,
+    tags,
   }
 }
 

@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { syncJobOpenings } from '@/lib/zoho/sync-job-openings'
-import { syncCandidatesForActiveVacancies } from '@/lib/zoho/sync-candidates'
 
-// Candidates sync across ~23 vacancies with 500 ms delays between each =
-// up to ~12 s of sleep alone, plus Zoho round-trips.  Raise the timeout
-// ceiling so Vercel does not cut the function short.
-export const maxDuration = 300
+export const maxDuration = 60
 
 /**
  * GET /api/cron/sync
  *
- * Daily cron — syncs job openings AND their candidate associations from Zoho
- * Recruit into job_openings_kpi / candidate_job_history_kpi.
+ * Daily cron — syncs active job openings from Zoho Recruit into job_openings_kpi.
  * Scheduled: 0 2 * * * (every day at 02:00 UTC)
  *
- * Protected by Bearer CRON_SECRET (same as all cron routes).
+ * Protected by Bearer CRON_SECRET.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -28,7 +23,6 @@ export async function GET(request: NextRequest) {
   const startedAt = new Date().toISOString()
   const startTime = Date.now()
 
-  // Log start
   const { data: logRow } = await supabaseAdmin
     .from('sync_log_kpi')
     .insert({
@@ -42,28 +36,20 @@ export async function GET(request: NextRequest) {
   const logId = logRow?.id ?? null
 
   try {
-    // Step 1 — Job openings: only touch vacancies tagged "Proceso atracción actual"
     const jobOpeningsResult = await syncJobOpenings('active_only')
 
-    // Step 2 — Candidate associations: pull all candidates per active vacancy
-    // and upsert into candidate_job_history_kpi so the status pivot table has data.
-    const candidatesResult = await syncCandidatesForActiveVacancies()
-
     const finishedAt = new Date().toISOString()
-    const allErrors = [...jobOpeningsResult.errors, ...candidatesResult.errors]
-    const hasErrors = allErrors.length > 0
-    const totalApiCalls = jobOpeningsResult.api_calls + candidatesResult.api_calls
+    const hasErrors = jobOpeningsResult.errors.length > 0
 
-    // Update log entry
     if (logId) {
       await supabaseAdmin
         .from('sync_log_kpi')
         .update({
           status: hasErrors ? 'partial' : 'success',
           finished_at: finishedAt,
-          records_processed: jobOpeningsResult.synced + candidatesResult.candidates_synced,
-          api_calls_used: totalApiCalls,
-          error_message: hasErrors ? allErrors.join(' | ') : null,
+          records_processed: jobOpeningsResult.synced,
+          api_calls_used: jobOpeningsResult.api_calls,
+          error_message: hasErrors ? jobOpeningsResult.errors.join(' | ') : null,
         })
         .eq('id', logId)
     }
@@ -77,13 +63,6 @@ export async function GET(request: NextRequest) {
           skipped_inactive: jobOpeningsResult.skipped_inactive,
           api_calls: jobOpeningsResult.api_calls,
           errors: jobOpeningsResult.errors,
-        },
-        candidates: {
-          vacancies_processed: candidatesResult.vacancies_processed,
-          synced: candidatesResult.candidates_synced,
-          status_changes_logged: candidatesResult.status_changes_logged,
-          api_calls: candidatesResult.api_calls,
-          errors: candidatesResult.errors,
         },
       },
       { status: hasErrors ? 207 : 200 }
