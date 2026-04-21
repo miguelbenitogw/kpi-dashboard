@@ -302,7 +302,9 @@ export interface VacancyRecruitmentStats {
 }
 
 export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentStats> {
-  // 1. Active vacancies tagged "Proceso atracción actual"
+  // Query only job_openings_kpi — total_candidates comes directly from Zoho.
+  // Per-status breakdown (byStatus) is empty until a dedicated sync populates it;
+  // the UI always renders the pinned status columns regardless, showing "—" when empty.
   const { data: vacancies, error: vacError } = await supabase
     .from('job_openings_kpi')
     .select('id, title, client_name, owner, status, date_opened, total_candidates, hired_count')
@@ -314,51 +316,20 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
   const vacList = vacancies ?? []
   if (vacList.length === 0) return { rows: [], statuses: [] }
 
-  const vacIds = vacList.map((v) => v.id)
+  const rows: VacancyStatusRow[] = vacList.map((v) => ({
+    id: v.id,
+    title: v.title,
+    client_name: v.client_name ?? null,
+    owner: v.owner ?? null,
+    status: v.status ?? null,
+    date_opened: v.date_opened ?? null,
+    total_candidates: v.total_candidates ?? 0,
+    hired_count: v.hired_count ?? 0,
+    byStatus: {},
+    total: v.total_candidates ?? 0,
+  }))
 
-  // 2. Candidate history for those vacancies
-  const { data: history, error: histError } = await supabase
-    .from('candidate_job_history_kpi')
-    .select('job_opening_id, candidate_status_in_jo')
-    .in('job_opening_id', vacIds)
-    .eq('association_type', 'atraccion')
-
-  if (histError) console.error('Error fetching candidate history:', histError)
-
-  // 3. Aggregate by vacancy + status
-  const vacMap = new Map<string, Record<string, number>>()
-  for (const h of history ?? []) {
-    const jid = h.job_opening_id as string
-    const st = (h.candidate_status_in_jo as string) ?? 'Sin estado'
-    if (!vacMap.has(jid)) vacMap.set(jid, {})
-    const m = vacMap.get(jid)!
-    m[st] = (m[st] ?? 0) + 1
-  }
-
-  // 4. Collect all distinct statuses (sorted, pinned first)
-  const allStatuses = new Set<string>()
-  for (const m of vacMap.values()) for (const s of Object.keys(m)) allStatuses.add(s)
-  const statuses = Array.from(allStatuses).sort()
-
-  // 5. Build rows
-  const rows: VacancyStatusRow[] = vacList.map((v) => {
-    const byStatus = vacMap.get(v.id) ?? {}
-    const total = Object.values(byStatus).reduce((s, n) => s + n, 0)
-    return {
-      id: v.id,
-      title: v.title,
-      client_name: v.client_name ?? null,
-      owner: v.owner ?? null,
-      status: v.status ?? null,
-      date_opened: v.date_opened ?? null,
-      total_candidates: v.total_candidates ?? 0,
-      hired_count: v.hired_count ?? 0,
-      byStatus,
-      total,
-    }
-  })
-
-  return { rows, statuses }
+  return { rows, statuses: [] }
 }
 
 // ---------------------------------------------------------------------------
