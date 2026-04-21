@@ -7,6 +7,7 @@ import WeeklyCVChart from '@/components/atraccion/WeeklyCVChart'
 import AttractionTrafficLights from '@/components/atraccion/AttractionTrafficLights'
 import CharlasSummary from '@/components/atraccion/CharlasSummary'
 import VacancyRecruitmentTable from '@/components/atraccion/VacancyRecruitmentTable'
+import ClosedVacanciesView from '@/components/atraccion/ClosedVacanciesView'
 
 const SLIDES = [
   {
@@ -20,6 +21,12 @@ const SLIDES = [
     label: 'Tabla',
     subtitle: 'Candidatos por vacante y estado de reclutamiento',
     dot: 'bg-emerald-400',
+  },
+  {
+    id: 'cerradas',
+    label: 'Vacantes cerradas',
+    subtitle: 'Vacantes inactivas por año y etiquetas de candidatos',
+    dot: 'bg-purple-400',
   },
 ] as const
 
@@ -106,6 +113,11 @@ export default function AtraccionCarousel() {
         {current === 1 && (
           <div className="p-0">
             <VacancyRecruitmentTable />
+          </div>
+        )}
+        {current === 2 && (
+          <div className="p-0">
+            <ClosedVacanciesView />
           </div>
         )}
       </div>
