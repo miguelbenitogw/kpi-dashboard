@@ -299,12 +299,11 @@ export interface VacancyStatusRow {
 export interface VacancyRecruitmentStats {
   rows: VacancyStatusRow[]
   statuses: string[]
+  lastSynced: string | null
 }
 
 export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentStats> {
-  // Query only job_openings_kpi — total_candidates comes directly from Zoho.
-  // Per-status breakdown (byStatus) is empty until a dedicated sync populates it;
-  // the UI always renders the pinned status columns regardless, showing "—" when empty.
+  // 1. Fetch active vacancies
   const { data: vacancies, error: vacError } = await supabase
     .from('job_openings_kpi')
     .select('id, title, client_name, owner, status, date_opened, total_candidates, hired_count')
@@ -314,7 +313,38 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
   if (vacError) console.error('Error fetching vacancies:', vacError)
 
   const vacList = vacancies ?? []
-  if (vacList.length === 0) return { rows: [], statuses: [] }
+  if (vacList.length === 0) return { rows: [], statuses: [], lastSynced: null }
+
+  const vacIds = vacList.map((v) => v.id)
+
+  // 2. Fetch aggregated status counts from the sync table
+  const { data: counts, error: countsError } = await supabase
+    .from('vacancy_status_counts_kpi')
+    .select('vacancy_id, status, count, synced_at')
+    .in('vacancy_id', vacIds)
+
+  if (countsError) console.error('Error fetching vacancy status counts:', countsError)
+
+  // Build a lookup: vacancyId → { status → count }
+  const countMap = new Map<string, Record<string, number>>()
+  let latestSyncedAt: string | null = null
+
+  for (const c of counts ?? []) {
+    if (!countMap.has(c.vacancy_id)) countMap.set(c.vacancy_id, {})
+    countMap.get(c.vacancy_id)![c.status] = c.count
+
+    // Track the most recent synced_at across all rows
+    if (!latestSyncedAt || c.synced_at > latestSyncedAt) {
+      latestSyncedAt = c.synced_at
+    }
+  }
+
+  // Collect all distinct statuses that appear in the sync data
+  const allStatuses = new Set<string>()
+  for (const statusMap of countMap.values()) {
+    for (const s of Object.keys(statusMap)) allStatuses.add(s)
+  }
+  const statuses = Array.from(allStatuses).sort()
 
   const rows: VacancyStatusRow[] = vacList.map((v) => ({
     id: v.id,
@@ -325,11 +355,11 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
     date_opened: v.date_opened ?? null,
     total_candidates: v.total_candidates ?? 0,
     hired_count: v.hired_count ?? 0,
-    byStatus: {},
+    byStatus: countMap.get(v.id) ?? {},
     total: v.total_candidates ?? 0,
   }))
 
-  return { rows, statuses: [] }
+  return { rows, statuses, lastSynced: latestSyncedAt }
 }
 
 // ---------------------------------------------------------------------------

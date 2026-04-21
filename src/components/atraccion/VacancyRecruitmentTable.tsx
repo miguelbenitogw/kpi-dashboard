@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getVacancyRecruitmentStats, type VacancyRecruitmentStats } from '@/lib/queries/atraccion'
 
 const PINNED_STATUSES = [
@@ -16,12 +16,6 @@ const PINNED_STATUSES = [
   'Rejected',
 ]
 
-function sortStatuses(statuses: string[]): string[] {
-  const pinned = PINNED_STATUSES.filter((s) => statuses.includes(s))
-  const rest = statuses.filter((s) => !PINNED_STATUSES.includes(s)).sort()
-  return [...pinned, ...rest]
-}
-
 function statusColor(status: string): string {
   const s = status.toLowerCase()
   if (s.includes('hired') || s.includes('approved by client')) return 'text-emerald-400'
@@ -32,18 +26,65 @@ function statusColor(status: string): string {
   return 'text-gray-300'
 }
 
+function formatSyncDate(iso: string): string {
+  return new Date(iso).toLocaleString('es-AR', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+type SyncState = 'idle' | 'syncing' | 'success' | 'error'
 
 export default function VacancyRecruitmentTable() {
   const [data, setData] = useState<VacancyRecruitmentStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [syncState, setSyncState] = useState<SyncState>('idle')
+  const [syncError, setSyncError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
+    setLoading(true)
     getVacancyRecruitmentStats().then((d) => {
       setData(d)
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  const handleSync = useCallback(async () => {
+    setSyncState('syncing')
+    setSyncError(null)
+
+    try {
+      const res = await fetch('/api/admin/sync-vacancy-stats', {
+        method: 'POST',
+        headers: {
+          'x-api-key': process.env.NEXT_PUBLIC_SYNC_API_KEY ?? '',
+        },
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.error ?? `HTTP ${res.status}`)
+      }
+
+      setSyncState('success')
+
+      // Show success for 3s then reload data
+      setTimeout(() => {
+        setSyncState('idle')
+        loadData()
+      }, 3000)
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : String(err))
+      setSyncState('error')
+    }
+  }, [loadData])
 
   if (loading) {
     return (
@@ -87,15 +128,62 @@ export default function VacancyRecruitmentTable() {
             {data.rows.length} vacante{data.rows.length !== 1 ? 's' : ''} · {
               data.rows.reduce((s, r) => s + r.total_candidates, 0).toLocaleString()
             } candidatos en total
+            {data.lastSynced && (
+              <> · <span className="text-gray-600">Última sync: {formatSyncDate(data.lastSynced)}</span></>
+            )}
           </p>
+
+          {syncState === 'error' && syncError && (
+            <p className="mt-1 text-xs text-red-400">{syncError}</p>
+          )}
         </div>
-        <input
-          type="text"
-          placeholder="Buscar vacante…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="rounded-lg border border-gray-600/50 bg-gray-700/50 px-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 w-44"
-        />
+
+        <div className="flex items-center gap-2">
+          {/* Sync button */}
+          <button
+            onClick={handleSync}
+            disabled={syncState === 'syncing'}
+            className={[
+              'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+              syncState === 'syncing'
+                ? 'cursor-not-allowed bg-blue-700/50 text-blue-300'
+                : syncState === 'success'
+                  ? 'bg-emerald-700/60 text-emerald-300'
+                  : 'bg-blue-600 text-white hover:bg-blue-500',
+            ].join(' ')}
+          >
+            {syncState === 'syncing' && (
+              <svg
+                className="h-3 w-3 animate-spin"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+              </svg>
+            )}
+            {syncState === 'success' && (
+              <svg className="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+              </svg>
+            )}
+            {syncState === 'syncing'
+              ? 'Sincronizando…'
+              : syncState === 'success'
+                ? 'Listo'
+                : 'Sincronizar'}
+          </button>
+
+          {/* Search */}
+          <input
+            type="text"
+            placeholder="Buscar vacante…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="rounded-lg border border-gray-600/50 bg-gray-700/50 px-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 w-44"
+          />
+        </div>
       </div>
 
       <div className="overflow-x-auto">
