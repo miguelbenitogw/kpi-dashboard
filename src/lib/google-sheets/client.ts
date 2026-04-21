@@ -248,3 +248,128 @@ function inferTabName(headers: string[], rows: SheetRow[], gid: string): string 
 
   return `Tab_${gid}`
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Service-account client (Google Sheets API v4)
+// Uses GOOGLE_SERVICE_ACCOUNT_JSON env var (double-serialized JSON string).
+// For sheets that are NOT publicly accessible.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { google } from 'googleapis'
+
+/**
+ * Row type for service-account reads — values may be null when a cell is empty.
+ */
+export interface ServiceSheetRow {
+  [key: string]: string | null
+}
+
+/**
+ * Returns an authenticated Google Sheets client using the service account
+ * stored in GOOGLE_SERVICE_ACCOUNT_JSON env var.
+ * The env var value must be a double-serialized JSON string
+ * (i.e. JSON.stringify(JSON.stringify(credentialsObject))).
+ */
+function getSheetsClient() {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON
+  if (!raw) throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON env var is not set')
+
+  const credentials = JSON.parse(JSON.parse(raw))
+
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+  })
+
+  return google.sheets({ version: 'v4', auth })
+}
+
+/**
+ * Reads a sheet tab by GID and returns rows as objects keyed by header values.
+ * Requires the sheet to be shared with the service account.
+ */
+export async function readSheetByGid(
+  spreadsheetId: string,
+  gid: number,
+  headerRow = 1,
+): Promise<ServiceSheetRow[]> {
+  const sheets = getSheetsClient()
+
+  const meta = await sheets.spreadsheets.get({ spreadsheetId })
+  const sheetMeta = meta.data.sheets?.find(
+    (s) => s.properties?.sheetId === gid,
+  )
+  if (!sheetMeta?.properties?.title) {
+    throw new Error(`No sheet found with gid=${gid} in spreadsheet ${spreadsheetId}`)
+  }
+  const sheetName = sheetMeta.properties.title
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: sheetName,
+  })
+
+  const rows = res.data.values ?? []
+  if (rows.length < headerRow) return []
+
+  const headers = (rows[headerRow - 1] ?? []).map((h: string) =>
+    String(h).trim(),
+  )
+  const dataRows = rows.slice(headerRow)
+
+  return dataRows.map((row) => {
+    const obj: ServiceSheetRow = {}
+    headers.forEach((header, i) => {
+      obj[header] = row[i] != null ? String(row[i]).trim() : null
+    })
+    return obj
+  })
+}
+
+/**
+ * Reads a sheet by tab name and returns rows as objects.
+ * Requires the sheet to be shared with the service account.
+ */
+export async function readSheetByName(
+  spreadsheetId: string,
+  sheetName: string,
+  headerRow = 1,
+): Promise<ServiceSheetRow[]> {
+  const sheets = getSheetsClient()
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: sheetName,
+  })
+
+  const rows = res.data.values ?? []
+  if (rows.length < headerRow) return []
+
+  const headers = (rows[headerRow - 1] ?? []).map((h: string) =>
+    String(h).trim(),
+  )
+  const dataRows = rows.slice(headerRow)
+
+  return dataRows.map((row) => {
+    const obj: ServiceSheetRow = {}
+    headers.forEach((header, i) => {
+      obj[header] = row[i] != null ? String(row[i]).trim() : null
+    })
+    return obj
+  })
+}
+
+/**
+ * Lists all sheet tabs in a spreadsheet (name + gid).
+ * Requires the sheet to be shared with the service account.
+ */
+export async function listSheets(
+  spreadsheetId: string,
+): Promise<Array<{ name: string; gid: number }>> {
+  const sheets = getSheetsClient()
+  const meta = await sheets.spreadsheets.get({ spreadsheetId })
+  return (meta.data.sheets ?? []).map((s) => ({
+    name: s.properties?.title ?? '',
+    gid: s.properties?.sheetId ?? 0,
+  }))
+}
