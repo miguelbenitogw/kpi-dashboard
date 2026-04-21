@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { syncJobOpenings } from '@/lib/zoho/sync-job-openings'
 import { importExcelMadre } from '@/lib/google-sheets/import-madre'
+import { syncCandidateTags } from '@/lib/zoho/sync-candidate-tags'
 
 export const maxDuration = 60
 
@@ -43,9 +44,17 @@ export async function GET(request: NextRequest) {
       resumen: { upserted: number; skipped: number } | null
       errors: string[]
     }
+    candidate_tags: {
+      total_fetched: number
+      updated: number
+      skipped_no_match: number
+      api_calls: number
+      errors: string[]
+    } | null
   } = {
     zoho_job_openings: null,
     excel_madre: { base_datos: null, resumen: null, errors: [] },
+    candidate_tags: null,
   }
 
   // ---- Phase 1: Zoho job openings ----------------------------------------
@@ -85,9 +94,24 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // ---- Phase 3: Candidate tags from Zoho ------------------------------------
+  try {
+    const tagsResult = await syncCandidateTags()
+    results.candidate_tags = tagsResult
+  } catch (err) {
+    results.candidate_tags = {
+      total_fetched: 0,
+      updated: 0,
+      skipped_no_match: 0,
+      api_calls: 0,
+      errors: [err instanceof Error ? err.message : String(err)],
+    }
+  }
+
   const allErrors = [
     ...(results.zoho_job_openings?.errors ?? []),
     ...results.excel_madre.errors,
+    ...(results.candidate_tags?.errors ?? []),
   ]
   const hasErrors = allErrors.length > 0
   const totalRecords =

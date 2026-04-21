@@ -4,9 +4,9 @@ export default function FormacionPage() {
   return (
     <div>
       <div>
-        <h1 className="text-2xl font-bold text-gray-100">Formacion</h1>
+        <h1 className="text-2xl font-bold text-gray-100">Gráficos</h1>
         <p className="mt-1 text-sm text-gray-400">
-          Estado de las promociones, retencion y analisis de abandonos.
+          Distribución de candidatos por estado, preferencias y análisis de abandonos.
         </p>
       </div>
 

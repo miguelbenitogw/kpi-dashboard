@@ -11,12 +11,12 @@ import {
   Filter,
   GraduationCap,
   TrendingUp,
-  Layers,
   Briefcase,
   UserCheck,
   Clock,
   Wallet,
   MessageSquare,
+  Tag,
   Menu,
   X,
 } from "lucide-react";
@@ -50,9 +50,9 @@ const navSections: NavSection[] = [
   {
     title: "Formación",
     items: [
-      { href: "/dashboard/formacion", label: "Estados", icon: GraduationCap },
+      { href: "/dashboard/formacion", label: "Gráficos", icon: GraduationCap },
       { href: "/dashboard/rendimiento", label: "Rendimiento", icon: TrendingUp },
-      { href: "/dashboard/promos", label: "Promociones", icon: Layers },
+      { href: "/dashboard/formacion/candidatos", label: "Candidatos", icon: UserCheck },
     ],
   },
   {
@@ -71,7 +71,10 @@ const navSections: NavSection[] = [
   },
   {
     title: null,
-    items: [{ href: "/dashboard/chat", label: "Asistente IA", icon: MessageSquare }],
+    items: [
+      { href: "/dashboard/chat", label: "Asistente IA", icon: MessageSquare },
+      { href: "/dashboard/etiquetas", label: "Etiquetas", icon: Tag },
+    ],
   },
 ];
 
