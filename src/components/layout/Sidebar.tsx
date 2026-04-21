@@ -11,9 +11,7 @@ import {
   Filter,
   GraduationCap,
   TrendingUp,
-  Briefcase,
   UserCheck,
-  Clock,
   Wallet,
   MessageSquare,
   Tag,
@@ -53,14 +51,6 @@ const navSections: NavSection[] = [
       { href: "/dashboard/formacion", label: "Gráficos", icon: GraduationCap },
       { href: "/dashboard/rendimiento", label: "Rendimiento", icon: TrendingUp },
       { href: "/dashboard/formacion/candidatos", label: "Candidatos", icon: UserCheck },
-    ],
-  },
-  {
-    title: "Colocación",
-    items: [
-      { href: "/dashboard/colocacion", label: "Placement", icon: Briefcase },
-      { href: "/dashboard/candidates", label: "Candidatos", icon: UserCheck },
-      { href: "/dashboard/sla", label: "SLA", icon: Clock },
     ],
   },
   {
