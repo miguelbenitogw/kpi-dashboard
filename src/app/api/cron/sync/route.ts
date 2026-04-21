@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
         candidates: {
           vacancies_processed: candidatesResult.vacancies_processed,
           synced: candidatesResult.candidates_synced,
+          status_changes_logged: candidatesResult.status_changes_logged,
           api_calls: candidatesResult.api_calls,
           errors: candidatesResult.errors,
         },
