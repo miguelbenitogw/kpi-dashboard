@@ -34,7 +34,7 @@ export async function syncCandidateTags(): Promise<SyncTagsResult> {
       const tags = (rawTags ?? [])
         .map((t) => (typeof t === 'string' ? t : ((t as { name: string }).name ?? '')))
         .filter(Boolean)
-      return { id: String(record.id), tags }
+      return { id: String(record.Candidate_ID), tags }
     })
     .filter((c) => c.tags.length > 0) // skip candidates with no tags
 

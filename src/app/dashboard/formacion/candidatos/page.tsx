@@ -1,4 +1,4 @@
-import GPColocacionView from '@/components/colocacion/GPColocacionView'
+import CandidatosFormacionView from '@/components/formacion/CandidatosFormacionView'
 import BillingPlaceholder from '@/components/colocacion/BillingPlaceholder'
 import CostsPlaceholder from '@/components/colocacion/CostsPlaceholder'
 
@@ -12,9 +12,8 @@ export default function FormacionCandidatosPage() {
         </p>
       </div>
 
-      {/* GP Status + Open To — expandable tables */}
       <div className="mt-8">
-        <GPColocacionView />
+        <CandidatosFormacionView />
       </div>
 
       {/* Placeholders */}

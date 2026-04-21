@@ -364,3 +364,106 @@ export async function getFormacionPreferences(
       percentage: Math.round((count / total) * 10000) / 100,
     }))
 }
+
+// ---------------------------------------------------------------------------
+// Candidatos table (promo chip filters + expandable row history)
+// ---------------------------------------------------------------------------
+
+export interface FormacionCandidateRow {
+  id: string
+  full_name: string | null
+  current_status: string | null
+  promocion_nombre: string | null
+  assigned_agency: string | null
+  gp_open_to: string | null
+  gp_availability: string | null
+}
+
+export interface FormacionCandidateHistory {
+  job_opening_title: string | null
+  candidate_status_in_jo: string | null
+  association_type: string | null
+  fetched_at: string | null
+}
+
+export interface FormacionPromoCount {
+  name: string
+  count: number
+}
+
+/** Returns all promos with candidate counts, sorted by name. */
+export async function getFormacionPromos(): Promise<FormacionPromoCount[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('candidates_kpi')
+    .select('promocion_nombre')
+    .not('promocion_nombre', 'is', null) as {
+      data: Array<{ promocion_nombre: string }> | null
+      error: unknown
+    }
+
+  if (error) {
+    console.error('Error fetching formacion promos:', error)
+    return []
+  }
+
+  const counts = new Map<string, number>()
+  for (const row of data ?? []) {
+    const name = row.promocion_nombre
+    counts.set(name, (counts.get(name) ?? 0) + 1)
+  }
+
+  return Array.from(counts.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, count]) => ({ name, count }))
+}
+
+/** Returns candidates for a given promo (null = all), ordered by full_name. */
+export async function getFormacionCandidates(
+  promoNombre: string | null,
+): Promise<FormacionCandidateRow[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q = (supabase as any)
+    .from('candidates_kpi')
+    .select('id, full_name, current_status, promocion_nombre, assigned_agency, gp_open_to, gp_availability')
+    .order('full_name', { ascending: true })
+
+  if (promoNombre !== null) {
+    q = q.eq('promocion_nombre', promoNombre)
+  }
+
+  const { data, error } = await q as {
+    data: FormacionCandidateRow[] | null
+    error: unknown
+  }
+
+  if (error) {
+    console.error('Error fetching formacion candidates:', error)
+    return []
+  }
+
+  return data ?? []
+}
+
+/** Returns job history for a candidate (association_type = 'formacion'), ordered by fetched_at DESC. */
+export async function getFormacionCandidateHistory(
+  candidateId: string,
+): Promise<FormacionCandidateHistory[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('candidate_job_history_kpi')
+    .select('job_opening_title, candidate_status_in_jo, association_type, fetched_at')
+    .eq('candidate_id', candidateId)
+    .eq('association_type', 'formacion')
+    .order('fetched_at', { ascending: false }) as {
+      data: FormacionCandidateHistory[] | null
+      error: unknown
+    }
+
+  if (error) {
+    console.error('Error fetching candidate history:', error)
+    return []
+  }
+
+  return data ?? []
+}
