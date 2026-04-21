@@ -47,18 +47,23 @@ const tooltipStyle = {
   color: '#F3F4F6',
 }
 
-export default function DropoutAnalysis() {
+interface Props {
+  promoNombres?: string[]
+}
+
+export default function DropoutAnalysis({ promoNombres }: Props) {
   const [data, setData] = useState<DropoutAnalysisData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
-      const result = await getDropoutAnalysis()
+    setLoading(true)
+    const filter = promoNombres && promoNombres.length > 0 ? promoNombres : undefined
+    getDropoutAnalysis(filter).then((result) => {
       setData(result)
       setLoading(false)
-    }
-    load()
-  }, [])
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(promoNombres)])
 
   if (loading) {
     return (

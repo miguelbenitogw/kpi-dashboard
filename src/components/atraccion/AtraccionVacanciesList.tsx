@@ -103,13 +103,13 @@ export default function AtraccionVacanciesList() {
               <div className="flex items-center gap-4 text-xs text-gray-400">
                 <span>
                   <span className="text-base font-bold tabular-nums text-gray-100">
-                    {v.total_candidates.toLocaleString('es-AR')}
+                    {(v.total_candidates ?? 0).toLocaleString('es-AR')}
                   </span>{' '}
                   candidatos
                 </span>
                 <span>
                   <span className="text-base font-bold tabular-nums text-emerald-400">
-                    {v.hired_count.toLocaleString('es-AR')}
+                    {(v.hired_count ?? 0).toLocaleString('es-AR')}
                   </span>{' '}
                   contratados
                 </span>

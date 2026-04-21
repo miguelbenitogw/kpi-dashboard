@@ -273,8 +273,8 @@ export interface AtraccionVacancy {
   client_name: string | null
   owner: string | null
   tipo_profesional: string
-  total_candidates: number
-  hired_count: number
+  total_candidates: number | null
+  hired_count: number | null
   es_proceso_atraccion_actual: boolean
   date_opened: string | null
 }

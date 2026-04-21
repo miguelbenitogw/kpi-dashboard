@@ -11,6 +11,7 @@ import { validateApiKey, unauthorizedResponse } from '../../sync/middleware'
 import { fetchAllYouTubeStats } from '@/lib/social-media/youtube'
 import { ACTIVE_ACCOUNTS, PLATFORMS_WITH_API } from '@/lib/social-media/accounts'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import type { Json } from '@/lib/supabase/types'
 
 export async function POST(request: Request) {
   if (!validateApiKey(request)) {
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
         subscribers_count: stats.subscriberCount,
         posts_count: stats.videoCount,
         total_views: stats.viewCount,
-        raw_data: { channelId: stats.channelId, topVideos: stats.topVideos },
+        raw_data: { channelId: stats.channelId, topVideos: stats.topVideos } as unknown as Json,
         captured_at: capturedAt,
       })
 

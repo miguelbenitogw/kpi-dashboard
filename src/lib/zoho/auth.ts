@@ -104,7 +104,7 @@ async function storeToken(token: TokenConfig): Promise<void> {
     .upsert(
       {
         config_key: 'zoho_token',
-        config_value: token as Record<string, string>,
+        config_value: token as unknown as Record<string, string>,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'config_key' }

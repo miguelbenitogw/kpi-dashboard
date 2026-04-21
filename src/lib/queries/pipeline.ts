@@ -50,6 +50,11 @@ export interface PipelineStatusCount {
   count: number
 }
 
+export interface StageAvgTime {
+  stage: string
+  avgDays: number
+}
+
 export async function getPipelineStats(
   jobOpeningId: string
 ): Promise<PipelineStatusCount[]> {

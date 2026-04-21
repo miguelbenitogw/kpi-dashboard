@@ -73,15 +73,15 @@ function computeTrafficLight(ratio: number): 'good' | 'warning' | 'danger' {
 }
 
 export async function getFormacionStates(
-  promotionId?: string,
+  promoNombres?: string[],
 ): Promise<FormacionStateRow[]> {
   let query = supabase
     .from('candidates_kpi')
     .select('current_status')
     .in('current_status', [...FORMATION_STATES])
 
-  if (promotionId) {
-    query = query.eq('promotion_id', promotionId)
+  if (promoNombres && promoNombres.length > 0) {
+    query = query.in('promocion_nombre', promoNombres)
   }
 
   const { data, error } = await query
@@ -124,7 +124,7 @@ export async function getRetentionMetrics(
     supabase
       .from('candidates_kpi')
       .select('id', { count: 'exact', head: true })
-      .eq('promotion_id', promotionId)
+      .eq('promocion_nombre', promotionId)
       .in('current_status', RETAINED_STATES),
   ])
 
@@ -141,7 +141,7 @@ export async function getRetentionMetrics(
 }
 
 export async function getDropoutAnalysis(
-  promotionId?: string,
+  promoNombres?: string[],
 ): Promise<DropoutAnalysisData> {
   const dropoutStatuses = ['Offer-Withdrawn', 'Expelled', 'Transferred']
 
@@ -152,8 +152,8 @@ export async function getDropoutAnalysis(
     )
     .in('current_status', dropoutStatuses)
 
-  if (promotionId) {
-    query = query.eq('promotion_id', promotionId)
+  if (promoNombres && promoNombres.length > 0) {
+    query = query.in('promocion_nombre', promoNombres)
   }
 
   const { data, error } = await query
@@ -177,8 +177,8 @@ export async function getDropoutAnalysis(
     .select('id', { count: 'exact', head: true })
     .in('current_status', [...FORMATION_STATES])
 
-  if (promotionId) {
-    totalProgramQuery = totalProgramQuery.eq('promotion_id', promotionId)
+  if (promoNombres && promoNombres.length > 0) {
+    totalProgramQuery = totalProgramQuery.in('promocion_nombre', promoNombres)
   }
 
   const { count: totalPrograma } = await totalProgramQuery
@@ -253,7 +253,7 @@ export async function getPromotionsFormacionOverview(): Promise<
     const { count } = await supabase
       .from('candidates_kpi')
       .select('id', { count: 'exact', head: true })
-      .eq('promotion_id', promo.id)
+      .eq('promocion_nombre', promo.nombre)
       .in('current_status', RETAINED_STATES)
 
     const objetivo = promo.expectativa_finalizan ?? 0
@@ -273,4 +273,57 @@ export async function getPromotionsFormacionOverview(): Promise<
   }
 
   return results
+}
+
+// ---------------------------------------------------------------------------
+// Formacion preferences (gp_open_to — comma-separated placement types)
+// ---------------------------------------------------------------------------
+
+export interface PreferenceRow {
+  preference: string
+  count: number
+  percentage: number
+}
+
+export async function getFormacionPreferences(
+  promoNombres?: string[],
+): Promise<PreferenceRow[]> {
+  // Cast to `any` because `gp_open_to` is not yet in the generated Supabase types (stale)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q = (supabase as any)
+    .from('candidates_kpi')
+    .select('gp_open_to')
+    .not('gp_open_to', 'is', null)
+    .neq('gp_open_to', '')
+
+  if (promoNombres && promoNombres.length > 0) {
+    q = q.in('promocion_nombre', promoNombres)
+  }
+
+  const { data, error } = await q as { data: Array<{ gp_open_to: string }> | null; error: unknown }
+
+  if (error) {
+    console.error('Error fetching formacion preferences:', error)
+    return []
+  }
+
+  const prefMap = new Map<string, number>()
+
+  for (const row of data ?? []) {
+    const raw = row.gp_open_to
+    const parts = raw.split(',').map((s) => s.trim()).filter(Boolean)
+    for (const p of parts) {
+      prefMap.set(p, (prefMap.get(p) ?? 0) + 1)
+    }
+  }
+
+  const total = Array.from(prefMap.values()).reduce((s, v) => s + v, 0)
+
+  return Array.from(prefMap.entries())
+    .sort(([, a], [, b]) => b - a)
+    .map(([preference, count]) => ({
+      preference,
+      count,
+      percentage: Math.round((count / total) * 10000) / 100,
+    }))
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { fetchAllYouTubeStats } from '@/lib/social-media/youtube'
+import type { Json } from '@/lib/supabase/types'
 
 export const maxDuration = 60
 
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
           subscribers_count: stats.subscriberCount,
           posts_count: stats.videoCount,
           total_views: stats.viewCount,
-          raw_data: { channelId: stats.channelId, topVideos: stats.topVideos },
+          raw_data: { channelId: stats.channelId, topVideos: stats.topVideos } as unknown as Json,
           captured_at: capturedAt,
         })
 

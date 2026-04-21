@@ -12,13 +12,29 @@ const trafficLightColor: Record<string, string> = {
   danger: 'bg-red-500',
 }
 
+const trafficLightRing: Record<string, string> = {
+  good: 'ring-emerald-500',
+  warning: 'ring-amber-500',
+  danger: 'ring-red-500',
+}
+
 const trafficLightBorder: Record<string, string> = {
   good: 'border-l-emerald-500',
   warning: 'border-l-amber-500',
   danger: 'border-l-red-500',
 }
 
-export default function RetentionOverview() {
+interface Props {
+  selectedPromos: string[]
+  onToggle: (nombre: string) => void
+  onSelectAll: () => void
+}
+
+export default function RetentionOverview({
+  selectedPromos,
+  onToggle,
+  onSelectAll,
+}: Props) {
   const [promos, setPromos] = useState<PromotionFormacionOverview[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -58,18 +74,44 @@ export default function RetentionOverview() {
     )
   }
 
-  const totalObjetivo = promos.reduce((acc, p) => acc + p.objetivo, 0)
-  const totalActual = promos.reduce((acc, p) => acc + p.actual, 0)
-  const totalDropouts = promos.reduce((acc, p) => acc + p.dropouts, 0)
+  // Compute aggregates for summary bar (based on selection or all)
+  const visiblePromos =
+    selectedPromos.length > 0
+      ? promos.filter((p) => selectedPromos.includes(p.nombre))
+      : promos
+
+  const totalObjetivo = visiblePromos.reduce((acc, p) => acc + p.objetivo, 0)
+  const totalActual = visiblePromos.reduce((acc, p) => acc + p.actual, 0)
+  const totalDropouts = visiblePromos.reduce((acc, p) => acc + p.dropouts, 0)
   const overallRatio = totalObjetivo > 0 ? totalActual / totalObjetivo : 0
   const overallPct = Math.round(overallRatio * 100)
 
+  const hasSelection = selectedPromos.length > 0
+
   return (
     <div className="space-y-4">
+      {/* ── Summary bar ── */}
       <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
-        <h3 className="text-sm font-semibold text-gray-200">
-          Retencion Global
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-200">
+            Retención Global
+            {hasSelection && (
+              <span className="ml-2 text-xs font-normal text-blue-400">
+                ({selectedPromos.length} promo{selectedPromos.length !== 1 ? 's' : ''} seleccionada{selectedPromos.length !== 1 ? 's' : ''})
+              </span>
+            )}
+          </h3>
+
+          {hasSelection && (
+            <button
+              onClick={onSelectAll}
+              className="text-xs text-gray-500 underline-offset-2 hover:text-gray-300 hover:underline transition-colors"
+            >
+              Ver todas
+            </button>
+          )}
+        </div>
+
         <div className="mt-3 grid grid-cols-3 gap-6">
           <div>
             <p className="text-xs text-gray-500">Objetivo total</p>
@@ -90,6 +132,7 @@ export default function RetentionOverview() {
             </p>
           </div>
         </div>
+
         <div className="mt-4">
           <div className="flex items-center justify-between text-xs text-gray-400">
             <span>Cumplimiento</span>
@@ -110,17 +153,31 @@ export default function RetentionOverview() {
         </div>
       </div>
 
+      {/* ── Promo cards (selectable) ── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {promos.map((promo) => {
           const pct =
             promo.objetivo > 0
               ? Math.round((promo.actual / promo.objetivo) * 100)
               : 0
+          const isSelected = selectedPromos.includes(promo.nombre)
+          const isDimmed = hasSelection && !isSelected
 
           return (
-            <div
+            <button
               key={promo.id}
-              className={`rounded-xl border border-gray-700/50 bg-gray-800/50 p-5 border-l-4 ${trafficLightBorder[promo.trafficLight]}`}
+              onClick={() => onToggle(promo.nombre)}
+              className={[
+                'text-left rounded-xl border bg-gray-800/50 p-5 border-l-4 transition-all duration-200 cursor-pointer',
+                trafficLightBorder[promo.trafficLight],
+                isSelected
+                  ? `ring-2 ${trafficLightRing[promo.trafficLight]} ring-offset-1 ring-offset-gray-900 brightness-110`
+                  : 'border-gray-700/50',
+                isDimmed ? 'opacity-40' : '',
+                'hover:brightness-105 hover:border-gray-600/50',
+              ]
+                .filter(Boolean)
+                .join(' ')}
             >
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
@@ -131,9 +188,26 @@ export default function RetentionOverview() {
                     <p className="text-xs text-gray-500">{promo.season}</p>
                   )}
                 </div>
-                <div
-                  className={`h-3 w-3 flex-shrink-0 rounded-full ${trafficLightColor[promo.trafficLight]}`}
-                />
+                <div className="flex items-center gap-2">
+                  {/* Selection indicator */}
+                  {isSelected && (
+                    <svg
+                      className="h-3.5 w-3.5 text-blue-400 flex-shrink-0"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                  <div
+                    className={`h-3 w-3 flex-shrink-0 rounded-full ${trafficLightColor[promo.trafficLight]}`}
+                  />
+                </div>
               </div>
 
               <div className="mt-3 grid grid-cols-3 gap-2 text-center">
@@ -174,7 +248,7 @@ export default function RetentionOverview() {
                   {pct}%
                 </p>
               </div>
-            </div>
+            </button>
           )
         })}
       </div>

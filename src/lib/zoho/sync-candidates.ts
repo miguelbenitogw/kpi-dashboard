@@ -94,7 +94,6 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
         job_opening_title: vacancy.title ?? null,
         candidate_status_in_jo: (record.Candidate_Status as string) || null,
         association_type: 'atraccion' as const,
-        tags: extractTags(record),
         fetched_at: fetchedAt,
       }))
 

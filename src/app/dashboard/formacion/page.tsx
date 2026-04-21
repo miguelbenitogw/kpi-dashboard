@@ -1,6 +1,4 @@
-import RetentionOverview from '@/components/formacion/RetentionOverview'
-import FormacionStates from '@/components/formacion/FormacionStates'
-import DropoutAnalysis from '@/components/formacion/DropoutAnalysis'
+import FormacionLayout from '@/components/formacion/FormacionLayout'
 
 export default function FormacionPage() {
   return (
@@ -13,15 +11,7 @@ export default function FormacionPage() {
       </div>
 
       <div className="mt-8">
-        <RetentionOverview />
-      </div>
-
-      <div className="mt-6">
-        <FormacionStates />
-      </div>
-
-      <div className="mt-6">
-        <DropoutAnalysis />
+        <FormacionLayout />
       </div>
     </div>
   )
