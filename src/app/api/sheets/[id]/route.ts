@@ -16,9 +16,9 @@ export async function POST(
 
   try {
     // Fetch the sheet record
-    const { data: sheet, error: fetchError } = await supabaseAdmin
-      .from('promo_sheets_kpi')
-      .select('id, sheet_url, sheet_name, job_opening_id')
+    const { data: sheet, error: fetchError } = await (supabaseAdmin
+      .from('promo_sheets_kpi') as any)
+      .select('id, sheet_url, sheet_name, promocion_nombre, group_filter')
       .eq('id', id)
       .single()
 
@@ -29,9 +29,9 @@ export async function POST(
       )
     }
 
-    if (!sheet.job_opening_id) {
+    if (!sheet.promocion_nombre) {
       return NextResponse.json(
-        { error: 'Sheet has no linked promo (job_opening_id)' },
+        { error: 'Sheet has no linked promo (promocion_nombre)' },
         { status: 400 }
       )
     }
@@ -44,8 +44,9 @@ export async function POST(
 
     const result = await importPromoSheet(
       sheet.sheet_url,
-      sheet.job_opening_id,
-      sheet.sheet_name ?? undefined
+      sheet.promocion_nombre,
+      sheet.sheet_name ?? undefined,
+      sheet.group_filter ?? '',
     )
 
     return NextResponse.json({

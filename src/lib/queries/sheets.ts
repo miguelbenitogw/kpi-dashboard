@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
-import type { PromoSheet, JobOpening } from '@/lib/supabase/types'
+import type { PromoSheet } from '@/lib/supabase/types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -7,12 +7,12 @@ import type { PromoSheet, JobOpening } from '@/lib/supabase/types'
 
 export interface RegisteredSheet extends PromoSheet {
   student_count: number
-  job_opening_title: string | null
+  promo_display: string | null
 }
 
 export interface PromoOption {
-  id: string
-  title: string
+  nombre: string
+  numero: number | null
 }
 
 // ---------------------------------------------------------------------------
@@ -20,20 +20,19 @@ export interface PromoOption {
 // ---------------------------------------------------------------------------
 
 /**
- * Lists all registered promo sheets with their student counts and linked promo title.
+ * Lists all registered promo sheets with their student counts and promo metadata.
  */
 export async function getRegisteredSheets(): Promise<RegisteredSheet[]> {
-  // Fetch sheets with their linked job opening title
-  const { data: sheets, error: sheetsError } = await supabase
-    .from('promo_sheets_kpi')
-    .select('*, job_openings(title)')
+  const { data: sheets, error: sheetsError } = await (supabase
+    .from('promo_sheets_kpi') as any)
+    .select('*, promotions_kpi:promocion_nombre(numero)')
     .order('created_at', { ascending: false })
 
   if (sheetsError) throw new Error(`Failed to fetch sheets: ${sheetsError.message}`)
   if (!sheets || sheets.length === 0) return []
 
   // Fetch student counts per sheet
-  const sheetIds = sheets.map((s) => s.id)
+  const sheetIds = sheets.map((s: { id: string }) => s.id)
   const { data: countRows, error: countError } = await supabase
     .from('promo_students_kpi')
     .select('promo_sheet_id')
@@ -48,14 +47,11 @@ export async function getRegisteredSheets(): Promise<RegisteredSheet[]> {
     countMap.set(id, (countMap.get(id) ?? 0) + 1)
   }
 
-  return sheets.map((sheet) => {
-    const jo = sheet.job_openings as unknown as { title: string } | null
-    return {
-      ...sheet,
-      student_count: countMap.get(sheet.id) ?? 0,
-      job_opening_title: jo?.title ?? null,
-    }
-  })
+  return sheets.map((sheet: any) => ({
+    ...sheet,
+    student_count: countMap.get(sheet.id) ?? 0,
+    promo_display: sheet.promocion_nombre ?? null,
+  })) as RegisteredSheet[]
 }
 
 /**
@@ -63,20 +59,22 @@ export async function getRegisteredSheets(): Promise<RegisteredSheet[]> {
  */
 export async function registerSheet(
   sheetUrl: string,
-  jobOpeningId: string,
-  sheetName: string
+  promocionNombre: string,
+  sheetName: string,
+  groupFilter = '',
 ): Promise<{ id: string }> {
   // Extract sheet ID from URL
   const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)
   const sheetId = match ? match[1] : null
 
-  const { data, error } = await supabase
-    .from('promo_sheets_kpi')
+  const { data, error } = await (supabase
+    .from('promo_sheets_kpi') as any)
     .insert({
       sheet_url: sheetUrl,
       sheet_id: sheetId,
-      job_opening_id: jobOpeningId,
+      promocion_nombre: promocionNombre,
       sheet_name: sheetName,
+      group_filter: groupFilter,
       sync_status: 'pending',
     })
     .select('id')
@@ -141,15 +139,18 @@ export async function triggerAllSheetsSync(): Promise<{
 
 /**
  * Lists promos available for linking to a sheet.
- * Returns job openings that look like promos (title contains "promo" or "formacion").
+ * Returns rows from promotions_kpi (our source of truth, independent of Zoho).
  */
 export async function getActivePromoOptions(): Promise<PromoOption[]> {
-  const { data, error } = await supabase
-    .from('job_openings_kpi')
-    .select('id, title')
-    .or('title.ilike.%promo%,title.ilike.%formacion%,title.ilike.%formación%')
-    .order('title', { ascending: true })
+  const { data, error } = await (supabase
+    .from('promotions_kpi') as any)
+    .select('nombre, numero')
+    .eq('is_active', true)
+    .order('numero', { ascending: false })
 
   if (error) throw new Error(`Failed to fetch promos: ${error.message}`)
-  return (data ?? []).map((jo) => ({ id: jo.id, title: jo.title }))
+  return (data ?? []).map((p: { nombre: string; numero: number | null }) => ({
+    nombre: p.nombre,
+    numero: p.numero,
+  }))
 }

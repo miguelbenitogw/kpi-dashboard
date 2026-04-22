@@ -12,7 +12,7 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { buildCsvUrl, parseCSV } from './client'
+import { readSheetAsRows } from './client'
 import { MADRE_SHEET_ID } from './import-madre'
 
 // ---------------------------------------------------------------------------
@@ -228,22 +228,7 @@ export async function importPagos(): Promise<PagosResult> {
     errors: [],
   }
 
-  // Fetch CSV
-  const url = buildCsvUrl(MADRE_SHEET_ID, PAGOS_GID)
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: { Accept: 'text/csv,text/plain,*/*' },
-    cache: 'no-store',
-  })
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch Pagos tab (gid=${PAGOS_GID}): HTTP ${response.status}`
-    )
-  }
-
-  const csv = await response.text()
-  const { headers, rows } = parseCSV(csv)
+  const { headers, rows } = await readSheetAsRows(MADRE_SHEET_ID, parseInt(PAGOS_GID, 10))
 
   if (headers.length === 0 || rows.length === 0) {
     result.errors.push('Pagos tab returned no data')

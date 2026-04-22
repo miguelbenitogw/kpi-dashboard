@@ -32,7 +32,7 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { buildCsvUrl, parseCSV } from './client'
+import { readSheetAsRows } from './client'
 import { MADRE_SHEET_ID } from './import-madre'
 
 // ---------------------------------------------------------------------------
@@ -154,31 +154,12 @@ export async function importCursoDesarrollo(): Promise<CursoDesarrolloResult> {
     errors: [],
   }
 
-  // Fetch CSV
-  const url = buildCsvUrl(MADRE_SHEET_ID, CURSO_DESARROLLO_GID)
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: { Accept: 'text/csv,text/plain,*/*' },
-    cache: 'no-store',
-  })
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch Curso Desarrollo tab (gid=${CURSO_DESARROLLO_GID}): HTTP ${response.status}`
-    )
-  }
-
-  const csv = await response.text()
-
-  // The tab has a blank title row as row 1.
-  // parseCSV will treat row 1 as headers — but those are the title row.
-  // We handle this by splitting manually: skip the first CSV line (title row)
-  // and parse the remainder.
-  const lines = csv.split(/\r?\n/)
-  // Drop the first line (title row: ",CURSO DE DESARROLLO - ...")
-  const csvWithoutTitle = lines.slice(1).join('\n')
-
-  const { headers, rows } = parseCSV(csvWithoutTitle)
+  // The tab has a blank title row as row 1 — real headers are in row 2.
+  const { headers, rows } = await readSheetAsRows(
+    MADRE_SHEET_ID,
+    parseInt(CURSO_DESARROLLO_GID, 10),
+    { headerRow: 2 },
+  )
 
   if (headers.length === 0 || rows.length === 0) {
     result.errors.push('Curso Desarrollo tab returned no data after skipping title row')

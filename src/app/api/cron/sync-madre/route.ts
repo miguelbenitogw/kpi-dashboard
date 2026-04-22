@@ -86,9 +86,9 @@ export async function GET(request: NextRequest) {
   }
 
   // ---- Phase 3: Re-sync all registered promo sheets -----------------------
-  const { data: sheets, error: sheetsError } = await supabaseAdmin
-    .from('promo_sheets_kpi')
-    .select('id, sheet_url, sheet_name, job_opening_id, sync_status')
+  const { data: sheets, error: sheetsError } = await (supabaseAdmin
+    .from('promo_sheets_kpi') as any)
+    .select('id, sheet_url, sheet_name, promocion_nombre, sync_status, group_filter')
     .neq('sync_status', 'disabled')
 
   if (sheetsError) {
@@ -109,11 +109,11 @@ export async function GET(request: NextRequest) {
         continue
       }
 
-      if (!sheet.job_opening_id) {
+      if (!sheet.promocion_nombre) {
         results.promo_sheets.push({
           sheet_name: sheet.sheet_name,
           status: 'skipped',
-          error: 'No job_opening_id linked',
+          error: 'No promocion_nombre linked',
         })
         continue
       }
@@ -126,8 +126,9 @@ export async function GET(request: NextRequest) {
 
         const importResult = await importPromoSheet(
           sheet.sheet_url,
-          sheet.job_opening_id,
-          sheet.sheet_name ?? undefined
+          sheet.promocion_nombre,
+          sheet.sheet_name ?? undefined,
+          sheet.group_filter ?? '',
         )
 
         results.promo_sheets.push({

@@ -7,10 +7,7 @@ const DROPOUT_GID = 1646413473
 
 export async function GET() {
   try {
-    // 1. List all tabs
     const tabs = await listSheets(SPREADSHEET_ID)
-
-    // 2. Read first 3 rows of the dropout tab
     const rows = await readSheetByGid(SPREADSHEET_ID, DROPOUT_GID)
 
     return NextResponse.json({

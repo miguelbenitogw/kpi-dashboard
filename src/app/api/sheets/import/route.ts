@@ -14,10 +14,12 @@ export async function OPTIONS() {
 
 interface ImportRequestBody {
   sheet_url: string
-  job_opening_id: string
+  promocion_nombre: string
   sheet_name?: string
   /** When set to 'dropouts', uses the dedicated Dropouts tab import pipeline */
   tab?: 'dropouts' | 'all'
+  /** If set, only rows whose "Group" column equals this value are imported. */
+  group_filter?: string
 }
 
 /**
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { sheet_url, job_opening_id, sheet_name, tab } = body
+  const { sheet_url, promocion_nombre, sheet_name, tab, group_filter } = body
 
   if (!sheet_url || typeof sheet_url !== 'string') {
     return NextResponse.json(
@@ -53,17 +55,17 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (!job_opening_id || typeof job_opening_id !== 'string') {
+  if (!promocion_nombre || typeof promocion_nombre !== 'string') {
     return NextResponse.json(
-      { error: 'Missing required field: job_opening_id' },
+      { error: 'Missing required field: promocion_nombre' },
       { status: 400, headers: CORS_HEADERS }
     )
   }
 
   try {
     const result = tab === 'dropouts'
-      ? await importDropoutsTab(sheet_url, job_opening_id, sheet_name)
-      : await importPromoSheet(sheet_url, job_opening_id, sheet_name)
+      ? await importDropoutsTab(sheet_url, promocion_nombre, sheet_name, group_filter ?? '')
+      : await importPromoSheet(sheet_url, promocion_nombre, sheet_name, group_filter ?? '')
 
     return NextResponse.json(
       {

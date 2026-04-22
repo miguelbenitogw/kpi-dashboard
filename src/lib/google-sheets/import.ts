@@ -225,65 +225,98 @@ function rowToStudentRecord(
 interface ZohoMatchResult {
   zoho_candidate_id: string
   zoho_status: string | null
+  zoho_matched_job_opening_id: string | null
   match_confidence: 'exact_email' | 'name_similarity' | 'unmatched'
 }
 
 /**
- * Attempts to match a student record to a Zoho candidate.
- * Strategy:
- *   1. Search by email (exact match)
- *   2. Search by full name (contains match)
+ * Attempts to match a student record to a Zoho candidate across ALL the
+ * job_openings linked to the promo. Returns the first successful match.
+ * If jobOpeningIds is empty, returns unmatched (no Zoho cross-ref possible).
  */
 async function matchToZoho(
   student: StudentRecord,
-  jobOpeningId: string
+  jobOpeningIds: string[],
 ): Promise<ZohoMatchResult> {
-  // Try email match first
-  if (student.email) {
-    try {
-      const result = await searchCandidates({
-        criteria: `(Email:equals:${student.email}) and (Job_Opening:equals:${jobOpeningId})`,
-        per_page: 1,
-      })
-      if (result.data.length > 0) {
-        const candidate = result.data[0]
-        return {
-          zoho_candidate_id: candidate.id,
-          zoho_status: candidate.current_status,
-          match_confidence: 'exact_email',
-        }
-      }
-    } catch {
-      // Zoho search failed — continue to name match
+  if (jobOpeningIds.length === 0) {
+    return {
+      zoho_candidate_id: '',
+      zoho_status: null,
+      zoho_matched_job_opening_id: null,
+      match_confidence: 'unmatched',
     }
   }
 
-  // Try name match
-  if (student.full_name) {
-    try {
-      const result = await searchCandidates({
-        criteria: `(Full_Name:contains:${student.full_name}) and (Job_Opening:equals:${jobOpeningId})`,
-        per_page: 3,
-      })
-      if (result.data.length === 1) {
-        // Only use name match if unambiguous (exactly 1 result)
-        const candidate = result.data[0]
-        return {
-          zoho_candidate_id: candidate.id,
-          zoho_status: candidate.current_status,
-          match_confidence: 'name_similarity',
+  // Try email match first, across every linked job_opening
+  if (student.email) {
+    for (const jobOpeningId of jobOpeningIds) {
+      try {
+        const result = await searchCandidates({
+          criteria: `(Email:equals:${student.email}) and (Job_Opening:equals:${jobOpeningId})`,
+          per_page: 1,
+        })
+        if (result.data.length > 0) {
+          const candidate = result.data[0]
+          return {
+            zoho_candidate_id: candidate.id,
+            zoho_status: candidate.current_status,
+            zoho_matched_job_opening_id: jobOpeningId,
+            match_confidence: 'exact_email',
+          }
         }
+      } catch {
+        // Zoho search failed for this opening — try next
       }
-    } catch {
-      // Zoho search failed — return unmatched
+    }
+  }
+
+  // Try name match (unambiguous) across linked job_openings
+  if (student.full_name) {
+    for (const jobOpeningId of jobOpeningIds) {
+      try {
+        const result = await searchCandidates({
+          criteria: `(Full_Name:contains:${student.full_name}) and (Job_Opening:equals:${jobOpeningId})`,
+          per_page: 3,
+        })
+        if (result.data.length === 1) {
+          const candidate = result.data[0]
+          return {
+            zoho_candidate_id: candidate.id,
+            zoho_status: candidate.current_status,
+            zoho_matched_job_opening_id: jobOpeningId,
+            match_confidence: 'name_similarity',
+          }
+        }
+      } catch {
+        // Zoho search failed for this opening — try next
+      }
     }
   }
 
   return {
     zoho_candidate_id: '',
     zoho_status: null,
+    zoho_matched_job_opening_id: null,
     match_confidence: 'unmatched',
   }
+}
+
+/**
+ * Returns the Zoho job_opening_ids linked to a given promocion_nombre
+ * via promo_job_link_kpi. Empty array if the promo has no Zoho links.
+ */
+async function getLinkedJobOpenings(
+  promocionNombre: string,
+): Promise<string[]> {
+  const { data, error } = await (supabaseAdmin
+    .from('promo_job_link_kpi') as any)
+    .select('job_opening_id')
+    .eq('promocion_nombre', promocionNombre)
+
+  if (error || !data) return []
+  return (data as Array<{ job_opening_id: string }>)
+    .map((r) => r.job_opening_id)
+    .filter(Boolean)
 }
 
 // ---------------------------------------------------------------------------
@@ -310,8 +343,9 @@ export interface ImportResult {
  */
 export async function importPromoSheet(
   sheetUrl: string,
-  jobOpeningId: string,
-  sheetName?: string
+  promocionNombre: string,
+  sheetName?: string,
+  groupFilter = '',
 ): Promise<ImportResult> {
   const result: ImportResult = {
     imported: 0,
@@ -322,6 +356,7 @@ export async function importPromoSheet(
   }
 
   const sheetId = extractSheetId(sheetUrl)
+  const linkedJobOpenings = await getLinkedJobOpenings(promocionNombre)
 
   // ---- Step 1: Upsert promo_sheets record --------------------------------
   const { data: sheetRecord, error: sheetUpsertError } = await supabaseAdmin
@@ -330,11 +365,12 @@ export async function importPromoSheet(
       {
         sheet_url: sheetUrl,
         sheet_id: sheetId,
-        job_opening_id: jobOpeningId,
+        promocion_nombre: promocionNombre,
         sheet_name: sheetName ?? `Promo Sheet (${sheetId.slice(0, 8)})`,
+        group_filter: groupFilter,
         sync_status: 'syncing',
-      },
-      { onConflict: 'sheet_url' }
+      } as any,
+      { onConflict: 'sheet_url,group_filter' }
     )
     .select('id')
     .single()
@@ -375,7 +411,13 @@ export async function importPromoSheet(
   for (const tab of tabs) {
     for (let i = 0; i < tab.rows.length; i++) {
       const rowNumber = i + 2 // +2 because row 1 is headers (1-indexed)
-      const student = rowToStudentRecord(tab.rows[i], tab.rawHeaders, tab.tabName, rowNumber)
+      const rawRow = tab.rows[i]
+
+      // When groupFilter is set, only process rows whose "Group" column matches.
+      // Rows in tabs without a "Group" column are skipped.
+      if (groupFilter && rawRow['Group']?.trim() !== groupFilter) continue
+
+      const student = rowToStudentRecord(rawRow, tab.rawHeaders, tab.tabName, rowNumber)
 
       // Skip rows with no name or email (likely empty / filler rows)
       if (!student.full_name && !student.email) continue
@@ -384,11 +426,12 @@ export async function importPromoSheet(
       let zohoMatch: ZohoMatchResult = {
         zoho_candidate_id: '',
         zoho_status: null,
+        zoho_matched_job_opening_id: null,
         match_confidence: 'unmatched',
       }
 
       try {
-        zohoMatch = await matchToZoho(student, jobOpeningId)
+        zohoMatch = await matchToZoho(student, linkedJobOpenings)
         if (zohoMatch.match_confidence !== 'unmatched') {
           result.matched_to_zoho++
         }
@@ -404,7 +447,8 @@ export async function importPromoSheet(
       // Build upsert payload
       const upsertPayload = {
         promo_sheet_id: promoSheetId,
-        job_opening_id: jobOpeningId,
+        promocion_nombre: promocionNombre,
+        job_opening_id: zohoMatch.zoho_matched_job_opening_id,
         full_name: student.full_name,
         email: student.email,
         phone: student.phone,
@@ -597,8 +641,9 @@ async function fetchContactEmails(
  */
 export async function importDropoutsTab(
   sheetUrl: string,
-  jobOpeningId: string,
-  sheetName?: string
+  promocionNombre: string,
+  sheetName?: string,
+  groupFilter = '',
 ): Promise<ImportResult> {
   const result: ImportResult = {
     imported: 0,
@@ -609,6 +654,7 @@ export async function importDropoutsTab(
   }
 
   const sheetId = extractSheetId(sheetUrl)
+  const linkedJobOpenings = await getLinkedJobOpenings(promocionNombre)
 
   // ---- Step 1: Upsert promo_sheets record --------------------------------
   const { data: sheetRecord, error: sheetUpsertError } = await supabaseAdmin
@@ -617,11 +663,12 @@ export async function importDropoutsTab(
       {
         sheet_url: sheetUrl,
         sheet_id: sheetId,
-        job_opening_id: jobOpeningId,
+        promocion_nombre: promocionNombre,
         sheet_name: sheetName ?? `Promo Sheet (${sheetId.slice(0, 8)})`,
+        group_filter: groupFilter,
         sync_status: 'syncing',
-      },
-      { onConflict: 'sheet_url' }
+      } as any,
+      { onConflict: 'sheet_url,group_filter' }
     )
     .select('id')
     .single()
@@ -664,8 +711,13 @@ export async function importDropoutsTab(
   // ---- Step 4: Parse + match + upsert ------------------------------------
   for (let i = 0; i < dropoutsTab.rows.length; i++) {
     const rowNumber = i + 2
+    const rawRow = dropoutsTab.rows[i]
+
+    // When groupFilter is set, only process rows whose "Group" column matches.
+    if (groupFilter && rawRow['Group']?.trim() !== groupFilter) continue
+
     const student = rowToStudentRecord(
-      dropoutsTab.rows[i],
+      rawRow,
       dropoutsTab.rawHeaders,
       'Dropouts',
       rowNumber,
@@ -685,11 +737,12 @@ export async function importDropoutsTab(
     let zohoMatch: ZohoMatchResult = {
       zoho_candidate_id: '',
       zoho_status: null,
+      zoho_matched_job_opening_id: null,
       match_confidence: 'unmatched',
     }
 
     try {
-      zohoMatch = await matchToZoho(student, jobOpeningId)
+      zohoMatch = await matchToZoho(student, linkedJobOpenings)
       if (zohoMatch.match_confidence !== 'unmatched') {
         result.matched_to_zoho++
       }
@@ -704,7 +757,8 @@ export async function importDropoutsTab(
     // Build upsert payload
     const upsertPayload = {
       promo_sheet_id: promoSheetId,
-      job_opening_id: jobOpeningId,
+      promocion_nombre: promocionNombre,
+      job_opening_id: zohoMatch.zoho_matched_job_opening_id,
       full_name: student.full_name,
       email: student.email,
       phone: student.phone,
@@ -780,9 +834,9 @@ export async function importDropoutsTab(
 export async function syncAllPromoSheets(): Promise<
   Array<{ sheet_name: string | null; sheet_url: string } & ImportResult>
 > {
-  const { data: sheets, error } = await supabaseAdmin
-    .from('promo_sheets_kpi')
-    .select('id, sheet_url, sheet_name, job_opening_id')
+  const { data: sheets, error } = await (supabaseAdmin
+    .from('promo_sheets_kpi') as any)
+    .select('id, sheet_url, sheet_name, promocion_nombre, group_filter')
     .in('sync_status', ['done', 'error', 'pending'])
 
   if (error) throw new Error(`Failed to list promo_sheets: ${error.message}`)
@@ -791,13 +845,14 @@ export async function syncAllPromoSheets(): Promise<
   const results = []
 
   for (const sheet of sheets) {
-    if (!sheet.job_opening_id) continue
+    if (!sheet.promocion_nombre) continue
 
     try {
       const importResult = await importPromoSheet(
         sheet.sheet_url,
-        sheet.job_opening_id,
-        sheet.sheet_name ?? undefined
+        sheet.promocion_nombre,
+        sheet.sheet_name ?? undefined,
+        sheet.group_filter ?? '',
       )
       results.push({ sheet_name: sheet.sheet_name, sheet_url: sheet.sheet_url, ...importResult })
     } catch (err) {

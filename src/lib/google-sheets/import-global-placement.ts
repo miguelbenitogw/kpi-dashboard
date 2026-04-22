@@ -10,7 +10,7 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { buildCsvUrl, parseCSV } from './client'
+import { readSheetAsRows } from './client'
 import { MADRE_SHEET_ID } from './import-madre'
 
 // ---------------------------------------------------------------------------
@@ -167,22 +167,7 @@ export async function importGlobalPlacement(): Promise<GlobalPlacementResult> {
     errors: [],
   }
 
-  // Fetch CSV
-  const url = buildCsvUrl(MADRE_SHEET_ID, GLOBAL_PLACEMENT_GID)
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: { Accept: 'text/csv,text/plain,*/*' },
-    cache: 'no-store',
-  })
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch Global Placement tab (gid=${GLOBAL_PLACEMENT_GID}): HTTP ${response.status}`
-    )
-  }
-
-  const csv = await response.text()
-  const { headers, rows } = parseCSV(csv)
+  const { headers, rows } = await readSheetAsRows(MADRE_SHEET_ID, parseInt(GLOBAL_PLACEMENT_GID, 10))
 
   if (headers.length === 0 || rows.length === 0) {
     result.errors.push('Global Placement tab returned no data')

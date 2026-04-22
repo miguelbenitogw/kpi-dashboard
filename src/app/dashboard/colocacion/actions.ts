@@ -47,21 +47,38 @@ export async function linkPromoToJobOpening(
     const { supabaseAdmin } = await import('@/lib/supabase/server')
 
     if (!jobOpeningId) {
-      // Remove link
+      // Remove all links for this promo
       const { error } = await supabaseAdmin
         .from('promo_job_link_kpi' as any)
         .delete()
         .eq('promocion_nombre', promocionNombre)
       if (error) throw error
     } else {
-      // Upsert link
-      const { error } = await (supabaseAdmin as any)
+      // Ensure the promo exists in promotions_kpi (FK requirement).
+      // If the promo comes from an Excel Madre free-text field that isn't
+      // yet registered, auto-create a minimal row so the link can be set.
+      const { error: promoErr } = await (supabaseAdmin as any)
+        .from('promotions_kpi')
+        .upsert({ nombre: promocionNombre }, { onConflict: 'nombre' })
+      if (promoErr) throw promoErr
+
+      // Preserve the legacy "single primary link" UX: clear prior links
+      // for this promo, then insert the new one. Multi-link support can
+      // be added in a dedicated action later.
+      const { error: delErr } = await supabaseAdmin
+        .from('promo_job_link_kpi' as any)
+        .delete()
+        .eq('promocion_nombre', promocionNombre)
+      if (delErr) throw delErr
+
+      const { error: insErr } = await (supabaseAdmin as any)
         .from('promo_job_link_kpi')
-        .upsert(
-          { promocion_nombre: promocionNombre, job_opening_id: jobOpeningId, updated_at: new Date().toISOString() },
-          { onConflict: 'promocion_nombre' },
-        )
-      if (error) throw error
+        .insert({
+          promocion_nombre: promocionNombre,
+          job_opening_id: jobOpeningId,
+          updated_at: new Date().toISOString(),
+        })
+      if (insErr) throw insErr
     }
 
     return { success: true }
