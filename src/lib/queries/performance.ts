@@ -234,40 +234,37 @@ export async function getPromoStudentList(
   }
 }
 
-// Statuses that classify a candidate as a dropout (DB uses spaces, not hyphens)
-const DROPOUT_STATUSES_DB = [
-  'Offer Withdrawn',
-  'Offer Declined',
-  'Expelled',
-  'Transferred',
-  'Rejected by client',
-  'No Show',
-  // Legacy hyphen variants
-  'Offer-Withdrawn',
-  'Offer-Declined',
-]
-
 /**
- * Get dropout candidates for a promo.
- * Primary source: dropout_reason from Excel sheet sync.
- * Fallback: candidates with dropout current_status but no Excel data.
+ * Get dropout candidates for a promo from the linked Excel sheet
+ * (promo_students_kpi, tab_name = 'Dropouts').
+ * Only returns data if the promo has a linked sheet with a Dropouts tab.
  */
 export async function getPromoDropouts(
   promocion: string
 ): Promise<DropoutCandidate[]> {
   const { data, error } = await supabase
-    .from('candidates_kpi')
+    .from('promo_students_kpi')
     .select(
-      'id, full_name, current_status, dropout_date, dropout_reason, dropout_attendance_pct, dropout_language_level, transferred_to, dropout_notes'
+      'id, full_name, sheet_status, dropout_date, dropout_reason, dropout_attendance_pct, dropout_language_level, transferred_to, dropout_notes'
     )
     .eq('promocion_nombre', promocion)
-    .or(
-      `dropout_reason.not.is.null,current_status.in.(${DROPOUT_STATUSES_DB.map(s => `"${s}"`).join(',')})`
-    )
+    .eq('tab_name', 'Dropouts')
     .order('dropout_date', { ascending: false, nullsFirst: false })
 
   if (error) throw error
-  return (data ?? []) as DropoutCandidate[]
+
+  // Map promo_students_kpi shape to DropoutCandidate
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    full_name: r.full_name,
+    current_status: r.sheet_status,
+    dropout_date: r.dropout_date,
+    dropout_reason: r.dropout_reason,
+    dropout_attendance_pct: r.dropout_attendance_pct,
+    dropout_language_level: r.dropout_language_level,
+    transferred_to: r.transferred_to,
+    dropout_notes: r.dropout_notes,
+  })) as DropoutCandidate[]
 }
 
 /**
