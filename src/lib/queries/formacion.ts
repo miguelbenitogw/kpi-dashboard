@@ -84,6 +84,18 @@ export interface PromotionFormacionOverview {
   actual: number
   dropouts: number
   trafficLight: 'good' | 'warning' | 'danger'
+  objetivo_atraccion: number
+  objetivo_programa: number
+  total_aceptados: number
+  // Raw promo metadata for editing
+  modalidad: string | null
+  pais: string | null
+  coordinador: string | null
+  cliente: string | null
+  fecha_inicio: string | null
+  fecha_fin: string | null
+  pct_exito_estimado: number | null
+  contratos_firmados: number | null
 }
 
 function computeTrafficLight(ratio: number): 'good' | 'warning' | 'danger' {
@@ -285,7 +297,7 @@ export async function getPromotionsFormacionOverview(
 ): Promise<PromotionFormacionOverview[]> {
   let query = supabase
     .from('promotions_kpi')
-    .select('id, nombre, expectativa_finalizan, is_active, fecha_fin')
+    .select('id, nombre, expectativa_finalizan, is_active, fecha_fin, objetivo_atraccion, objetivo_programa, modalidad, pais, coordinador, cliente, fecha_inicio, pct_exito_estimado, contratos_firmados')
     .order('fecha_fin', { ascending: true, nullsFirst: false })
 
   if (filter === 'active') query = query.eq('is_active', true)
@@ -312,10 +324,14 @@ export async function getPromotionsFormacionOverview(
   // Build counts map per promo
   const retainedMap = new Map<string, number>()
   const dropoutMap = new Map<string, number>()
+  const totalMap = new Map<string, number>()
 
   for (const c of candidates ?? []) {
     const promo = c.promocion_nombre!
     const status = c.current_status ?? ''
+
+    // Total candidates regardless of status
+    totalMap.set(promo, (totalMap.get(promo) ?? 0) + 1)
 
     if (RETAINED_STATES.includes(status)) {
       retainedMap.set(promo, (retainedMap.get(promo) ?? 0) + 1)
@@ -338,6 +354,17 @@ export async function getPromotionsFormacionOverview(
       actual,
       dropouts,
       trafficLight: computeTrafficLight(ratio),
+      objetivo_atraccion: (promo as any).objetivo_atraccion ?? 0,
+      objetivo_programa: (promo as any).objetivo_programa ?? 0,
+      total_aceptados: totalMap.get(promo.nombre) ?? 0,
+      modalidad: (promo as any).modalidad ?? null,
+      pais: (promo as any).pais ?? null,
+      coordinador: (promo as any).coordinador ?? null,
+      cliente: (promo as any).cliente ?? null,
+      fecha_inicio: (promo as any).fecha_inicio ?? null,
+      fecha_fin: promo.fecha_fin ?? null,
+      pct_exito_estimado: (promo as any).pct_exito_estimado ?? null,
+      contratos_firmados: (promo as any).contratos_firmados ?? null,
     }
   })
 }
@@ -473,6 +500,198 @@ export async function getFormacionCandidates(
   }
 
   return data ?? []
+}
+
+// ---------------------------------------------------------------------------
+// Vista General por Promo
+// ---------------------------------------------------------------------------
+
+export interface PromoVistaGeneralRow {
+  id: string
+  nombre: string
+  numero: number | null
+  modalidad: string | null
+  pais: string | null
+  coordinador: string | null
+  cliente: string | null
+  fecha_inicio: string | null
+  fecha_fin: string | null
+  // Atracción
+  objetivo_atraccion: number
+  total_aceptados: number
+  pct_consecucion_atraccion: number
+  // Programa
+  objetivo_programa: number
+  total_programa: number
+  pct_consecucion_programa: number
+  // Retención
+  expectativa_finalizan: number
+  pct_exito_estimado: number
+  // Contratos
+  contratos_firmados: number | null
+  // Estado actual (live counts)
+  hired: number
+  training_finished: number
+  to_place: number
+  assigned: number
+  in_training: number
+  next_project: number
+  offer_withdrawn: number
+  offer_declined: number
+  expelled: number
+  transferred: number
+  rejected_by_client: number
+  // Éxito proyecto
+  exito_total: number
+  pct_exito_real: number
+}
+
+// Statuses that count toward total_programa
+const PROGRAM_STATUSES = ['Hired', 'In Training', 'Training Finished', 'To Place', 'Assigned', 'Next Project']
+
+export async function getPromoVistaGeneral(
+  filter: 'active' | 'finished' | 'all' = 'active'
+): Promise<PromoVistaGeneralRow[]> {
+  let query = (supabase as any)
+    .from('promotions_kpi')
+    .select(
+      'id, nombre, numero, modalidad, pais, coordinador, cliente, fecha_inicio, fecha_fin, objetivo_atraccion, objetivo_programa, expectativa_finalizan, pct_exito_estimado, contratos_firmados, is_active'
+    )
+    .order('numero', { ascending: true, nullsFirst: false })
+
+  if (filter === 'active') query = query.eq('is_active', true)
+  else if (filter === 'finished') query = query.eq('is_active', false)
+
+  const { data: promotions, error } = await query as {
+    data: Array<{
+      id: string
+      nombre: string
+      numero: number | null
+      modalidad: string | null
+      pais: string | null
+      coordinador: string | null
+      cliente: string | null
+      fecha_inicio: string | null
+      fecha_fin: string | null
+      objetivo_atraccion: number | null
+      objetivo_programa: number | null
+      expectativa_finalizan: number | null
+      pct_exito_estimado: number | null
+      contratos_firmados: number | null
+      is_active: boolean
+    }> | null
+    error: unknown
+  }
+
+  if (error) {
+    console.error('Error fetching promo vista general:', error)
+    return []
+  }
+
+  if (!promotions || promotions.length === 0) return []
+
+  const promoNames = promotions.map((p) => p.nombre)
+
+  const { data: candidates } = await supabase
+    .from('candidates_kpi')
+    .select('promocion_nombre, current_status')
+    .in('promocion_nombre', promoNames)
+    .not('current_status', 'is', null)
+
+  // Build status count maps per promo
+  type StatusMap = Map<string, number>
+  const statusMaps = new Map<string, StatusMap>()
+
+  for (const c of candidates ?? []) {
+    const promo = c.promocion_nombre!
+    if (!statusMaps.has(promo)) statusMaps.set(promo, new Map())
+    const map = statusMaps.get(promo)!
+    const status = c.current_status ?? ''
+    map.set(status, (map.get(status) ?? 0) + 1)
+  }
+
+  function countStatus(map: StatusMap | undefined, status: string): number {
+    return map?.get(status) ?? 0
+  }
+
+  function countTotal(map: StatusMap | undefined): number {
+    if (!map) return 0
+    let total = 0
+    for (const [, v] of map) total += v
+    return total
+  }
+
+  function countProgram(map: StatusMap | undefined): number {
+    if (!map) return 0
+    let total = 0
+    for (const s of PROGRAM_STATUSES) total += map.get(s) ?? 0
+    return total
+  }
+
+  return promotions.map((promo) => {
+    const map = statusMaps.get(promo.nombre)
+
+    const objetivo_atraccion = promo.objetivo_atraccion ?? 0
+    const total_aceptados = countTotal(map)
+    const pct_consecucion_atraccion =
+      objetivo_atraccion > 0
+        ? Math.round((total_aceptados / objetivo_atraccion) * 10000) / 100
+        : 0
+
+    const objetivo_programa = promo.objetivo_programa ?? 0
+    const total_programa = countProgram(map)
+    const pct_consecucion_programa =
+      objetivo_programa > 0
+        ? Math.round((total_programa / objetivo_programa) * 10000) / 100
+        : 0
+
+    const hired = countStatus(map, 'Hired')
+    const training_finished = countStatus(map, 'Training Finished')
+    const to_place = countStatus(map, 'To Place')
+    const assigned = countStatus(map, 'Assigned')
+    const in_training = countStatus(map, 'In Training')
+    const next_project = countStatus(map, 'Next Project')
+
+    const exito_total = hired + training_finished + to_place + assigned + in_training + next_project
+    const pct_exito_real =
+      total_programa > 0
+        ? Math.round((exito_total / total_programa) * 10000) / 100
+        : 0
+
+    return {
+      id: promo.id,
+      nombre: promo.nombre,
+      numero: promo.numero,
+      modalidad: promo.modalidad,
+      pais: promo.pais,
+      coordinador: promo.coordinador,
+      cliente: promo.cliente,
+      fecha_inicio: promo.fecha_inicio,
+      fecha_fin: promo.fecha_fin,
+      objetivo_atraccion,
+      total_aceptados,
+      pct_consecucion_atraccion,
+      objetivo_programa,
+      total_programa,
+      pct_consecucion_programa,
+      expectativa_finalizan: promo.expectativa_finalizan ?? 0,
+      pct_exito_estimado: promo.pct_exito_estimado ?? 0,
+      contratos_firmados: promo.contratos_firmados,
+      hired,
+      training_finished,
+      to_place,
+      assigned,
+      in_training,
+      next_project,
+      offer_withdrawn: countStatus(map, 'Offer Withdrawn'),
+      offer_declined: countStatus(map, 'Offer Declined'),
+      expelled: countStatus(map, 'Expelled'),
+      transferred: countStatus(map, 'Transferred'),
+      rejected_by_client: countStatus(map, 'Rejected by client'),
+      exito_total,
+      pct_exito_real,
+    }
+  })
 }
 
 /** Returns job history for a candidate (association_type = 'formacion'), ordered by fetched_at DESC. */
