@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import {
   getClosedVacanciesData,
   type ClosedVacanciesData,
@@ -303,101 +304,152 @@ export default function ClosedVacanciesView() {
             )}
           </div>
         </div>
-        {!hasTagData ? (
-          <div className="flex h-32 items-center justify-center">
-            <p className="text-xs text-gray-500">Sin datos de etiquetas aún</p>
-          </div>
-        ) : (() => {
-          const maxValue = topTags[0]?.value ?? 1
-          const totalAssignments = topTags.reduce((sum, t) => sum + t.value, 0)
-          return (
-            <div>
-              <div className="max-h-[400px] overflow-y-auto space-y-0.5 pr-1">
-                {topTags.map((tag) => {
-                  const isTagSelected = selectedTags.has(tag.name)
-                  return (
-                    <button
-                      key={tag.name}
-                      type="button"
-                      onClick={() => toggleTag(tag.name)}
-                      className={[
-                        'group w-full rounded-lg px-2 py-1.5 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50',
-                        isTagSelected
-                          ? 'bg-indigo-600/20 ring-1 ring-inset ring-indigo-500/40'
-                          : 'hover:bg-gray-700/30',
-                      ].join(' ')}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        {/* Selection circle indicator */}
-                        <span
-                          className={[
-                            'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border transition-colors',
-                            isTagSelected
-                              ? 'border-indigo-400 bg-indigo-500'
-                              : 'border-gray-600 bg-transparent group-hover:border-gray-400',
-                          ].join(' ')}
-                        >
-                          {isTagSelected && (
-                            <svg
-                              className="h-2 w-2 text-white"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={3}
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </span>
-
-                        {/* Tag name */}
-                        <span
-                          className={[
-                            'min-w-0 flex-1 truncate text-xs leading-none',
-                            isTagSelected
-                              ? 'font-semibold text-indigo-200'
-                              : 'text-gray-300 group-hover:text-gray-100',
-                          ].join(' ')}
-                          title={tag.name}
-                        >
-                          {tag.name}
-                        </span>
-
-                        {/* Count badge */}
-                        <span
-                          className={[
-                            'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none',
-                            isTagSelected
-                              ? 'bg-indigo-500/30 text-indigo-200'
-                              : 'bg-gray-700/60 text-gray-400 group-hover:text-gray-300',
-                          ].join(' ')}
-                        >
-                          {tag.value}
-                        </span>
-                      </div>
-
-                      {/* Bar track */}
-                      <div className="ml-5 h-1.5 overflow-hidden rounded-full bg-gray-700/50">
-                        <div
-                          className={[
-                            'h-full rounded-full transition-all duration-300',
-                            isTagSelected
-                              ? 'bg-indigo-400'
-                              : 'bg-indigo-600/70 group-hover:bg-indigo-500/80',
-                          ].join(' ')}
-                          style={{ width: `${Math.max(2, Math.round((tag.value / maxValue) * 100))}%` }}
-                        />
-                      </div>
-                    </button>
-                  )
-                })}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          {/* Left: bar list (60%) */}
+          <div className="lg:col-span-3">
+            {!hasTagData ? (
+              <div className="flex h-32 items-center justify-center">
+                <p className="text-xs text-gray-500">Sin datos de etiquetas aún</p>
               </div>
-              <p className="mt-3 text-[10px] text-gray-500">
-                {topTags.length} etiquetas · {totalAssignments} asignaciones · clic para filtrar
-              </p>
-            </div>
-          )
-        })()}
+            ) : (() => {
+              const maxValue = topTags[0]?.value ?? 1
+              const totalAssignments = topTags.reduce((sum, t) => sum + t.value, 0)
+              return (
+                <div>
+                  <div className="max-h-[400px] overflow-y-auto space-y-0.5 pr-1">
+                    {topTags.map((tag) => {
+                      const isTagSelected = selectedTags.has(tag.name)
+                      return (
+                        <button
+                          key={tag.name}
+                          type="button"
+                          onClick={() => toggleTag(tag.name)}
+                          className={[
+                            'group w-full rounded-lg px-2 py-1.5 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50',
+                            isTagSelected
+                              ? 'bg-indigo-600/20 ring-1 ring-inset ring-indigo-500/40'
+                              : 'hover:bg-gray-700/30',
+                          ].join(' ')}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            {/* Selection circle indicator */}
+                            <span
+                              className={[
+                                'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border transition-colors',
+                                isTagSelected
+                                  ? 'border-indigo-400 bg-indigo-500'
+                                  : 'border-gray-600 bg-transparent group-hover:border-gray-400',
+                              ].join(' ')}
+                            >
+                              {isTagSelected && (
+                                <svg
+                                  className="h-2 w-2 text-white"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={3}
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </span>
+
+                            {/* Tag name */}
+                            <span
+                              className={[
+                                'min-w-0 flex-1 truncate text-xs leading-none',
+                                isTagSelected
+                                  ? 'font-semibold text-indigo-200'
+                                  : 'text-gray-300 group-hover:text-gray-100',
+                              ].join(' ')}
+                              title={tag.name}
+                            >
+                              {tag.name}
+                            </span>
+
+                            {/* Count badge */}
+                            <span
+                              className={[
+                                'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none',
+                                isTagSelected
+                                  ? 'bg-indigo-500/30 text-indigo-200'
+                                  : 'bg-gray-700/60 text-gray-400 group-hover:text-gray-300',
+                              ].join(' ')}
+                            >
+                              {tag.value}
+                            </span>
+                          </div>
+
+                          {/* Bar track */}
+                          <div className="ml-5 h-1.5 overflow-hidden rounded-full bg-gray-700/50">
+                            <div
+                              className={[
+                                'h-full rounded-full transition-all duration-300',
+                                isTagSelected
+                                  ? 'bg-indigo-400'
+                                  : 'bg-indigo-600/70 group-hover:bg-indigo-500/80',
+                              ].join(' ')}
+                              style={{ width: `${Math.max(2, Math.round((tag.value / maxValue) * 100))}%` }}
+                            />
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="mt-3 text-[10px] text-gray-500">
+                    {topTags.length} etiquetas · {totalAssignments} asignaciones · clic para filtrar
+                  </p>
+                </div>
+              )
+            })()}
+          </div>
+
+          {/* Right: donut chart (40%) */}
+          <div className="lg:col-span-2 rounded-xl border border-gray-700/50 bg-gray-800/50 p-4">
+            <h4 className="mb-2 text-xs font-semibold text-gray-300">Distribución (top 10)</h4>
+            {!hasTagData ? (
+              <p className="text-xs text-gray-500 text-center mt-8">Sin datos</p>
+            ) : (() => {
+              const donutColors = ['#818cf8','#6366f1','#a5b4fc','#4f46e5','#7c3aed','#8b5cf6','#c4b5fd','#4338ca','#6d28d9','#5b21b6']
+              const donutTags = topTags.slice(0, 10)
+              return (
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={donutTags}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={2}
+                    >
+                      {donutTags.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={donutColors[index % donutColors.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1f2937',
+                        border: '1px solid rgba(55,65,81,0.5)',
+                        borderRadius: '8px',
+                        fontSize: '11px',
+                        color: '#e5e7eb',
+                      }}
+                      formatter={(value) => [value, 'candidatos']}
+                    />
+                    <Legend
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: '10px', color: '#9ca3af' }}
+                      formatter={(value) => value.length > 18 ? value.slice(0, 18) + '\u2026' : value}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              )
+            })()}
+          </div>
+        </div>
       </div>
 
       {/* Vacancies table */}
