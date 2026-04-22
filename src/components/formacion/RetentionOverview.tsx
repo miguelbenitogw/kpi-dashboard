@@ -6,6 +6,8 @@ import {
   type PromotionFormacionOverview,
 } from '@/lib/queries/formacion'
 
+type PromoFilter = 'active' | 'finished' | 'all'
+
 const trafficLightColor: Record<string, string> = {
   good: 'bg-emerald-500',
   warning: 'bg-amber-500',
@@ -37,15 +39,15 @@ export default function RetentionOverview({
 }: Props) {
   const [promos, setPromos] = useState<PromotionFormacionOverview[]>([])
   const [loading, setLoading] = useState(true)
+  const [promoFilter, setPromoFilter] = useState<PromoFilter>('active')
 
   useEffect(() => {
-    async function load() {
-      const data = await getPromotionsFormacionOverview()
+    setLoading(true)
+    getPromotionsFormacionOverview(promoFilter).then((data) => {
       setPromos(data)
       setLoading(false)
-    }
-    load()
-  }, [])
+    })
+  }, [promoFilter])
 
   if (loading) {
     return (
@@ -151,6 +153,31 @@ export default function RetentionOverview({
             />
           </div>
         </div>
+      </div>
+
+      {/* ── Filter tabs ── */}
+      <div className="flex items-center gap-1.5">
+        {(['active', 'finished', 'all'] as const).map((f) => {
+          const labels: Record<PromoFilter, string> = {
+            active: 'Activas',
+            finished: 'Terminadas',
+            all: 'Todas',
+          }
+          return (
+            <button
+              key={f}
+              onClick={() => setPromoFilter(f)}
+              className={[
+                'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                promoFilter === f
+                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                  : 'border border-gray-600/50 bg-gray-700/40 text-gray-400 hover:bg-gray-700 hover:text-gray-200',
+              ].join(' ')}
+            >
+              {labels[f]}
+            </button>
+          )
+        })}
       </div>
 
       {/* ── Promo cards (selectable) ── */}

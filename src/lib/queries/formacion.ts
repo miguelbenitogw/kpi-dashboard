@@ -12,7 +12,19 @@ const FORMATION_STATES = [
   'Training Finished',
 ] as const
 
-const RETAINED_STATES = ['Hired', 'Training Finished', 'Assigned', 'To Place']
+// Statuses that mean the candidate is still active in the program
+// Note: DB uses spaces, not hyphens (e.g. 'Offer Withdrawn', not 'Offer-Withdrawn')
+const RETAINED_STATES = ['Hired', 'Training Finished', 'In Training', 'Assigned', 'To Place', 'Next Project']
+
+// Statuses that mean the candidate dropped out
+const DROPOUT_STATES = [
+  'Offer Withdrawn',
+  'Offer Declined',
+  'Expelled',
+  'Transferred',
+  'Rejected by client',
+  'No Show',
+]
 
 export interface FormacionStateRow {
   status: string
@@ -268,14 +280,18 @@ export async function getDropoutAnalysis(
   }
 }
 
-export async function getPromotionsFormacionOverview(): Promise<
-  PromotionFormacionOverview[]
-> {
-  const { data: promotions, error } = await supabase
+export async function getPromotionsFormacionOverview(
+  filter: 'active' | 'finished' | 'all' = 'active'
+): Promise<PromotionFormacionOverview[]> {
+  let query = supabase
     .from('promotions_kpi')
-    .select('id, nombre, expectativa_finalizan, total_dropouts, is_active, fecha_fin')
-    .eq('is_active', true)
+    .select('id, nombre, expectativa_finalizan, is_active, fecha_fin')
     .order('fecha_fin', { ascending: true, nullsFirst: false })
+
+  if (filter === 'active') query = query.eq('is_active', true)
+  else if (filter === 'finished') query = query.eq('is_active', false)
+
+  const { data: promotions, error } = await query
 
   if (error) {
     console.error('Error fetching promotions overview:', error)
@@ -284,21 +300,37 @@ export async function getPromotionsFormacionOverview(): Promise<
 
   if (!promotions || promotions.length === 0) return []
 
-  const results: PromotionFormacionOverview[] = []
+  // Batch fetch all candidate status data for these promos in one query
+  const promoNames = promotions.map((p) => p.nombre)
 
-  for (const promo of promotions) {
-    const { count } = await supabase
-      .from('candidates_kpi')
-      .select('id', { count: 'exact', head: true })
-      .eq('promocion_nombre', promo.nombre)
-      .in('current_status', RETAINED_STATES)
+  const { data: candidates } = await supabase
+    .from('candidates_kpi')
+    .select('promocion_nombre, current_status')
+    .in('promocion_nombre', promoNames)
+    .not('current_status', 'is', null)
 
+  // Build counts map per promo
+  const retainedMap = new Map<string, number>()
+  const dropoutMap = new Map<string, number>()
+
+  for (const c of candidates ?? []) {
+    const promo = c.promocion_nombre!
+    const status = c.current_status ?? ''
+
+    if (RETAINED_STATES.includes(status)) {
+      retainedMap.set(promo, (retainedMap.get(promo) ?? 0) + 1)
+    } else if (DROPOUT_STATES.includes(status)) {
+      dropoutMap.set(promo, (dropoutMap.get(promo) ?? 0) + 1)
+    }
+  }
+
+  return promotions.map((promo) => {
     const objetivo = promo.expectativa_finalizan ?? 0
-    const actual = count ?? 0
-    const dropouts = promo.total_dropouts ?? 0
+    const actual = retainedMap.get(promo.nombre) ?? 0
+    const dropouts = dropoutMap.get(promo.nombre) ?? 0
     const ratio = objetivo > 0 ? actual / objetivo : 0
 
-    results.push({
+    return {
       id: promo.id,
       nombre: promo.nombre,
       season: null,
@@ -306,10 +338,8 @@ export async function getPromotionsFormacionOverview(): Promise<
       actual,
       dropouts,
       trafficLight: computeTrafficLight(ratio),
-    })
-  }
-
-  return results
+    }
+  })
 }
 
 // ---------------------------------------------------------------------------

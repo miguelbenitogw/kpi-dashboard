@@ -548,12 +548,16 @@ export interface ClosedVacancy {
   total_candidates: number
   hired_count: number
   tags: Record<string, number>
+  /** Candidate counts by status from vacancy_status_counts_kpi (empty if not synced yet) */
+  byStatus: Record<string, number>
 }
 
 export interface ClosedVacanciesData {
   byYear: Record<number, ClosedVacancy[]>
   allYears: number[]
   allTags: Record<string, number>
+  /** All distinct candidate statuses that appear across closed vacancies */
+  allStatuses: string[]
 }
 
 export async function getClosedVacanciesData(): Promise<ClosedVacanciesData> {
@@ -566,7 +570,7 @@ export async function getClosedVacanciesData(): Promise<ClosedVacanciesData> {
 
   if (error || !vacancies) {
     console.error('[atraccion] getClosedVacanciesData error:', error)
-    return { byYear: {}, allYears: [], allTags: {} }
+    return { byYear: {}, allYears: [], allTags: {}, allStatuses: [] }
   }
 
   const vacancyIds = vacancies.map(v => v.id)
@@ -574,13 +578,44 @@ export async function getClosedVacanciesData(): Promise<ClosedVacanciesData> {
   // 2. Get pre-computed tag counts from vacancy_tag_counts_kpi
   const tagCountsMap = await getVacancyTagCountsMap(vacancyIds)
 
-  // 3. Build result
+  // 3. Get candidate status counts from vacancy_status_counts_kpi (paginated)
+  const statusCountsMap = new Map<string, Record<string, number>>()
+  const allStatusesSet = new Set<string>()
+  const PAGE_SIZE = 1000
+  let from = 0
+
+  while (true) {
+    const { data: statusRows, error: statusErr } = await supabase
+      .from('vacancy_status_counts_kpi')
+      .select('vacancy_id, status, count')
+      .in('vacancy_id', vacancyIds)
+      .range(from, from + PAGE_SIZE - 1)
+
+    if (statusErr) {
+      console.error('[atraccion] getClosedVacanciesData status counts error:', statusErr)
+      break
+    }
+
+    for (const row of statusRows ?? []) {
+      if (!statusCountsMap.has(row.vacancy_id)) statusCountsMap.set(row.vacancy_id, {})
+      statusCountsMap.get(row.vacancy_id)![row.status] = row.count
+      allStatusesSet.add(row.status)
+    }
+
+    if (!statusRows || statusRows.length < PAGE_SIZE) break
+    from += PAGE_SIZE
+  }
+
+  const allStatuses = Array.from(allStatusesSet).sort()
+
+  // 4. Build result
   const byYear: Record<number, ClosedVacancy[]> = {}
   const allTags: Record<string, number> = {}
 
   for (const v of vacancies) {
     const year = v.date_opened ? new Date(v.date_opened).getFullYear() : 0
     const tags = tagCountsMap.get(v.id) ?? {}
+    const byStatus = statusCountsMap.get(v.id) ?? {}
 
     // Aggregate allTags
     for (const [tag, count] of Object.entries(tags)) {
@@ -596,6 +631,7 @@ export async function getClosedVacanciesData(): Promise<ClosedVacanciesData> {
       total_candidates: v.total_candidates ?? 0,
       hired_count: v.hired_count ?? 0,
       tags,
+      byStatus,
     }
 
     if (year > 0) {
@@ -606,7 +642,7 @@ export async function getClosedVacanciesData(): Promise<ClosedVacanciesData> {
 
   const allYears = Object.keys(byYear).map(Number).sort((a, b) => b - a)
 
-  return { byYear, allYears, allTags }
+  return { byYear, allYears, allTags, allStatuses }
 }
 
 export async function getAtraccionVacancies(): Promise<AtraccionVacancy[]> {

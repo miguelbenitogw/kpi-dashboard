@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   Archive,
+  FileSpreadsheet,
 } from "lucide-react";
 import SyncStatus from "./SyncStatus";
 
@@ -53,6 +54,7 @@ const navSections: NavSection[] = [
       { href: "/dashboard/formacion", label: "Gráficos", icon: GraduationCap },
       { href: "/dashboard/rendimiento", label: "Rendimiento", icon: TrendingUp },
       { href: "/dashboard/formacion/candidatos", label: "Candidatos", icon: UserCheck },
+      { href: "/dashboard/formacion/sheets", label: "Promos Sheets", icon: FileSpreadsheet },
     ],
   },
   {
