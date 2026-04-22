@@ -411,7 +411,9 @@ export default function ClosedVacanciesView() {
               <p className="text-xs text-gray-500 text-center mt-8">Sin datos</p>
             ) : (() => {
               const donutColors = ['#818cf8','#6366f1','#a5b4fc','#4f46e5','#7c3aed','#8b5cf6','#c4b5fd','#4338ca','#6d28d9','#5b21b6']
-              const donutTags = topTags.slice(0, 10)
+              const donutTags = selectedTags.size > 0
+                ? topTags.filter((t) => selectedTags.has(t.name))
+                : topTags.slice(0, 10)
               return (
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
