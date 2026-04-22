@@ -38,6 +38,37 @@ const COLUMNS: {
   { key: 'fecha_fin_formacion', label: 'Fin Formacion', minWidth: '120px' },
 ]
 
+// Non-sortable extra column
+const TAGS_COLUMN_HEADER = 'Etiquetas'
+
+// Tag prefix color coding
+// FR = canal de llegada del CV, CP = cómo nos conocieron, GW = reclutador
+function tagChipStyle(tag: string): string {
+  const upper = tag.toUpperCase()
+  if (upper.startsWith('FR ') || upper === 'FR') return 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+  if (upper.startsWith('CP ') || upper === 'CP') return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+  if (upper.startsWith('GW') ) return 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+  if (upper.startsWith('ONL') || upper.startsWith('SEMI') || upper.startsWith('PRESEN')) return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+  return 'bg-gray-700/50 text-gray-400 border-gray-600/30'
+}
+
+function TagChips({ tags }: { tags: string[] | null }) {
+  if (!tags || tags.length === 0) return <span className="text-gray-600">—</span>
+  return (
+    <div className="flex flex-wrap gap-1">
+      {tags.map((tag) => (
+        <span
+          key={tag}
+          title={tag}
+          className={`inline-block max-w-[120px] truncate rounded-full border px-1.5 py-0.5 text-[10px] leading-none ${tagChipStyle(tag)}`}
+        >
+          {tag}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 function SortIcon({ field, sort }: { field: SortField; sort: SortState }) {
   if (sort.field !== field) {
     return (
@@ -201,6 +232,9 @@ export default function StudentStatusList({ promocion }: StudentStatusListProps)
                   </button>
                 </th>
               ))}
+              <th className="px-3 py-3 text-left" style={{ minWidth: '220px' }}>
+                {TAGS_COLUMN_HEADER}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800/50">
@@ -212,6 +246,9 @@ export default function StudentStatusList({ promocion }: StudentStatusListProps)
                       <div className="h-4 w-3/4 rounded bg-gray-700/40" />
                     </td>
                   ))}
+                  <td className="px-3 py-3">
+                    <div className="h-4 w-full rounded bg-gray-700/40" />
+                  </td>
                 </tr>
               ))
             ) : result && result.data.length > 0 ? (
@@ -251,6 +288,9 @@ export default function StudentStatusList({ promocion }: StudentStatusListProps)
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-gray-500">
                     {c.fecha_fin_formacion ?? '\u2014'}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <TagChips tags={(c as any).tags} />
                   </td>
                 </tr>
               ))
