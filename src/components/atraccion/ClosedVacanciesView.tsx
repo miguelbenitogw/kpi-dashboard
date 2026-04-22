@@ -41,14 +41,14 @@ function aggregateTags(vacancies: ClosedVacancy[]): Record<string, number> {
   return result
 }
 
-// Key statuses to always show as dedicated columns in the table (in order)
-const STATUS_COLUMNS: { key: string; label: string; colorClass: string }[] = [
-  { key: 'In Training',      label: 'Formación',   colorClass: 'text-emerald-400' },
-  { key: 'Approved by client', label: 'Aprobado',  colorClass: 'text-blue-400'   },
-  { key: 'Offer-Withdrawn',  label: 'Retirado',    colorClass: 'text-amber-400'  },
-  { key: 'Offer-Declined',   label: 'Rechazado',   colorClass: 'text-red-400'    },
-  { key: 'Rejected',         label: 'Descartado',  colorClass: 'text-red-400'    },
-]
+// Color per status type
+function statusColorClass(status: string): string {
+  const s = status.toLowerCase()
+  if (s.includes('hired') || s.includes('training') || s.includes('to place') || s.includes('assigned') || s.includes('next project')) return 'text-emerald-400'
+  if (s.includes('approved') || s.includes('first call') || s.includes('second call') || s.includes('associated') || s.includes('waiting')) return 'text-blue-400'
+  if (s.includes('withdrawn') || s.includes('declined') || s.includes('rejected') || s.includes('expelled') || s.includes('cancelled') || s.includes('no show') || s.includes('transferred')) return 'text-red-400'
+  return 'text-gray-400'
+}
 
 // ---------------------------------------------------------------------------
 // Subcomponents
@@ -229,10 +229,10 @@ export default function ClosedVacanciesView() {
       ? (selectedVacancies[0]?.title ?? '')
       : `${selectedIds.size} vacantes`
 
-  // Which status columns to actually show (only those with at least 1 vacancy having data)
-  const activeStatusCols = STATUS_COLUMNS.filter((col) =>
-    filteredVacancies.some((v) => (v.byStatus[col.key] ?? 0) > 0)
-  )
+  // All statuses that appear across visible vacancies — dynamic, no hardcoding
+  const activeStatusCols = (data.allStatuses ?? [])
+    .filter((status) => filteredVacancies.some((v) => (v.byStatus[status] ?? 0) > 0))
+    .map((status) => ({ key: status, label: status, colorClass: statusColorClass(status) }))
 
   return (
     <div className="space-y-5 p-5">
