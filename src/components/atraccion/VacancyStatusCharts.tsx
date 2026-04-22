@@ -6,6 +6,7 @@ import {
   ResponsiveContainer, Cell, Legend
 } from 'recharts'
 import { getVacancyRecruitmentStats, getVacancyTagCountsMap, type VacancyRecruitmentStats } from '@/lib/queries/atraccion'
+import { tagColor, TAG_LEGEND } from '@/lib/utils/tags'
 
 const STATUS_COLORS: Record<string, string> = {
   'Hired': '#10B981',
@@ -169,9 +170,19 @@ export default function VacancyStatusCharts() {
       {/* Chart C: Tag distribution for active vacancies */}
       {tagData.length > 0 && (
         <div className="mt-8 border-t border-gray-700/50 pt-6">
-          <h3 className="mb-3 text-[11px] font-medium uppercase tracking-wider text-gray-500">
+          <h3 className="mb-1 text-[11px] font-medium uppercase tracking-wider text-gray-500">
             Etiquetas de candidatos
           </h3>
+          {/* Tag prefix legend */}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
+            {TAG_LEGEND.map((l) => (
+              <span key={l.prefix} className="flex items-center gap-1 text-[10px] text-gray-500">
+                <span className={`h-2 w-2 rounded-full ${l.dotColor}`} />
+                <span className={l.color}>{l.prefix}</span>
+                <span>{l.label}</span>
+              </span>
+            ))}
+          </div>
           <p className="mb-3 text-xs text-gray-600">
             Total de candidatos con cada etiqueta en vacantes activas
           </p>
@@ -182,7 +193,11 @@ export default function VacancyStatusCharts() {
                 <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={{ stroke: '#374151' }} tickLine={false} allowDecimals={false} />
                 <YAxis type="category" dataKey="tag" width={180} tick={{ fill: '#D1D5DB', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <Tooltip {...TOOLTIP_STYLE} formatter={((v: number) => [v.toLocaleString('es-AR'), 'Candidatos']) as never} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#6366f1" />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                  {tagData.map((entry) => (
+                    <Cell key={entry.tag} fill={tagColor(entry.tag)} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -17,6 +17,7 @@ import {
   type TagCount,
   type StatusCount,
 } from '@/lib/queries/etiquetas'
+import { tagChipStyle, TAG_LEGEND } from '@/lib/utils/tags'
 
 // ─── Color palette ────────────────────────────────────────────────────────────
 
@@ -83,6 +84,8 @@ interface TagChipProps {
 }
 
 function TagChip({ tag, count, selected, onClick }: TagChipProps) {
+  // Use prefix-based color when unselected; blue highlight when selected
+  const unselectedStyle = tagChipStyle(tag)
   return (
     <button
       onClick={onClick}
@@ -90,14 +93,14 @@ function TagChip({ tag, count, selected, onClick }: TagChipProps) {
         'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-150',
         selected
           ? 'border-blue-500 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
-          : 'border-gray-600/50 bg-gray-700/40 text-gray-300 hover:border-gray-500 hover:bg-gray-700/70 hover:text-gray-100',
+          : `${unselectedStyle} hover:opacity-80`,
       ].join(' ')}
     >
       <span>{tag}</span>
       <span
         className={[
           'rounded-full px-1.5 py-0.5 text-[10px] tabular-nums',
-          selected ? 'bg-blue-500/30 text-blue-200' : 'bg-gray-600/50 text-gray-400',
+          selected ? 'bg-blue-500/30 text-blue-200' : 'bg-black/20 text-inherit opacity-80',
         ].join(' ')}
       >
         {count.toLocaleString('es-AR')}
@@ -214,6 +217,16 @@ export default function EtiquetasView() {
               Limpiar selección ({selectedTags.length})
             </button>
           )}
+        </div>
+        {/* Tag prefix legend */}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
+          {TAG_LEGEND.map((l) => (
+            <span key={l.prefix} className="flex items-center gap-1 text-[10px] text-gray-500">
+              <span className={`h-2 w-2 rounded-full ${l.dotColor}`} />
+              <span className={l.color}>{l.prefix}</span>
+              <span>{l.label}</span>
+            </span>
+          ))}
         </div>
 
         {allTags.length === 0 ? (

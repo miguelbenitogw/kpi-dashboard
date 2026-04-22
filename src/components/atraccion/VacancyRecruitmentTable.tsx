@@ -8,6 +8,7 @@ import {
   type VacancyRecruitmentStats,
   type VacancyTagCount,
 } from '@/lib/queries/atraccion'
+import { tagChipStyle } from '@/lib/utils/tags'
 
 const ALL_STATUSES = [
   'Associated', 'Waiting for Evaluation', 'Rejected', 'First Call', 'Not Valid',
@@ -101,10 +102,10 @@ function VacancyTagRow({
             {tags.map(({ tag, count }) => (
               <span
                 key={tag}
-                className="inline-flex items-center gap-1 rounded-full border border-surface-600/50 bg-surface-700/60 px-2.5 py-0.5 text-[11px] text-gray-300"
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] ${tagChipStyle(tag)}`}
               >
                 {tag}
-                <span className="font-semibold tabular-nums text-accent-400">{count}</span>
+                <span className="font-semibold tabular-nums opacity-75">{count}</span>
               </span>
             ))}
           </div>

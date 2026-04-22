@@ -7,6 +7,7 @@ import {
   type ClosedVacanciesData,
   type ClosedVacancy,
 } from '@/lib/queries/atraccion'
+import { tagChipStyle, tagColor, TAG_LEGEND } from '@/lib/utils/tags'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -62,9 +63,9 @@ interface TagChipProps {
 
 function TagChip({ tag, count }: TagChipProps) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-gray-600/50 bg-gray-700/50 px-2 py-0.5 text-xs text-gray-300">
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${tagChipStyle(tag)}`}>
       {tag}
-      <span className="rounded-full bg-indigo-500/30 px-1 text-indigo-300 font-medium">
+      <span className="rounded-full bg-black/20 px-1 font-medium tabular-nums">
         {count}
       </span>
     </span>
@@ -279,6 +280,16 @@ export default function ClosedVacanciesView() {
             <h4 className="text-xs font-semibold text-gray-300">
               Distribución de etiquetas — {chartLabel}
             </h4>
+            {/* Tag prefix legend */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 mb-0.5">
+              {TAG_LEGEND.map((l) => (
+                <span key={l.prefix} className="flex items-center gap-1 text-[10px] text-gray-500">
+                  <span className={`h-2 w-2 rounded-full ${l.dotColor}`} />
+                  <span className={l.color}>{l.prefix}</span>
+                  <span>{l.label}</span>
+                </span>
+              ))}
+            </div>
             {selectedTags.size > 0 && (
               <p className="mt-0.5 text-[10px] text-indigo-400">
                 {selectedTags.size} etiqueta{selectedTags.size !== 1 ? 's' : ''} activa{selectedTags.size !== 1 ? 's' : ''} · filtrando tabla
@@ -332,27 +343,11 @@ export default function ClosedVacanciesView() {
                           ].join(' ')}
                         >
                           <div className="flex items-center gap-2 mb-1">
-                            {/* Selection circle indicator */}
+                            {/* Prefix color dot */}
                             <span
-                              className={[
-                                'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border transition-colors',
-                                isTagSelected
-                                  ? 'border-indigo-400 bg-indigo-500'
-                                  : 'border-gray-600 bg-transparent group-hover:border-gray-400',
-                              ].join(' ')}
-                            >
-                              {isTagSelected && (
-                                <svg
-                                  className="h-2 w-2 text-white"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                  strokeWidth={3}
-                                >
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
-                            </span>
+                              className="h-2 w-2 shrink-0 rounded-full"
+                              style={{ backgroundColor: tagColor(tag.name) }}
+                            />
 
                             {/* Tag name */}
                             <span
@@ -380,16 +375,15 @@ export default function ClosedVacanciesView() {
                             </span>
                           </div>
 
-                          {/* Bar track */}
-                          <div className="ml-5 h-1.5 overflow-hidden rounded-full bg-gray-700/50">
+                          {/* Bar track — color based on tag prefix */}
+                          <div className="ml-4 h-1.5 overflow-hidden rounded-full bg-gray-700/50">
                             <div
-                              className={[
-                                'h-full rounded-full transition-all duration-300',
-                                isTagSelected
-                                  ? 'bg-indigo-400'
-                                  : 'bg-indigo-600/70 group-hover:bg-indigo-500/80',
-                              ].join(' ')}
-                              style={{ width: `${Math.max(2, Math.round((tag.value / maxValue) * 100))}%` }}
+                              className="h-full rounded-full transition-all duration-300"
+                              style={{
+                                width: `${Math.max(2, Math.round((tag.value / maxValue) * 100))}%`,
+                                backgroundColor: tagColor(tag.name),
+                                opacity: isTagSelected ? 1 : 0.7,
+                              }}
                             />
                           </div>
                         </button>

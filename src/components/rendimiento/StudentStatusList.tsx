@@ -9,6 +9,7 @@ import {
   type StudentListResult,
 } from '@/lib/queries/performance'
 import StatusBadge from '@/components/candidates/StatusBadge'
+import { tagChipStyle } from '@/lib/utils/tags'
 
 type SortField =
   | 'full_name'
@@ -40,17 +41,6 @@ const COLUMNS: {
 
 // Non-sortable extra column
 const TAGS_COLUMN_HEADER = 'Etiquetas'
-
-// Tag prefix color coding
-// FR = canal de llegada del CV, CP = cómo nos conocieron, GW = reclutador
-function tagChipStyle(tag: string): string {
-  const upper = tag.toUpperCase()
-  if (upper.startsWith('FR ') || upper === 'FR') return 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
-  if (upper.startsWith('CP ') || upper === 'CP') return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-  if (upper.startsWith('GW') ) return 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-  if (upper.startsWith('ONL') || upper.startsWith('SEMI') || upper.startsWith('PRESEN')) return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-  return 'bg-gray-700/50 text-gray-400 border-gray-600/30'
-}
 
 function TagChips({ tags }: { tags: string[] | null }) {
   if (!tags || tags.length === 0) return <span className="text-gray-600">—</span>
