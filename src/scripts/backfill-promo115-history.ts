@@ -105,6 +105,7 @@ async function main() {
           job_opening_id: String(jo.id),
           job_opening_title: String(jo.Job_Opening_Name ?? jo.Posting_Title ?? ''),
           candidate_status_in_jo: String(jo.Candidate_Status ?? ''),
+          associated_at: jo.Created_Time ? new Date(jo.Created_Time).toISOString() : null,
           association_type: 'formacion',
           fetched_at: new Date().toISOString(),
         }))

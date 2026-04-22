@@ -234,8 +234,23 @@ export async function getPromoStudentList(
   }
 }
 
+// Statuses that classify a candidate as a dropout (DB uses spaces, not hyphens)
+const DROPOUT_STATUSES_DB = [
+  'Offer Withdrawn',
+  'Offer Declined',
+  'Expelled',
+  'Transferred',
+  'Rejected by client',
+  'No Show',
+  // Legacy hyphen variants
+  'Offer-Withdrawn',
+  'Offer-Declined',
+]
+
 /**
- * Get dropout candidates for a promo
+ * Get dropout candidates for a promo.
+ * Primary source: dropout_reason from Excel sheet sync.
+ * Fallback: candidates with dropout current_status but no Excel data.
  */
 export async function getPromoDropouts(
   promocion: string
@@ -246,7 +261,9 @@ export async function getPromoDropouts(
       'id, full_name, current_status, dropout_date, dropout_reason, dropout_attendance_pct, dropout_language_level, transferred_to, dropout_notes'
     )
     .eq('promocion_nombre', promocion)
-    .not('dropout_reason', 'is', null)
+    .or(
+      `dropout_reason.not.is.null,current_status.in.(${DROPOUT_STATUSES_DB.map(s => `"${s}"`).join(',')})`
+    )
     .order('dropout_date', { ascending: false, nullsFirst: false })
 
   if (error) throw error
@@ -400,6 +417,7 @@ export interface CandidateHistoryRecord {
   job_opening_title: string | null
   candidate_status_in_jo: string | null
   association_type: string | null
+  associated_at: string | null
 }
 
 export interface CandidateWithHistory {
@@ -433,9 +451,9 @@ export async function getPromoHistoryOverview(
   // Step 2: get all history records for these candidates
   const { data: historyRows, error: histError } = await supabase
     .from('candidate_job_history_kpi')
-    .select('id, candidate_id, job_opening_title, candidate_status_in_jo, association_type')
+    .select('id, candidate_id, job_opening_title, candidate_status_in_jo, association_type, associated_at')
     .in('candidate_id', candidateIds)
-    .order('association_type', { ascending: true })
+    .order('associated_at', { ascending: true, nullsFirst: false })
 
   if (histError) throw histError
 
@@ -448,6 +466,7 @@ export async function getPromoHistoryOverview(
       job_opening_title: row.job_opening_title,
       candidate_status_in_jo: row.candidate_status_in_jo,
       association_type: row.association_type,
+      associated_at: row.associated_at ?? null,
     })
     historyMap.set(row.candidate_id, list)
   }
@@ -473,12 +492,36 @@ export async function getCandidateHistory(
 ): Promise<CandidateHistoryRecord[]> {
   const { data, error } = await supabase
     .from('candidate_job_history_kpi')
-    .select('id, job_opening_title, candidate_status_in_jo, association_type')
+    .select('id, job_opening_title, candidate_status_in_jo, association_type, associated_at')
     .eq('candidate_id', candidateId)
-    .order('association_type', { ascending: true })
+    .order('associated_at', { ascending: true, nullsFirst: false })
 
   if (error) throw error
   return (data ?? []) as CandidateHistoryRecord[]
+}
+
+// --- Notes types ---
+
+export interface CandidateNote {
+  id: string
+  note_title: string | null
+  note_content: string | null
+  author: string | null
+  is_system: boolean
+  created_at: string | null
+}
+
+/**
+ * Get notes for a single candidate, ordered by created_at descending
+ */
+export async function getCandidateNotes(candidateId: string): Promise<CandidateNote[]> {
+  const { data, error } = await supabase
+    .from('candidate_notes_kpi')
+    .select('id, note_title, note_content, author, is_system, created_at')
+    .eq('candidate_id', candidateId)
+    .order('created_at', { ascending: false, nullsFirst: false })
+  if (error) throw error
+  return (data ?? []) as CandidateNote[]
 }
 
 /**

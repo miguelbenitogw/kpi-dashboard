@@ -3,10 +3,58 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   getPromoHistoryOverview,
+  getCandidateHistory,
+  getCandidateNotes,
   type CandidateWithHistory,
   type CandidateHistoryRecord,
+  type CandidateNote,
 } from '@/lib/queries/performance'
 import StatusBadge from '@/components/candidates/StatusBadge'
+
+// --- Timeline types ---
+
+type TimelineItem =
+  | { type: 'job'; date: string | null; record: CandidateHistoryRecord }
+  | { type: 'note'; date: string | null; note: CandidateNote }
+
+function parseDate(d: string | null): number {
+  if (!d) return -Infinity
+  const ts = Date.parse(d)
+  return isNaN(ts) ? -Infinity : ts
+}
+
+function formatDateTime(d: string | null): string {
+  if (!d) return ''
+  const date = new Date(d)
+  if (isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function mergeTimeline(
+  history: CandidateHistoryRecord[],
+  notes: CandidateNote[]
+): TimelineItem[] {
+  const items: TimelineItem[] = [
+    ...history.map((r): TimelineItem => ({ type: 'job', date: r.associated_at ?? null, record: r })),
+    ...notes.map((n): TimelineItem => ({ type: 'note', date: n.created_at ?? null, note: n })),
+  ]
+  // Sort descending: items with dates first (newest first), then null-date items last
+  items.sort((a, b) => {
+    const da = parseDate(a.date)
+    const db = parseDate(b.date)
+    if (da === -Infinity && db === -Infinity) return 0
+    if (da === -Infinity) return 1
+    if (db === -Infinity) return -1
+    return db - da
+  })
+  return items
+}
 
 // --- Sub-components ---
 
@@ -18,17 +66,26 @@ function TimelineStep({ record }: { record: CandidateHistoryRecord }) {
   const badgeBg = isAtraccion ? 'bg-blue-500/15' : 'bg-emerald-500/15'
 
   return (
-    <div className="relative flex items-start gap-3 pb-6 last:pb-0">
-      {/* Vertical line */}
+    <div className="relative flex items-start gap-3 pb-4 last:pb-0">
       <div className="flex flex-col items-center">
         <div className={`h-3 w-3 shrink-0 rounded-full ${dotColor}`} />
         <div className={`w-0.5 flex-1 ${lineColor}`} />
       </div>
-      {/* Card */}
       <div className="min-w-0 flex-1 rounded-lg border border-gray-700/50 bg-gray-800/60 px-3 py-2">
-        <p className="truncate text-sm font-medium text-gray-200" title={record.job_opening_title ?? ''}>
-          {record.job_opening_title ?? 'Sin titulo'}
-        </p>
+        <div className="flex items-start justify-between gap-2">
+          <p className="truncate text-sm font-medium text-gray-200" title={record.job_opening_title ?? ''}>
+            {record.job_opening_title ?? 'Sin titulo'}
+          </p>
+          {record.associated_at && (
+            <span className="shrink-0 text-[10px] tabular-nums text-gray-500">
+              {new Date(record.associated_at).toLocaleDateString('es-ES', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </span>
+          )}
+        </div>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           {record.candidate_status_in_jo && (
             <StatusBadge status={record.candidate_status_in_jo} size="sm" />
@@ -42,67 +99,146 @@ function TimelineStep({ record }: { record: CandidateHistoryRecord }) {
   )
 }
 
-function HorizontalTimeline({ records }: { records: CandidateHistoryRecord[] }) {
-  if (records.length === 0) {
-    return <p className="py-3 text-xs text-gray-500">Sin historial de proyectos</p>
-  }
-  return (
-    <div className="overflow-x-auto py-3">
-      <div className="flex items-start gap-2">
-        {records.map((record, idx) => {
-          const isAtraccion = record.association_type === 'atraccion'
-          const dotColor = isAtraccion ? 'bg-blue-400' : 'bg-emerald-400'
-          const lineColor = isAtraccion ? 'border-blue-400/40' : 'border-emerald-400/40'
-          const labelColor = isAtraccion ? 'text-blue-400' : 'text-emerald-400'
-          const badgeBg = isAtraccion ? 'bg-blue-500/15' : 'bg-emerald-500/15'
+function NoteStep({ note }: { note: CandidateNote }) {
+  const [expanded, setExpanded] = useState(false)
+  const isSystem = note.is_system
+  const dotColor = isSystem ? 'bg-gray-500' : 'bg-purple-400'
+  const lineColor = isSystem ? 'bg-gray-500/30' : 'bg-purple-400/30'
 
-          return (
-            <div key={record.id} className="flex items-start">
-              {/* Step */}
-              <div className="flex flex-col items-center">
-                <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotColor}`} />
-                <div className="mt-1 w-[140px] rounded-lg border border-gray-700/50 bg-gray-800/60 px-2.5 py-2">
-                  <p className="truncate text-xs font-medium text-gray-200" title={record.job_opening_title ?? ''}>
-                    {record.job_opening_title ?? 'Sin titulo'}
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-1">
-                    {record.candidate_status_in_jo && (
-                      <StatusBadge status={record.candidate_status_in_jo} size="sm" />
-                    )}
-                  </div>
-                  <span className={`mt-1 inline-block rounded-full ${badgeBg} px-1.5 py-0.5 text-[9px] font-medium ${labelColor}`}>
-                    {record.association_type ?? 'unknown'}
-                  </span>
-                </div>
-              </div>
-              {/* Connector line */}
-              {idx < records.length - 1 && (
-                <div className={`mt-1 h-0 w-4 self-start border-t-2 border-dashed ${lineColor}`} />
+  return (
+    <div className="relative flex items-start gap-3 pb-4 last:pb-0">
+      <div className="flex flex-col items-center">
+        <div className={`h-3 w-3 shrink-0 rounded-full ${dotColor}`} />
+        <div className={`w-0.5 flex-1 ${lineColor}`} />
+      </div>
+      <div className="min-w-0 flex-1 rounded-lg border border-gray-700/50 bg-gray-800/60 px-3 py-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            {isSystem ? (
+              /* gear icon */
+              <svg className="h-3.5 w-3.5 shrink-0 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            ) : (
+              /* pencil icon */
+              <svg className="h-3.5 w-3.5 shrink-0 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            )}
+            {isSystem ? (
+              <span className="text-xs text-gray-400">
+                Estado cambiado
+                {note.note_title && (
+                  <span className="text-gray-500"> · {note.note_title}</span>
+                )}
+              </span>
+            ) : (
+              <span className="text-sm font-medium text-gray-200">
+                {note.note_title ?? 'Nota sin título'}
+              </span>
+            )}
+          </div>
+          {note.created_at && (
+            <span className="shrink-0 text-[10px] tabular-nums text-gray-500">
+              {formatDateTime(note.created_at)}
+            </span>
+          )}
+        </div>
+
+        {isSystem ? (
+          note.note_content && (
+            <p className="mt-1 text-xs italic text-gray-500">{note.note_content}</p>
+          )
+        ) : (
+          note.note_content && (
+            <div className="mt-1">
+              <p
+                className={`text-xs leading-relaxed text-gray-400 ${expanded ? '' : 'line-clamp-3'}`}
+              >
+                {note.note_content}
+              </p>
+              {note.note_content.length > 120 && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setExpanded((p) => !p) }}
+                  className="mt-1 text-[10px] text-purple-400 hover:text-purple-300 transition"
+                >
+                  {expanded ? 'Ver menos' : 'Ver más'}
+                </button>
               )}
             </div>
           )
-        })}
+        )}
+
+        {!isSystem && note.author && (
+          <p className="mt-1 text-[10px] text-gray-600">{note.author}</p>
+        )}
       </div>
+    </div>
+  )
+}
+
+function IntegratedTimeline({
+  history,
+  notes,
+}: {
+  history: CandidateHistoryRecord[]
+  notes: CandidateNote[]
+}) {
+  const items = useMemo(() => mergeTimeline(history, notes), [history, notes])
+
+  if (items.length === 0) {
+    return <p className="py-3 text-xs text-gray-500">Sin cronología disponible</p>
+  }
+
+  return (
+    <div className="py-2">
+      {items.map((item, idx) =>
+        item.type === 'job' ? (
+          <TimelineStep key={`job-${item.record.id}-${idx}`} record={item.record} />
+        ) : (
+          <NoteStep key={`note-${item.note.id}-${idx}`} note={item.note} />
+        )
+      )}
     </div>
   )
 }
 
 function ExpandableRow({ candidate }: { candidate: CandidateWithHistory }) {
   const [expanded, setExpanded] = useState(false)
+  const [loadedHistory, setLoadedHistory] = useState<CandidateHistoryRecord[] | null>(null)
+  const [loadedNotes, setLoadedNotes] = useState<CandidateNote[] | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
 
-  // Sort: atraccion first, then formacion
-  const sortedHistory = useMemo(() => {
-    return [...candidate.history].sort((a, b) => {
-      if (a.association_type === b.association_type) return 0
-      return a.association_type === 'atraccion' ? -1 : 1
-    })
-  }, [candidate.history])
+  const handleExpand = () => {
+    const next = !expanded
+    setExpanded(next)
+    if (next && loadedHistory === null) {
+      setDetailLoading(true)
+      setDetailError(null)
+      Promise.all([
+        getCandidateHistory(candidate.candidate_id),
+        getCandidateNotes(candidate.candidate_id),
+      ])
+        .then(([hist, notes]) => {
+          setLoadedHistory(hist)
+          setLoadedNotes(notes)
+        })
+        .catch((err) => {
+          console.error('Error loading candidate detail:', err)
+          setDetailError('Error al cargar los datos')
+        })
+        .finally(() => setDetailLoading(false))
+    }
+  }
 
   return (
     <>
       <tr
         className="cursor-pointer transition hover:bg-gray-700/20"
-        onClick={() => setExpanded((prev) => !prev)}
+        onClick={handleExpand}
       >
         <td className="whitespace-nowrap px-3 py-2.5">
           <div className="flex items-center gap-2">
@@ -147,19 +283,26 @@ function ExpandableRow({ candidate }: { candidate: CandidateWithHistory }) {
       {expanded && (
         <tr>
           <td colSpan={5} className="bg-gray-800/40 px-6 py-3">
-            {/* Use vertical timeline on narrow, horizontal on wide */}
-            <div className="hidden md:block">
-              <HorizontalTimeline records={sortedHistory} />
-            </div>
-            <div className="md:hidden">
-              {sortedHistory.length === 0 ? (
-                <p className="py-3 text-xs text-gray-500">Sin historial de proyectos</p>
-              ) : (
-                sortedHistory.map((record) => (
-                  <TimelineStep key={record.id} record={record} />
-                ))
-              )}
-            </div>
+            {detailLoading ? (
+              <div className="flex items-center gap-2 py-4 text-xs text-gray-500">
+                <svg
+                  className="h-4 w-4 animate-spin text-blue-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Cargando cronología...
+              </div>
+            ) : detailError ? (
+              <p className="py-3 text-xs text-red-400">{detailError}</p>
+            ) : (
+              <IntegratedTimeline
+                history={loadedHistory ?? []}
+                notes={loadedNotes ?? []}
+              />
+            )}
           </td>
         </tr>
       )}
@@ -232,7 +375,6 @@ export default function HistoryView({ promocion }: HistoryViewProps) {
       const q = search.toLowerCase()
       result = result.filter((c) => c.candidate_name?.toLowerCase().includes(q))
     }
-    // Sort
     const dir = sort.direction === 'asc' ? 1 : -1
     result = [...result].sort((a, b) => {
       switch (sort.field) {
