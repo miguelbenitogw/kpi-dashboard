@@ -480,21 +480,32 @@ export async function getVacancyTagCountsMap(
 ): Promise<Map<string, Record<string, number>>> {
   if (vacancyIds.length === 0) return new Map()
 
-  const { data, error } = await supabase
-    .from('vacancy_tag_counts_kpi')
-    .select('vacancy_id, tag, count')
-    .in('vacancy_id', vacancyIds)
-
-  if (error) {
-    console.error('[atraccion] getVacancyTagCountsMap error:', error)
-    return new Map()
-  }
-
   const result = new Map<string, Record<string, number>>()
-  for (const row of data ?? []) {
-    if (!result.has(row.vacancy_id)) result.set(row.vacancy_id, {})
-    result.get(row.vacancy_id)![row.tag] = row.count
+  const PAGE_SIZE = 1000
+  let from = 0
+
+  // Paginate — Supabase default row limit is 1000, table has 13k+ rows
+  while (true) {
+    const { data, error } = await supabase
+      .from('vacancy_tag_counts_kpi')
+      .select('vacancy_id, tag, count')
+      .in('vacancy_id', vacancyIds)
+      .range(from, from + PAGE_SIZE - 1)
+
+    if (error) {
+      console.error('[atraccion] getVacancyTagCountsMap error:', error)
+      break
+    }
+
+    for (const row of data ?? []) {
+      if (!result.has(row.vacancy_id)) result.set(row.vacancy_id, {})
+      result.get(row.vacancy_id)![row.tag] = row.count
+    }
+
+    if (!data || data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
   }
+
   return result
 }
 
