@@ -1827,7 +1827,6 @@ export type StageHistory = Tables<'stage_history_kpi'>
 export type VacancyStatusCount = Tables<'vacancy_status_counts_kpi'>
 
 export type CandidateJobHistory = Tables<'candidate_job_history_kpi'>
-export type PromoTarget = Tables<'promo_targets_kpi'>
 export type PromoSheet = Tables<'promo_sheets_kpi'>
 export type DashboardConfig = Tables<'dashboard_config_kpi'>
 export type Promotion = Tables<'promotions_kpi'>

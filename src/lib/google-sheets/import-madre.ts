@@ -11,7 +11,7 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { buildCsvUrl, parseCSV, type SheetRow } from './client'
+import { readSheetAsRows, type SheetRow } from './client'
 import { importGlobalPlacement, type GlobalPlacementResult } from './import-global-placement'
 import { importPagos, type PagosResult } from './import-pagos'
 import { importCursoDesarrollo, type CursoDesarrolloResult } from './import-curso-desarrollo'
@@ -22,6 +22,22 @@ import {
 } from '@/lib/queries/promotions-core'
 
 // ---------------------------------------------------------------------------
+// Promotion name normalizer
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize a raw promotion name to the canonical "Promoción NNN" format.
+ * Handles: "P113", "p113" → "Promoción 113"
+ * Leaves already-canonical names ("Promoción 113", "Promoción Bélgica") untouched.
+ */
+function normalizePromoName(name: string): string {
+  const trimmed = name.trim()
+  const shortMatch = trimmed.match(/^[Pp](\d+)$/)
+  if (shortMatch) return `Promoción ${shortMatch[1]}`
+  return trimmed
+}
+
+// ---------------------------------------------------------------------------
 // Sheet constants
 // ---------------------------------------------------------------------------
 
@@ -30,25 +46,11 @@ export const BASE_DATOS_GID = '1510708848'
 export const RESUMEN_GID = '562297340'
 
 // ---------------------------------------------------------------------------
-// CSV fetching (public sheet, no auth)
+// Tab fetching via service account
 // ---------------------------------------------------------------------------
 
-async function fetchMadreCSV(gid: string): Promise<string> {
-  const url = buildCsvUrl(MADRE_SHEET_ID, gid)
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: { Accept: 'text/csv,text/plain,*/*' },
-    cache: 'no-store',
-  })
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch Excel madre tab (gid=${gid}): HTTP ${response.status}`
-    )
-  }
-
-  return response.text()
+async function fetchMadreTab(gid: string): Promise<{ headers: string[]; rows: SheetRow[] }> {
+  return readSheetAsRows(MADRE_SHEET_ID, parseInt(gid, 10))
 }
 
 // ---------------------------------------------------------------------------
@@ -149,8 +151,7 @@ export async function importBaseDatos(): Promise<BaseDatosResult> {
     errors: [],
   }
 
-  const csv = await fetchMadreCSV(BASE_DATOS_GID)
-  const { headers, rows } = parseCSV(csv)
+  const { headers, rows } = await fetchMadreTab(BASE_DATOS_GID)
 
   if (headers.length === 0 || rows.length === 0) {
     result.errors.push('Base Datos tab returned no data')
@@ -185,6 +186,9 @@ export async function importBaseDatos(): Promise<BaseDatosResult> {
     const fullName = mapped['full_name'] ?? null
     const estado = mapped['estado'] ?? null
 
+    const rawPromoNombre = mapped['promocion_nombre'] ?? null
+    const normalizedPromoNombre = rawPromoNombre ? normalizePromoName(rawPromoNombre) : null
+
     const updateData: Record<string, unknown> = {
       coordinador: mapped['coordinador'] ?? null,
       tipo_perfil: mapped['tipo_perfil'] ?? null,
@@ -193,7 +197,7 @@ export async function importBaseDatos(): Promise<BaseDatosResult> {
       fecha_inicio_trabajo: parseDate(mapped['fecha_inicio_trabajo'] ?? ''),
       tiempo_colocacion: mapped['tiempo_colocacion'] ?? null,
       notas_excel: mapped['notas_excel'] ?? null,
-      promocion_nombre: mapped['promocion_nombre'] ?? null,
+      promocion_nombre: normalizedPromoNombre,
       quincena: mapped['quincena'] ?? null,
       mes_llegada: mapped['mes_ano_llegada'] ?? null,
     }
@@ -294,7 +298,7 @@ export interface ResumenResult {
 
 /**
  * Import the Resumen tab from the Excel madre sheet.
- * Upserts promo-level aggregate data into the promo_targets table.
+ * Upserts promo-level data directly into promotions_kpi (no staging table).
  *
  * Skips rows without a "Promocion" value (totals/summary rows).
  */
@@ -305,8 +309,7 @@ export async function importResumen(): Promise<ResumenResult> {
     errors: [],
   }
 
-  const csv = await fetchMadreCSV(RESUMEN_GID)
-  const { headers, rows } = parseCSV(csv)
+  const { headers, rows } = await fetchMadreTab(RESUMEN_GID)
 
   if (headers.length === 0 || rows.length === 0) {
     result.errors.push('Resumen tab returned no data')
@@ -331,22 +334,24 @@ export async function importResumen(): Promise<ResumenResult> {
       if (value) mapped[canonical] = value
     }
 
-    const promocion = mapped['promocion']
-    if (!promocion) {
-      // Skip totals/summary rows that have no Promocion value
+    const rawPromocion = mapped['promocion']
+    if (!rawPromocion) {
       result.skipped++
       continue
     }
 
-    // Skip obvious summary rows
+    // Normalize and skip obvious summary rows
+    const promocion = normalizePromoName(rawPromocion)
     const lowerPromo = promocion.toLowerCase()
     if (lowerPromo.includes('total') || lowerPromo.includes('resumen') || lowerPromo.includes('promedio')) {
       result.skipped++
       continue
     }
 
+    // Write directly to promotions_kpi — no staging table
     const upsertPayload = {
-      promocion,
+      nombre: promocion,
+      numero: extractPromoNumber(promocion),
       modalidad: mapped['modalidad'] ?? null,
       pais: mapped['pais'] ?? null,
       coordinador: mapped['coordinador'] ?? null,
@@ -366,8 +371,8 @@ export async function importResumen(): Promise<ResumenResult> {
     }
 
     const { error: upsertError } = await supabaseAdmin
-      .from('promo_targets_kpi')
-      .upsert(upsertPayload, { onConflict: 'promocion' })
+      .from('promotions_kpi')
+      .upsert(upsertPayload as any, { onConflict: 'nombre' })
 
     if (upsertError) {
       result.errors.push(`Row ${rowNum} (${promocion}): ${upsertError.message}`)
@@ -401,13 +406,14 @@ export interface ExcelMadreResult {
 }
 
 /**
- * Create/update promotion records from distinct promocion_nombre values in candidates.
- * Also enriches from Resumen data in promo_targets.
+ * Ensure promotion records exist for every distinct promocion_nombre in candidates.
+ * importResumen() already writes full metadata — this is a safety net for any
+ * candidate promos not covered by the Resumen tab.
  */
 async function createPromotionsFromCandidates(): Promise<PromotionsCreateResult> {
   const result: PromotionsCreateResult = { created: 0, updated: 0, errors: [] }
 
-  // Get distinct promocion_nombre values from candidates
+  // Get distinct (normalized) promocion_nombre values from candidates
   const { data: candidates, error: candError } = await supabaseAdmin
     .from('candidates_kpi')
     .select('promocion_nombre')
@@ -425,44 +431,24 @@ async function createPromotionsFromCandidates(): Promise<PromotionsCreateResult>
 
   if (promoNames.size === 0) return result
 
-  // Get existing promo_targets for enrichment
-  const { data: targets } = await supabaseAdmin
-    .from('promo_targets_kpi')
-    .select('*')
+  // Get names already in promotions_kpi (written by importResumen)
+  const { data: existing } = await supabaseAdmin
+    .from('promotions_kpi')
+    .select('nombre')
 
-  const targetMap = new Map<string, (typeof targets extends (infer T)[] | null ? T : never)>()
-  for (const t of targets ?? []) {
-    targetMap.set(t.promocion, t)
-  }
+  const existingNames = new Set((existing ?? []).map((p) => p.nombre))
 
-  // Upsert each promotion
+  // Only insert promos not already created by importResumen
   for (const nombre of promoNames) {
-    const target = targetMap.get(nombre)
-    const numero = extractPromoNumber(nombre)
+    if (existingNames.has(nombre)) continue
 
-    const payload: Record<string, unknown> = {
-      nombre,
-      numero,
-      modalidad: target?.modalidad ?? null,
-      pais: target?.pais ?? null,
-      coordinador: target?.coordinador ?? null,
-      cliente: target?.cliente ?? null,
-      fecha_inicio: target?.fecha_inicio ?? null,
-      fecha_fin: target?.fecha_fin ?? null,
-      objetivo_atraccion: target?.objetivo_atraccion ?? null,
-      objetivo_programa: target?.objetivo_programa ?? null,
-      expectativa_finalizan: target?.expectativa_finalizan ?? null,
-    }
-
-    const { error: upsertError, data: upsertData } = await supabaseAdmin
+    const { error: upsertError } = await supabaseAdmin
       .from('promotions_kpi')
-      .upsert(payload as any, { onConflict: 'nombre' })
-      .select('id')
-      .single()
+      .upsert({ nombre, numero: extractPromoNumber(nombre) } as any, { onConflict: 'nombre' })
 
     if (upsertError) {
       result.errors.push(`${nombre}: ${upsertError.message}`)
-    } else if (upsertData) {
+    } else {
       result.created++
     }
   }

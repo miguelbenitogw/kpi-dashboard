@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 import { syncJobOpenings } from '@/lib/zoho/sync-job-openings'
 import { importExcelMadre } from '@/lib/google-sheets/import-madre'
 import { syncCandidateTags } from '@/lib/zoho/sync-candidate-tags'
-import { syncVacancyTagCounts } from '@/lib/supabase/sync-vacancy-tags'
+import { syncVacancyTagCountsLocal } from '@/lib/supabase/sync-vacancy-tags-local'
 import { syncVacancyTagCountsFromZoho } from '@/lib/zoho/sync-vacancy-tags-zoho'
 
 export const maxDuration = 60
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       api_calls: number
       errors: string[]
     } | null
-    vacancy_tag_counts: { processed: number; skipped_closed: number; upserted_rows: number; errors: string[] } | null
+    vacancy_tag_counts_local: { processed: number; skipped_closed: number; upserted_rows: number; errors: string[] } | null
     vacancy_tag_counts_zoho: {
       vacancies_processed: number
       vacancies_skipped_closed: number
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     zoho_job_openings: null,
     excel_madre: { base_datos: null, resumen: null, errors: [] },
     candidate_tags: null,
-    vacancy_tag_counts: null,
+    vacancy_tag_counts_local: null,
     vacancy_tag_counts_zoho: null,
   }
 
@@ -120,12 +120,14 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // ---- Phase 4: Vacancy tag counts (active only in weekly sync) ---------------
+  // ---- Phase 4: Vacancy tag counts — local (Supabase-only, all vacancies) -----
+  // Reads candidate_job_history_kpi + candidates_kpi.tags. No Zoho API.
+  // Closed vacancies are skipped if already computed (frozen).
   try {
-    const vtcResult = await syncVacancyTagCounts({ onlyActive: true })
-    results.vacancy_tag_counts = vtcResult
+    const vtcLocalResult = await syncVacancyTagCountsLocal()
+    results.vacancy_tag_counts_local = vtcLocalResult
   } catch (err) {
-    results.vacancy_tag_counts = {
+    results.vacancy_tag_counts_local = {
       processed: 0,
       skipped_closed: 0,
       upserted_rows: 0,
@@ -134,7 +136,7 @@ export async function GET(request: NextRequest) {
   }
 
   // ---- Phase 5: Vacancy tag counts from Zoho API (active only) ---------------
-  // Complements Phase 4 by covering candidates not yet imported from Excel.
+  // Covers candidates associated in Zoho but not yet in candidate_job_history_kpi.
   try {
     const vtcZohoResult = await syncVacancyTagCountsFromZoho({ onlyActive: true })
     results.vacancy_tag_counts_zoho = vtcZohoResult
@@ -152,7 +154,7 @@ export async function GET(request: NextRequest) {
     ...(results.zoho_job_openings?.errors ?? []),
     ...results.excel_madre.errors,
     ...(results.candidate_tags?.errors ?? []),
-    ...(results.vacancy_tag_counts?.errors ?? []),
+    ...(results.vacancy_tag_counts_local?.errors ?? []),
     ...(results.vacancy_tag_counts_zoho?.errors ?? []),
   ]
   const hasErrors = allErrors.length > 0

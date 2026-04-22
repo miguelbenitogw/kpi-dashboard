@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   BarChart,
   Bar,
@@ -32,15 +32,22 @@ function formatDate(iso: string | null): string {
 function vacancyStatusColor(status: string | null): string {
   if (!status) return 'text-gray-400'
   const s = status.toLowerCase()
-  if (
-    s === 'filled' ||
-    s === 'conseguido exitósamente' ||
-    s === 'conseguido exitosamente'
-  )
+  if (s === 'filled' || s === 'conseguido exitósamente' || s === 'conseguido exitosamente')
     return 'text-emerald-400'
   if (s === 'cancelled' || s === 'cancelado por nosotros') return 'text-red-400'
   if (s === 'inactive') return 'text-gray-400'
   return 'text-blue-400'
+}
+
+/** Aggregate tag counts from an array of vacancies */
+function aggregateTags(vacancies: ClosedVacancy[]): Record<string, number> {
+  const result: Record<string, number> = {}
+  for (const v of vacancies) {
+    for (const [tag, count] of Object.entries(v.tags)) {
+      result[tag] = (result[tag] ?? 0) + count
+    }
+  }
+  return result
 }
 
 // ---------------------------------------------------------------------------
@@ -65,16 +72,16 @@ function TagChip({ tag, count }: TagChipProps) {
 
 interface TagBreakdownProps {
   tags: Record<string, number>
-  vacancyTitle: string
+  label: string
 }
 
-function TagBreakdown({ tags, vacancyTitle }: TagBreakdownProps) {
+function TagBreakdown({ tags, label }: TagBreakdownProps) {
   const sorted = Object.entries(tags).sort(([, a], [, b]) => b - a)
 
   return (
     <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-4 mt-3">
       <p className="text-xs font-semibold text-gray-300 mb-2">
-        Etiquetas — {vacancyTitle}
+        Etiquetas — {label}
       </p>
       {sorted.length === 0 ? (
         <p className="text-xs text-gray-500">Sin etiquetas disponibles aún</p>
@@ -97,18 +104,37 @@ export default function ClosedVacanciesView() {
   const [data, setData] = useState<ClosedVacanciesData | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedYear, setSelectedYear] = useState<number | 'all'>('all')
-  const [selectedVacancy, setSelectedVacancy] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     getClosedVacanciesData().then((d) => {
       setData(d)
-      // Default to most recent year if available
       if (d.allYears.length > 0) {
         setSelectedYear(d.allYears[0])
       }
       setLoading(false)
     })
   }, [])
+
+  // When year changes, clear selection
+  const handleYearChange = useCallback((year: number | 'all') => {
+    setSelectedYear(year)
+    setSelectedIds(new Set())
+  }, [])
+
+  const toggleVacancy = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), [])
 
   if (loading) {
     return (
@@ -138,19 +164,16 @@ export default function ClosedVacanciesView() {
       ? data.allYears.flatMap((y) => data.byYear[y] ?? [])
       : (data.byYear[selectedYear] ?? [])
 
-  // Aggregated tags for the selected view
-  const tagsInView: Record<string, number> = {}
-  if (selectedYear === 'all') {
-    for (const [tag, count] of Object.entries(data.allTags)) {
-      tagsInView[tag] = count
-    }
-  } else {
-    for (const v of vacanciesInView) {
-      for (const [tag, count] of Object.entries(v.tags)) {
-        tagsInView[tag] = (tagsInView[tag] ?? 0) + count
-      }
-    }
-  }
+  // Tags to display in chart:
+  // - if any selected → aggregate of those vacancies only
+  // - otherwise → aggregate of all in view
+  const selectedVacancies = vacanciesInView.filter((v) => selectedIds.has(v.id))
+  const tagsInView =
+    selectedIds.size > 0
+      ? aggregateTags(selectedVacancies)
+      : selectedYear === 'all'
+        ? data.allTags
+        : aggregateTags(vacanciesInView)
 
   // Top 15 tags sorted descending
   const topTags = Object.entries(tagsInView)
@@ -160,20 +183,26 @@ export default function ClosedVacanciesView() {
 
   const hasTagData = topTags.some((t) => t.value > 0)
 
-  // Selected vacancy details
-  const selectedVacancyObj = selectedVacancy
-    ? vacanciesInView.find((v) => v.id === selectedVacancy) ?? null
-    : null
+  // Chart label
+  const chartLabel =
+    selectedIds.size > 0
+      ? `${selectedIds.size} vacante${selectedIds.size !== 1 ? 's' : ''} seleccionada${selectedIds.size !== 1 ? 's' : ''}`
+      : selectedYear !== 'all'
+        ? `${selectedYear}`
+        : 'todos los años'
+
+  // Tag breakdown label for selected
+  const selectedLabel =
+    selectedIds.size === 1
+      ? (selectedVacancies[0]?.title ?? '')
+      : `${selectedIds.size} vacantes`
 
   return (
     <div className="space-y-5 p-5">
       {/* Year selector */}
       <div className="flex flex-wrap items-center gap-2">
         <button
-          onClick={() => {
-            setSelectedYear('all')
-            setSelectedVacancy(null)
-          }}
+          onClick={() => handleYearChange('all')}
           className={[
             'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors',
             selectedYear === 'all'
@@ -183,19 +212,13 @@ export default function ClosedVacanciesView() {
         >
           Todos
           <span className="rounded-full bg-gray-600/50 px-1.5 text-gray-400 text-[10px]">
-            {data.allYears.reduce(
-              (sum, y) => sum + (data.byYear[y]?.length ?? 0),
-              0,
-            )}
+            {data.allYears.reduce((sum, y) => sum + (data.byYear[y]?.length ?? 0), 0)}
           </span>
         </button>
         {data.allYears.map((year) => (
           <button
             key={year}
-            onClick={() => {
-              setSelectedYear(year)
-              setSelectedVacancy(null)
-            }}
+            onClick={() => handleYearChange(year)}
             className={[
               'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors',
               selectedYear === year
@@ -213,15 +236,22 @@ export default function ClosedVacanciesView() {
 
       {/* Tag distribution chart */}
       <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
-        <h4 className="mb-4 text-xs font-semibold text-gray-300">
-          Distribución de etiquetas de candidatos
-          {selectedYear !== 'all' ? ` — ${selectedYear}` : ' — todos los años'}
-        </h4>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h4 className="text-xs font-semibold text-gray-300">
+            Distribución de etiquetas — {chartLabel}
+          </h4>
+          {selectedIds.size > 0 && (
+            <button
+              onClick={clearSelection}
+              className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors border border-indigo-500/30 rounded-full px-2 py-0.5"
+            >
+              Limpiar selección
+            </button>
+          )}
+        </div>
         {!hasTagData ? (
           <div className="flex h-32 items-center justify-center">
-            <p className="text-xs text-gray-500">
-              Sin datos de etiquetas aún
-            </p>
+            <p className="text-xs text-gray-500">Sin datos de etiquetas aún</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={200}>
@@ -271,93 +301,95 @@ export default function ClosedVacanciesView() {
 
       {/* Vacancies table */}
       <div className="rounded-xl border border-gray-700/50 bg-gray-800/50">
-        <div className="border-b border-gray-700/50 px-5 py-3">
+        <div className="border-b border-gray-700/50 px-5 py-3 flex items-center justify-between gap-3">
           <h4 className="text-xs font-semibold text-gray-300">
             Vacantes cerradas
             {selectedYear !== 'all' ? ` — ${selectedYear}` : ''}
             <span className="ml-2 text-gray-500 font-normal">
-              {vacanciesInView.length} vacante
-              {vacanciesInView.length !== 1 ? 's' : ''}
+              {vacanciesInView.length} vacante{vacanciesInView.length !== 1 ? 's' : ''}
             </span>
           </h4>
+          {selectedIds.size > 0 && (
+            <span className="text-[10px] text-indigo-300 bg-indigo-500/10 border border-indigo-500/30 rounded-full px-2 py-0.5">
+              {selectedIds.size} seleccionada{selectedIds.size !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
 
         {vacanciesInView.length === 0 ? (
           <div className="p-6 text-center">
-            <p className="text-xs text-gray-500">
-              Sin vacantes cerradas para este año
-            </p>
+            <p className="text-xs text-gray-500">Sin vacantes cerradas para este año</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-700/30">
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-400">
-                    Título
-                  </th>
-                  <th className="px-3 py-2.5 text-left font-medium text-gray-400 whitespace-nowrap">
-                    Estado
-                  </th>
-                  <th className="px-3 py-2.5 text-right font-medium text-gray-400 whitespace-nowrap">
-                    Candidatos
-                  </th>
-                  <th className="px-3 py-2.5 text-right font-medium text-gray-400 whitespace-nowrap">
-                    Contratados
-                  </th>
-                  <th className="px-4 py-2.5 text-right font-medium text-gray-400 whitespace-nowrap">
-                    Apertura
-                  </th>
+                  <th className="w-8 px-3 py-2.5" />
+                  <th className="px-4 py-2.5 text-left font-medium text-gray-400">Título</th>
+                  <th className="px-3 py-2.5 text-left font-medium text-gray-400 whitespace-nowrap">Estado</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-gray-400 whitespace-nowrap">Candidatos</th>
+                  <th className="px-3 py-2.5 text-right font-medium text-gray-400 whitespace-nowrap">Contratados</th>
+                  <th className="px-4 py-2.5 text-right font-medium text-gray-400 whitespace-nowrap">Apertura</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700/20">
-                {vacanciesInView.map((v) => (
-                  <tr
-                    key={v.id}
-                    onClick={() =>
-                      setSelectedVacancy(
-                        selectedVacancy === v.id ? null : v.id,
-                      )
-                    }
-                    className={[
-                      'cursor-pointer transition-colors',
-                      selectedVacancy === v.id
-                        ? 'bg-blue-500/10'
-                        : 'hover:bg-gray-700/20',
-                    ].join(' ')}
-                  >
-                    <td className="px-4 py-2.5">
-                      <span className="font-medium text-gray-200 leading-snug">
-                        {v.title}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span className={vacancyStatusColor(v.status)}>
-                        {v.status ?? '—'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-gray-300">
-                      {v.total_candidates}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-gray-300">
-                      {v.hired_count}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-400">
-                      {formatDate(v.date_opened)}
-                    </td>
-                  </tr>
-                ))}
+                {vacanciesInView.map((v) => {
+                  const isSelected = selectedIds.has(v.id)
+                  return (
+                    <tr
+                      key={v.id}
+                      onClick={() => toggleVacancy(v.id)}
+                      className={[
+                        'cursor-pointer transition-colors',
+                        isSelected
+                          ? 'bg-indigo-500/10 hover:bg-indigo-500/15'
+                          : 'hover:bg-gray-700/20',
+                      ].join(' ')}
+                    >
+                      <td className="px-3 py-2.5 text-center">
+                        <input
+                          type="checkbox"
+                          readOnly
+                          checked={isSelected}
+                          className="h-3.5 w-3.5 rounded border-gray-600 accent-indigo-500 cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => toggleVacancy(v.id)}
+                        />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={['font-medium leading-snug', isSelected ? 'text-indigo-200' : 'text-gray-200'].join(' ')}>
+                          {v.title}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <span className={vacancyStatusColor(v.status)}>
+                          {v.status ?? '—'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-gray-300">
+                        {v.total_candidates}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-gray-300">
+                        {v.hired_count}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-gray-400">
+                        {formatDate(v.date_opened)}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
 
-        {/* Tag breakdown for selected vacancy */}
-        {selectedVacancyObj && (
+        {/* Tag breakdown for selected vacancies */}
+        {selectedIds.size > 0 && (
           <div className="px-5 pb-5">
             <TagBreakdown
-              tags={selectedVacancyObj.tags}
-              vacancyTitle={selectedVacancyObj.title}
+              tags={aggregateTags(selectedVacancies)}
+              label={selectedLabel}
             />
           </div>
         )}

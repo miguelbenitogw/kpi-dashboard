@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import type { Candidate } from '@/lib/supabase/types'
-import type { PromoTarget } from '@/lib/supabase/types'
+import type { Promotion } from '@/lib/supabase/types'
 import { TERMINAL_STATUSES } from '@/lib/constants'
 
 // --- Types ---
@@ -45,7 +45,7 @@ export interface DropoutCandidate {
 
 export interface ConversionMetrics {
   promocion: string
-  target: PromoTarget | null
+  target: Promotion | null
   actual: {
     totalCandidates: number
     accepted: number
@@ -71,7 +71,7 @@ export interface PromoComparisonItem {
   dropoutRate: number
   conversionPct: number
   coordinador: string | null
-  target: PromoTarget | null
+  target: Promotion | null
 }
 
 // Hired-like statuses
@@ -266,9 +266,9 @@ export async function getPromoConversionMetrics(
       .select('current_status')
       .eq('promocion_nombre', promocion),
     supabase
-      .from('promo_targets_kpi')
+      .from('promotions_kpi')
       .select('*')
-      .eq('promocion', promocion)
+      .eq('nombre', promocion)
       .maybeSingle(),
   ])
 
@@ -343,9 +343,9 @@ export async function getPromoComparison(
       .select('promocion_nombre, current_status, coordinador')
       .in('promocion_nombre', promociones),
     supabase
-      .from('promo_targets_kpi')
+      .from('promotions_kpi')
       .select('*')
-      .in('promocion', promociones),
+      .in('nombre', promociones),
   ])
 
   if (candidatesResult.error) throw candidatesResult.error
@@ -354,10 +354,10 @@ export async function getPromoComparison(
   const candidates = candidatesResult.data ?? []
   const targets = targetsResult.data ?? []
 
-  // Index targets by promocion
-  const targetMap = new Map<string, PromoTarget>()
+  // Index targets by nombre
+  const targetMap = new Map<string, Promotion>()
   for (const t of targets) {
-    targetMap.set(t.promocion, t)
+    targetMap.set(t.nombre, t)
   }
 
   // Group candidates by promo
@@ -482,15 +482,15 @@ export async function getCandidateHistory(
 }
 
 /**
- * Get single promo target row
+ * Get single promotion row (replaces old promo_targets_kpi query)
  */
-export async function getPromoTargets(
+export async function getPromotions(
   promocion: string
-): Promise<PromoTarget | null> {
+): Promise<Promotion | null> {
   const { data, error } = await supabase
-    .from('promo_targets_kpi')
+    .from('promotions_kpi')
     .select('*')
-    .eq('promocion', promocion)
+    .eq('nombre', promocion)
     .maybeSingle()
 
   if (error) throw error
