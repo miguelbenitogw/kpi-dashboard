@@ -54,7 +54,7 @@ const navSections: NavSection[] = [
       { href: "/dashboard/formacion", label: "Gráficos", icon: GraduationCap },
       { href: "/dashboard/rendimiento", label: "Rendimiento", icon: TrendingUp },
       { href: "/dashboard/formacion/candidatos", label: "Candidatos", icon: UserCheck },
-      { href: "/dashboard/formacion/sheets", label: "Promos Sheets", icon: FileSpreadsheet },
+      { href: "/dashboard/formacion/sheets", label: "Edición Promos", icon: FileSpreadsheet },
     ],
   },
   {
