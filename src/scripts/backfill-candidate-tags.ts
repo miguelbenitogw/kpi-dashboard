@@ -100,7 +100,8 @@ async function main() {
   // ── Step 3: Build zohoId → tags[] map ─────────────────────────────────────
   const zohoTagMap = new Map<string, string[]>()
   for (const record of allZohoCandidates) {
-    const zohoId = String(record.id ?? '')
+    // Use Candidate_ID (short format, e.g. "87389") — matches candidates_kpi.id
+    const zohoId = String(record.Candidate_ID ?? '')
     if (!zohoId) continue
 
     const rawTags = record.Associated_Tags as
