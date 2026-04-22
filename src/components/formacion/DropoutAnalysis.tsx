@@ -317,52 +317,38 @@ export default function DropoutAnalysis({ promoNombres }: Props) {
             <h4 className="mb-3 text-xs font-medium uppercase tracking-wider text-gray-400">
               Bajas por Motivo
             </h4>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={data.byReason}
-                  layout="vertical"
-                  margin={{ left: 10, right: 20 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#374151"
-                    horizontal={false}
-                  />
-                  <XAxis
-                    type="number"
-                    tick={{ fill: '#9CA3AF', fontSize: 10 }}
-                    axisLine={{ stroke: '#374151' }}
-                    tickLine={false}
-                    allowDecimals={false}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="reason"
-                    tick={{ fill: '#D1D5DB', fontSize: 10 }}
-                    width={130}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    labelStyle={{ color: '#F3F4F6' }}
-                    formatter={((value: number) => [
-                      value.toLocaleString('es-AR'),
-                      'Bajas',
-                    ]) as any}
-                  />
-                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                    {data.byReason.map((_, i) => (
-                      <Cell
-                        key={i}
-                        fill={REASON_COLORS[i % REASON_COLORS.length]}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {(() => {
+              const maxCount = data.byReason[0]?.count ?? 1
+              return (
+                <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1">
+                  {data.byReason.map((entry, i) => {
+                    const color = REASON_COLORS[i % REASON_COLORS.length]
+                    return (
+                      <div key={entry.reason} className="flex items-center gap-3">
+                        <span className="min-w-[200px] text-xs text-gray-300 leading-snug">
+                          {entry.reason}
+                        </span>
+                        <div className="bg-gray-700/40 rounded-full h-2 flex-1">
+                          <div
+                            className="h-2 rounded-full transition-all duration-300"
+                            style={{
+                              width: `${Math.max(2, Math.round((entry.count / maxCount) * 100))}%`,
+                              backgroundColor: color,
+                            }}
+                          />
+                        </div>
+                        <span
+                          className="text-xs tabular-nums font-semibold shrink-0"
+                          style={{ color }}
+                        >
+                          {entry.count.toLocaleString('es-AR')}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
           </div>
         )}
       </div>

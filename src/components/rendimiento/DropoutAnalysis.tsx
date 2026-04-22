@@ -2,16 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts'
-import {
   getPromoDropouts,
   getPromoStudentList,
   type DropoutCandidate,
@@ -123,39 +113,44 @@ export default function DropoutAnalysis({ promocion }: DropoutAnalysisProps) {
         </div>
       </div>
 
-      {/* Bar chart */}
+      {/* Bar list */}
       {reasonDistribution.length > 0 && (
         <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-4">
           <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-gray-400">
             Distribucion de motivos
           </h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={reasonDistribution} layout="vertical" margin={{ left: 10, right: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
-              <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
-              <YAxis
-                type="category"
-                dataKey="reason"
-                tick={{ fill: '#D1D5DB', fontSize: 11 }}
-                width={140}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1F2937',
-                  border: '1px solid #374151',
-                  borderRadius: '0.5rem',
-                  fontSize: '12px',
-                }}
-                labelStyle={{ color: '#F3F4F6' }}
-                itemStyle={{ color: '#D1D5DB' }}
-              />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                {reasonDistribution.map((entry) => (
-                  <Cell key={entry.reason} fill={getReasonColor(entry.reason)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {(() => {
+            const maxCount = reasonDistribution[0]?.count ?? 1
+            return (
+              <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1">
+                {reasonDistribution.map((entry) => {
+                  const color = getReasonColor(entry.reason)
+                  return (
+                    <div key={entry.reason} className="flex items-center gap-3">
+                      <span className="min-w-[200px] text-xs text-gray-300 leading-snug">
+                        {entry.reason}
+                      </span>
+                      <div className="bg-gray-700/40 rounded-full h-2 flex-1">
+                        <div
+                          className="h-2 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${Math.max(2, Math.round((entry.count / maxCount) * 100))}%`,
+                            backgroundColor: color,
+                          }}
+                        />
+                      </div>
+                      <span
+                        className="text-xs tabular-nums font-semibold shrink-0"
+                        style={{ color }}
+                      >
+                        {entry.count}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
         </div>
       )}
 
