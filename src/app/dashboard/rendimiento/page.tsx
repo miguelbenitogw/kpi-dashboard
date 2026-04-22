@@ -1,18 +1,176 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Search, ChevronDown, X } from 'lucide-react'
+import { Search, ChevronDown, X, Loader2 } from 'lucide-react'
 import PerformanceDetail from '@/components/rendimiento/PerformanceDetail'
 import PromoComparisonView from '@/components/rendimiento/PromoComparisonView'
-import { getPerformancePromos, type PromoSummaryCard } from '@/lib/queries/performance'
+import {
+  getPerformancePromos,
+  getPromoStudentList,
+  type PromoSummaryCard,
+  type StudentListResult,
+} from '@/lib/queries/performance'
+import type { Candidate } from '@/lib/supabase/types'
 
 type ViewMode = 'detail' | 'compare'
+type ActiveTab = 'rendimiento' | 'estudiantes'
+
+// ---------------------------------------------------------------------------
+// Status dot colour map (same palette as CandidatosFormacionView)
+// ---------------------------------------------------------------------------
+const STATUS_COLORS: Record<string, string> = {
+  'In Training': '#3b82f6',
+  'Hired': '#22c55e',
+  'Offer-Withdrawn': '#ef4444',
+  'Expelled': '#ef4444',
+  'Stand-by': '#eab308',
+  'Transferred': '#a855f7',
+  'To Place': '#f97316',
+  'Assigned': '#06b6d4',
+  'Training Finished': '#6366f1',
+}
+
+function statusDotColor(status: string | null): string {
+  if (!status) return '#6b7280'
+  return STATUS_COLORS[status] ?? '#6b7280'
+}
+
+// ---------------------------------------------------------------------------
+// Estudiantes tab inner component
+// ---------------------------------------------------------------------------
+function EstudiantesTab({ promocion }: { promocion: string | null }) {
+  const [result, setResult] = useState<StudentListResult | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const PER_PAGE = 50
+
+  useEffect(() => {
+    if (!promocion) {
+      setResult(null)
+      setPage(1)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    getPromoStudentList(promocion, { page, perPage: PER_PAGE })
+      .then((data) => {
+        if (!cancelled) setResult(data)
+      })
+      .catch(console.error)
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [promocion, page])
+
+  // Reset page when promo changes
+  useEffect(() => { setPage(1) }, [promocion])
+
+  if (!promocion) {
+    return (
+      <div className="flex h-48 items-center justify-center rounded-xl border border-gray-700/50 bg-gray-800/50">
+        <p className="text-sm text-gray-500">Selecciona una promoción para ver sus estudiantes</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Table card */}
+      <div className="rounded-xl border border-gray-700/60 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead>
+              <tr className="border-b border-gray-700/60 bg-gray-800/60">
+                <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  Nombre
+                </th>
+                <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  Estado
+                </th>
+                <th className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                  Coordinador
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-700/40">
+              {loading ? (
+                <tr>
+                  <td colSpan={3} className="px-4 py-8 text-center">
+                    <div className="flex items-center justify-center gap-2 text-gray-400">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Cargando estudiantes…</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : !result || result.data.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-500 italic">
+                    Sin estudiantes para esta promoción
+                  </td>
+                </tr>
+              ) : (
+                result.data.map((candidate: Candidate) => (
+                  <tr key={candidate.id} className="hover:bg-gray-800/50 transition-colors">
+                    <td className="px-4 py-3 text-gray-200 font-medium">
+                      {candidate.full_name ?? '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2 w-2 rounded-full shrink-0"
+                          style={{ backgroundColor: statusDotColor(candidate.current_status) }}
+                        />
+                        <span className="text-gray-300 text-xs whitespace-nowrap">
+                          {candidate.current_status ?? '—'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
+                      {candidate.coordinador ?? '—'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination */}
+      {result && result.totalPages > 1 && (
+        <div className="flex items-center justify-between px-1">
+          <span className="text-xs text-gray-500">
+            {result.total} estudiantes · página {result.page} de {result.totalPages}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+              className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 transition hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              disabled={page >= result.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              className="rounded-md border border-gray-700 bg-gray-800 px-3 py-1.5 text-xs text-gray-300 transition hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function RendimientoPage() {
   const [promos, setPromos] = useState<PromoSummaryCard[]>([])
   const [selectedPromo, setSelectedPromo] = useState<string | null>(null)
   const [checkedPromos, setCheckedPromos] = useState<Set<string>>(new Set())
   const [viewMode, setViewMode] = useState<ViewMode>('detail')
+  const [activeTab, setActiveTab] = useState<ActiveTab>('rendimiento')
   const [loading, setLoading] = useState(true)
 
   // Select dropdown state
@@ -226,8 +384,36 @@ export default function RendimientoPage() {
         )}
       </div>
 
+      {/* Tab navigation */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('rendimiento')}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+            activeTab === 'rendimiento'
+              ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+              : 'border border-gray-600/50 bg-gray-700/40 text-gray-400 hover:bg-gray-700'
+          }`}
+        >
+          Rendimiento
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('estudiantes')}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+            activeTab === 'estudiantes'
+              ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+              : 'border border-gray-600/50 bg-gray-700/40 text-gray-400 hover:bg-gray-700'
+          }`}
+        >
+          Estudiantes
+        </button>
+      </div>
+
       {/* Content area — full width */}
-      {promos.length === 0 ? (
+      {activeTab === 'estudiantes' ? (
+        <EstudiantesTab promocion={selectedPromo} />
+      ) : promos.length === 0 ? (
         <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-12 text-center">
           <p className="text-lg font-medium text-gray-400">No hay promos con datos</p>
           <p className="mt-1 text-sm text-gray-500">
