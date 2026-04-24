@@ -8,6 +8,7 @@ import {
   type ClosedVacancy,
 } from '@/lib/queries/atraccion'
 import { tagChipStyle, tagColor, TAG_LEGEND } from '@/lib/utils/tags'
+import TagPrefixCharts from '@/components/etiquetas/TagPrefixCharts'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -272,6 +273,21 @@ export default function ClosedVacanciesView() {
           </button>
         ))}
       </div>
+
+      {/* FR / CP / GW breakdown charts */}
+      {hasTagData && (() => {
+        const prefixTagList = Object.entries(tagsInView).map(([tag, count]) => ({ tag, count }))
+        return (
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <h4 className="text-xs font-semibold text-gray-300">
+                Análisis de canales de captación — {chartLabel}
+              </h4>
+            </div>
+            <TagPrefixCharts allTags={prefixTagList} />
+          </div>
+        )
+      })()}
 
       {/* Tag distribution — clickable bar list with filter */}
       <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
