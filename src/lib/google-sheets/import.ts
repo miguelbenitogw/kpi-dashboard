@@ -63,6 +63,12 @@ const DROPOUT_COLUMN_MAP: Record<string, string[]> = {
   dropout_date: ['dropout date', 'fecha de baja', 'fecha baja'],
   dropout_reason: ['reason for dropout', 'dropout reason', 'razón de baja', 'motivo de baja'],
   dropout_notes: ['motivos que dan', 'observaciones baja'],
+  dropout_language_level: [
+    'level of language they was in',
+    'level of language they had',
+    'level of language',
+    'nivel de idioma',
+  ],
 }
 
 /**
@@ -119,6 +125,7 @@ export interface StudentRecord {
   dropout_reason: string | null
   dropout_date: string | null
   dropout_notes: string | null
+  dropout_language_level: string | null
   notes: string | null
   raw_data: SheetRow
   tab_name: string
@@ -171,6 +178,7 @@ function rowToStudentRecord(
     dropout_reason: null,
     dropout_date: null,
     dropout_notes: null,
+    dropout_language_level: null,
     notes: null,
   }
 
@@ -468,6 +476,7 @@ export async function importPromoSheet(
         dropout_reason: student.dropout_reason,
         dropout_date: student.dropout_date,
         dropout_notes: student.dropout_notes,
+        dropout_language_level: student.dropout_language_level,
         notes: student.notes,
         zoho_candidate_id: zohoMatch.zoho_candidate_id || null,
         zoho_status: zohoMatch.zoho_status,
@@ -525,7 +534,7 @@ async function syncDropoutsToCandidates(
   // Get all dropout rows from promo_students that have a Zoho match
   const { data: dropoutStudents, error } = await (supabaseAdmin
     .from('promo_students_kpi') as any)
-    .select('zoho_candidate_id, email, full_name, dropout_reason, dropout_date, dropout_notes, sheet_status, start_date, dropout_modality, dropout_days_of_training')
+    .select('zoho_candidate_id, email, full_name, dropout_reason, dropout_date, dropout_notes, dropout_language_level, sheet_status, start_date, dropout_modality, dropout_days_of_training')
     .eq('promo_sheet_id', promoSheetId)
     .eq('tab_name', 'Dropouts')
 
@@ -542,6 +551,7 @@ async function syncDropoutsToCandidates(
       dropout_reason: student.dropout_reason,
       dropout_date: student.dropout_date,
       dropout_notes: student.dropout_notes,
+      dropout_language_level: student.dropout_language_level ?? null,
       dropout_start_date: student.start_date ?? null,
       dropout_modality: student.dropout_modality ?? null,
       dropout_days_of_training: student.dropout_days_of_training ?? null,
@@ -778,6 +788,7 @@ export async function importDropoutsTab(
       dropout_reason: student.dropout_reason,
       dropout_date: student.dropout_date,
       dropout_notes: student.dropout_notes,
+      dropout_language_level: student.dropout_language_level,
       notes: student.notes,
       zoho_candidate_id: zohoMatch.zoho_candidate_id || null,
       zoho_status: zohoMatch.zoho_status,

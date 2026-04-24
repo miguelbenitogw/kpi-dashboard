@@ -41,11 +41,12 @@ export async function GET(request: NextRequest) {
 
   const results: {
     zoho_job_openings: { synced: number; api_calls: number; errors: string[] } | null
-    excel_madre: {
+    excel_madre: Array<{
+      label: string
       base_datos: { updated: number; inserted: number; skipped: number } | null
       resumen: { upserted: number; skipped: number } | null
       errors: string[]
-    }
+    }>
     candidate_tags: {
       total_fetched: number
       updated: number
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
     } | null
   } = {
     zoho_job_openings: null,
-    excel_madre: { base_datos: null, resumen: null, errors: [] },
+    excel_madre: [],
     candidate_tags: null,
     vacancy_tag_counts_local: null,
     vacancy_tag_counts_zoho: null,
@@ -85,25 +86,37 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // ---- Phase 2: Excel madre -----------------------------------------------
-  try {
-    const madreResult = await importExcelMadre()
-    results.excel_madre = {
-      base_datos: {
-        updated: madreResult.baseDatos.updated,
-        inserted: madreResult.baseDatos.inserted,
-        skipped: madreResult.baseDatos.skipped,
-      },
-      resumen: {
-        upserted: madreResult.resumen.upserted,
-        skipped: madreResult.resumen.skipped,
-      },
-      errors: madreResult.errors,
+  // ---- Phase 2: Excel madre (all active sheets) ---------------------------
+  const { data: madreSheets } = await supabaseAdmin
+    .from('madre_sheets_kpi' as any)
+    .select('sheet_id, label')
+    .eq('is_active', true)
+    .order('year', { ascending: true })
+
+  for (const madre of (madreSheets as Array<{ sheet_id: string; label: string }> | null) ?? []) {
+    try {
+      const madreResult = await importExcelMadre(madre.sheet_id)
+      results.excel_madre.push({
+        label: madre.label,
+        base_datos: {
+          updated: madreResult.baseDatos.updated,
+          inserted: madreResult.baseDatos.inserted,
+          skipped: madreResult.baseDatos.skipped,
+        },
+        resumen: {
+          upserted: madreResult.resumen.upserted,
+          skipped: madreResult.resumen.skipped,
+        },
+        errors: madreResult.errors,
+      })
+    } catch (err) {
+      results.excel_madre.push({
+        label: madre.label,
+        base_datos: null,
+        resumen: null,
+        errors: [`Fatal: ${err instanceof Error ? err.message : String(err)}`],
+      })
     }
-  } catch (err) {
-    results.excel_madre.errors.push(
-      `Fatal: ${err instanceof Error ? err.message : String(err)}`
-    )
   }
 
   // ---- Phase 3: Candidate tags from Zoho ------------------------------------
@@ -152,7 +165,7 @@ export async function GET(request: NextRequest) {
 
   const allErrors = [
     ...(results.zoho_job_openings?.errors ?? []),
-    ...results.excel_madre.errors,
+    ...results.excel_madre.flatMap((m) => m.errors),
     ...(results.candidate_tags?.errors ?? []),
     ...(results.vacancy_tag_counts_local?.errors ?? []),
     ...(results.vacancy_tag_counts_zoho?.errors ?? []),
@@ -160,8 +173,7 @@ export async function GET(request: NextRequest) {
   const hasErrors = allErrors.length > 0
   const totalRecords =
     (results.zoho_job_openings?.synced ?? 0) +
-    (results.excel_madre.base_datos?.updated ?? 0) +
-    (results.excel_madre.base_datos?.inserted ?? 0)
+    results.excel_madre.reduce((sum, m) => sum + (m.base_datos?.updated ?? 0) + (m.base_datos?.inserted ?? 0), 0)
 
   if (logId) {
     await supabaseAdmin

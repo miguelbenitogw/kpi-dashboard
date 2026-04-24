@@ -55,27 +55,39 @@ export function extractSheetId(url: string): string {
  *      {\"type\":\"service_account\",...}
  */
 function parseServiceAccountJson(raw: string): Record<string, string> {
+  let parsed: Record<string, string> | null = null
+
   try {
-    const parsed = JSON.parse(raw)
-    if (parsed && typeof parsed === 'object') {
-      return parsed as Record<string, string>
-    }
-    if (typeof parsed === 'string') {
-      return JSON.parse(parsed) as Record<string, string>
+    const p = JSON.parse(raw)
+    if (p && typeof p === 'object') {
+      parsed = p as Record<string, string>
+    } else if (typeof p === 'string') {
+      parsed = JSON.parse(p) as Record<string, string>
     }
   } catch {
     // Fall through — try backslash-escaped form below.
   }
 
-  // Backslash-escaped .env form: \" quotes instead of ", and literal
-  // backslash+newline instead of \n escape (line-continuation pitfall).
-  // Order matters: line-continuations → \n literal first, then unescape \" → "
-  // last so we don't eat real escaped quotes.
-  const normalized = raw
-    .replace(/\\\r\n/g, '\\n')
-    .replace(/\\\n/g, '\\n')
-    .replace(/\\"/g, '"')
-  return JSON.parse(normalized) as Record<string, string>
+  if (!parsed) {
+    // Backslash-escaped .env form: \" quotes instead of ", and literal
+    // backslash+newline instead of \n escape (line-continuation pitfall).
+    // Order matters: line-continuations → \n literal first, then unescape \" → "
+    // last so we don't eat real escaped quotes.
+    const normalized = raw
+      .replace(/\\\r\n/g, '\\n')
+      .replace(/\\\n/g, '\\n')
+      .replace(/\\"/g, '"')
+    parsed = JSON.parse(normalized) as Record<string, string>
+  }
+
+  // Fix OpenSSL 3.x issue: private_key must contain real newline chars, not
+  // the two-character sequence backslash-n.  Some .env loaders (dotenv, manual)
+  // leave the key with literal \n after JSON.parse.
+  if (parsed.private_key && typeof parsed.private_key === 'string') {
+    parsed.private_key = parsed.private_key.replace(/\\n/g, '\n')
+  }
+
+  return parsed
 }
 
 function getSheetsClient() {

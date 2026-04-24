@@ -33,7 +33,6 @@
 
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { readSheetAsRows } from './client'
-import { MADRE_SHEET_ID } from './import-madre'
 
 // ---------------------------------------------------------------------------
 // Sheet constants
@@ -147,7 +146,7 @@ export interface CursoDesarrolloResult {
  *
  * Continuation rows (blank Promoción) inherit the last seen Promoción/Coordinador.
  */
-export async function importCursoDesarrollo(): Promise<CursoDesarrolloResult> {
+export async function importCursoDesarrollo(sheetId: string): Promise<CursoDesarrolloResult> {
   const result: CursoDesarrolloResult = {
     inserted: 0,
     deleted: 0,
@@ -156,7 +155,7 @@ export async function importCursoDesarrollo(): Promise<CursoDesarrolloResult> {
 
   // The tab has a blank title row as row 1 — real headers are in row 2.
   const { headers, rows } = await readSheetAsRows(
-    MADRE_SHEET_ID,
+    sheetId,
     parseInt(CURSO_DESARROLLO_GID, 10),
     { headerRow: 2 },
   )

@@ -41,6 +41,17 @@ export interface DropoutCandidate {
   dropout_language_level: string | null
   transferred_to: string | null
   dropout_notes: string | null
+  dropout_days_of_training: number | null
+  dropout_modality: string | null
+}
+
+export interface DropoutAggregate {
+  promocion_nombre: string
+  sheet_status: string
+  dropout_reason: string | null
+  dropout_language_level: string | null
+  dropout_days_of_training: number | null
+  dropout_modality: string | null
 }
 
 export interface ConversionMetrics {
@@ -245,7 +256,7 @@ export async function getPromoDropouts(
   const { data, error } = await supabase
     .from('promo_students_kpi')
     .select(
-      'id, full_name, sheet_status, dropout_date, dropout_reason, dropout_attendance_pct, dropout_language_level, transferred_to, dropout_notes'
+      'id, full_name, sheet_status, dropout_date, dropout_reason, dropout_attendance_pct, dropout_language_level, transferred_to, dropout_notes, dropout_days_of_training, dropout_modality'
     )
     .eq('promocion_nombre', promocion)
     .eq('tab_name', 'Dropouts')
@@ -264,7 +275,27 @@ export async function getPromoDropouts(
     dropout_language_level: r.dropout_language_level,
     transferred_to: r.transferred_to,
     dropout_notes: r.dropout_notes,
+    dropout_days_of_training: r.dropout_days_of_training,
+    dropout_modality: r.dropout_modality,
   })) as DropoutCandidate[]
+}
+
+/**
+ * Get all dropout records across all promos for global analytics.
+ * Returns slim aggregate shape — no 1000-row issue (~172 rows total).
+ */
+export async function getAllDropouts(): Promise<DropoutAggregate[]> {
+  const { data, error } = await supabase
+    .from('promo_students_kpi')
+    .select(
+      'promocion_nombre, sheet_status, dropout_reason, dropout_language_level, dropout_days_of_training, dropout_modality'
+    )
+    .eq('tab_name', 'Dropouts')
+    .order('promocion_nombre', { ascending: true })
+    .order('sheet_status', { ascending: true })
+
+  if (error) throw error
+  return (data ?? []) as DropoutAggregate[]
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   X,
   Archive,
   FileSpreadsheet,
+  Settings2,
 } from "lucide-react";
 import SyncStatus from "./SyncStatus";
 
@@ -61,6 +62,12 @@ const navSections: NavSection[] = [
     title: "Costes / Margen",
     items: [
       { href: "/dashboard/costes", label: "Costes", icon: Wallet },
+    ],
+  },
+  {
+    title: "Sistema",
+    items: [
+      { href: "/dashboard/configuracion", label: "Configuración", icon: Settings2 },
     ],
   },
   {

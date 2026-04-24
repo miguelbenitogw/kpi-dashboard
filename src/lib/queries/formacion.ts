@@ -3,13 +3,18 @@ import { supabase } from '@/lib/supabase/client'
 const FORMATION_STATES = [
   'Hired',
   'In Training',
-  'Offer-Withdrawn',
+  'Offer Withdrawn',
+  'Offer Declined',
   'Expelled',
   'Transferred',
   'To Place',
   'Assigned',
   'Stand-by',
   'Training Finished',
+  'No Show',
+  'Next Project',
+  'Approved by client',
+  'Rejected by client',
 ] as const
 
 // Statuses that mean the candidate is still active in the program

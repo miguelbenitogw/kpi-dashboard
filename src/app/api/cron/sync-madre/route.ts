@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { importExcelMadre } from '@/lib/google-sheets/import-madre'
 import { importPromoSheet } from '@/lib/google-sheets/import'
-import { importGlobalPlacement } from '@/lib/google-sheets/import-global-placement'
 
 export const maxDuration = 60
 
@@ -27,17 +26,12 @@ export async function GET(request: NextRequest) {
   const TIMEOUT_MS = 50_000
 
   const results: {
-    excel_madre: {
+    excel_madre: Array<{
+      label: string
       base_datos: { updated: number; inserted: number; skipped: number } | null
       resumen: { upserted: number; skipped: number } | null
       errors: string[]
-    }
-    global_placement: {
-      updated: number
-      skipped: number
-      not_matched: number
-      errors: string[]
-    }
+    }>
     promo_sheets: Array<{
       sheet_name: string | null
       status: 'success' | 'error' | 'skipped'
@@ -45,47 +39,40 @@ export async function GET(request: NextRequest) {
       error?: string
     }>
   } = {
-    excel_madre: { base_datos: null, resumen: null, errors: [] },
-    global_placement: { updated: 0, skipped: 0, not_matched: 0, errors: [] },
+    excel_madre: [],
     promo_sheets: [],
   }
 
-  // ---- Phase 1: Excel madre import ----------------------------------------
-  try {
-    const madreResult = await importExcelMadre()
+  // ---- Phase 1: Excel madre import (all active sheets) --------------------
+  const { data: madreSheets } = await supabaseAdmin
+    .from('madre_sheets_kpi' as any)
+    .select('sheet_id, label')
+    .eq('is_active', true)
+    .order('year', { ascending: true })
 
-    results.excel_madre = {
-      base_datos: {
-        updated: madreResult.baseDatos.updated,
-        inserted: madreResult.baseDatos.inserted,
-        skipped: madreResult.baseDatos.skipped,
-      },
-      resumen: {
-        upserted: madreResult.resumen.upserted,
-        skipped: madreResult.resumen.skipped,
-      },
-      errors: madreResult.errors,
+  for (const madre of (madreSheets as Array<{ sheet_id: string; label: string }> | null) ?? []) {
+    try {
+      const madreResult = await importExcelMadre(madre.sheet_id)
+      results.excel_madre.push({
+        label: madre.label,
+        base_datos: {
+          updated: madreResult.baseDatos.updated,
+          inserted: madreResult.baseDatos.inserted,
+          skipped: madreResult.baseDatos.skipped,
+        },
+        resumen: {
+          upserted: madreResult.resumen.upserted,
+          skipped: madreResult.resumen.skipped,
+        },
+        errors: madreResult.errors,
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      results.excel_madre.push({ label: madre.label, base_datos: null, resumen: null, errors: [`Fatal: ${msg}`] })
     }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    results.excel_madre.errors.push(`Fatal: ${msg}`)
   }
 
-  // ---- Phase 2: Global Placement tab import --------------------------------
-  try {
-    const gpResult = await importGlobalPlacement()
-    results.global_placement = {
-      updated: gpResult.updated,
-      skipped: gpResult.skipped,
-      not_matched: gpResult.notMatched,
-      errors: gpResult.errors,
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    results.global_placement.errors.push(`Fatal: ${msg}`)
-  }
-
-  // ---- Phase 3: Re-sync all registered promo sheets -----------------------
+  // ---- Phase 2: Re-sync all registered promo sheets -----------------------
   const { data: sheets, error: sheetsError } = await (supabaseAdmin
     .from('promo_sheets_kpi') as any)
     .select('id, sheet_url, sheet_name, promocion_nombre, sync_status, group_filter')
@@ -154,8 +141,7 @@ export async function GET(request: NextRequest) {
   }
 
   const hasErrors =
-    results.excel_madre.errors.length > 0 ||
-    results.global_placement.errors.length > 0 ||
+    results.excel_madre.some((m) => m.errors.length > 0) ||
     results.promo_sheets.some((r) => r.status === 'error')
 
   return NextResponse.json(

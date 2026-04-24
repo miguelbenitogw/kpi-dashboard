@@ -21,13 +21,18 @@ import {
 const STATE_COLORS: Record<string, string> = {
   'Hired': '#10B981',
   'In Training': '#3B82F6',
-  'Offer-Withdrawn': '#F59E0B',
+  'Offer Withdrawn': '#F59E0B',
+  'Offer Declined': '#FB923C',
   'Expelled': '#EF4444',
   'Transferred': '#8B5CF6',
   'To Place': '#06B6D4',
   'Assigned': '#22C55E',
   'Stand-by': '#6B7280',
   'Training Finished': '#14B8A6',
+  'No Show': '#DC2626',
+  'Next Project': '#A78BFA',
+  'Approved by client': '#34D399',
+  'Rejected by client': '#F87171',
 }
 
 function getStateColor(status: string): string {

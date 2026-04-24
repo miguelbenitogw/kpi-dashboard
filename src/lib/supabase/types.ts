@@ -858,6 +858,7 @@ export type Database = {
           created_at: string | null
           dropout_date: string | null
           dropout_days_of_training: number | null
+          dropout_language_level: string | null
           dropout_modality: string | null
           dropout_notes: string | null
           dropout_reason: string | null
@@ -892,6 +893,7 @@ export type Database = {
           created_at?: string | null
           dropout_date?: string | null
           dropout_days_of_training?: number | null
+          dropout_language_level?: string | null
           dropout_modality?: string | null
           dropout_notes?: string | null
           dropout_reason?: string | null
@@ -926,6 +928,7 @@ export type Database = {
           created_at?: string | null
           dropout_date?: string | null
           dropout_days_of_training?: number | null
+          dropout_language_level?: string | null
           dropout_modality?: string | null
           dropout_notes?: string | null
           dropout_reason?: string | null

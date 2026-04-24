@@ -1,5 +1,6 @@
 'use server'
 
+import { supabaseAdmin } from '@/lib/supabase/server'
 import { importExcelMadre } from '@/lib/google-sheets/import-madre'
 
 // ── Refresh GP data ───────────────────────────────────────────────────────────
@@ -16,15 +17,37 @@ export interface RefreshGPResult {
 
 export async function refreshGlobalPlacement(): Promise<RefreshGPResult> {
   try {
-    const result = await importExcelMadre()
+    const { data: madreSheets } = await supabaseAdmin
+      .from('madre_sheets_kpi' as any)
+      .select('sheet_id, label')
+      .eq('is_active', true)
+      .order('year', { ascending: true })
+
+    let madreUpdated = 0
+    let madreInserted = 0
+    let gpUpdated = 0
+    let gpSkipped = 0
+    let gpNotMatched = 0
+    const errors: string[] = []
+
+    for (const madre of (madreSheets as Array<{ sheet_id: string; label: string }> | null) ?? []) {
+      const result = await importExcelMadre(madre.sheet_id)
+      madreUpdated += result.baseDatos.updated
+      madreInserted += result.baseDatos.inserted
+      gpUpdated += result.globalPlacement.updated
+      gpSkipped += result.globalPlacement.skipped
+      gpNotMatched += result.globalPlacement.notMatched
+      errors.push(...result.errors)
+    }
+
     return {
-      success: result.errors.length === 0,
-      madreUpdated: result.baseDatos.updated,
-      madreInserted: result.baseDatos.inserted,
-      gpUpdated: result.globalPlacement.updated,
-      gpSkipped: result.globalPlacement.skipped,
-      gpNotMatched: result.globalPlacement.notMatched,
-      errors: result.errors.slice(0, 3),
+      success: errors.length === 0,
+      madreUpdated,
+      madreInserted,
+      gpUpdated,
+      gpSkipped,
+      gpNotMatched,
+      errors: errors.slice(0, 3),
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

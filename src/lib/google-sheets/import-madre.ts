@@ -41,7 +41,6 @@ function normalizePromoName(name: string): string {
 // Sheet constants
 // ---------------------------------------------------------------------------
 
-export const MADRE_SHEET_ID = '1XLawLxIbwfBOHwEejR1ksOl0v2gyolHtuqLs0aF1Ujo'
 export const BASE_DATOS_GID = '1510708848'
 export const RESUMEN_GID = '562297340'
 
@@ -49,8 +48,8 @@ export const RESUMEN_GID = '562297340'
 // Tab fetching via service account
 // ---------------------------------------------------------------------------
 
-async function fetchMadreTab(gid: string): Promise<{ headers: string[]; rows: SheetRow[] }> {
-  return readSheetAsRows(MADRE_SHEET_ID, parseInt(gid, 10))
+async function fetchMadreTab(sheetId: string, gid: string): Promise<{ headers: string[]; rows: SheetRow[] }> {
+  return readSheetAsRows(sheetId, parseInt(gid, 10))
 }
 
 // ---------------------------------------------------------------------------
@@ -143,7 +142,7 @@ export interface BaseDatosResult {
  *   - UPDATE matched candidates with enrichment data
  *   - If no match: INSERT a new candidate with the Excel data
  */
-export async function importBaseDatos(): Promise<BaseDatosResult> {
+export async function importBaseDatos(sheetId: string): Promise<BaseDatosResult> {
   const result: BaseDatosResult = {
     updated: 0,
     inserted: 0,
@@ -151,7 +150,7 @@ export async function importBaseDatos(): Promise<BaseDatosResult> {
     errors: [],
   }
 
-  const { headers, rows } = await fetchMadreTab(BASE_DATOS_GID)
+  const { headers, rows } = await fetchMadreTab(sheetId, BASE_DATOS_GID)
 
   if (headers.length === 0 || rows.length === 0) {
     result.errors.push('Base Datos tab returned no data')
@@ -269,15 +268,55 @@ const RESUMEN_COLUMN_MAP: Record<string, string[]> = {
   cliente: ['cliente'],
   fecha_inicio: ['fecha inicio', 'fecha de inicio', 'inicio'],
   fecha_fin: ['fecha fin', 'fecha de fin', 'fin'],
-  objetivo_atraccion: ['objetivo atraccion', 'objetivo atracción', 'obj. atraccion', 'obj. atracción'],
-  total_aceptados: ['total aceptados', 'aceptados'],
-  pct_consecucion_atraccion: ['% consecucion atraccion', '% consecución atracción', 'consecucion atraccion', 'consecución atracción'],
-  objetivo_programa: ['objetivo programa', 'obj. programa'],
-  total_programa: ['total programa'],
-  pct_consecucion_programa: ['% consecucion programa', '% consecución programa', 'consecucion programa', 'consecución programa'],
-  expectativa_finalizan: ['expectativa finalizan', 'exp. finalizan'],
-  pct_exito_estimado: ['% exito estimado', '% éxito estimado', 'exito estimado', 'éxito estimado'],
-  contratos_firmados: ['contratos firmados', 'contratos'],
+  objetivo_atraccion: [
+    'objetivo atraccion', 'objetivo atracción', 'obj. atraccion', 'obj. atracción',
+    // 2026 verbose header
+    'objetivo de personas que tienen que ser aceptadas',
+  ],
+  total_aceptados: [
+    'total aceptados', 'aceptados',
+    // 2026 verbose header
+    'total de personas que son aceptadas en el proceso de selección',
+    'total de personas que son aceptadas',
+  ],
+  pct_consecucion_atraccion: [
+    '% consecucion atraccion', '% consecución atracción', 'consecucion atraccion', 'consecución atracción',
+    // 2026 verbose header
+    'porcentaje de consecución del objetivo de personas aceptadas',
+    'porcentaje de consecucion del objetivo de personas aceptadas',
+  ],
+  objetivo_programa: [
+    'objetivo programa', 'obj. programa',
+    // 2026 verbose header
+    'objetivo de personas que comienzan el programa',
+  ],
+  total_programa: [
+    'total programa',
+    // 2026 verbose header
+    'total de personas que comienzan el programa',
+  ],
+  pct_consecucion_programa: [
+    '% consecucion programa', '% consecución programa', 'consecucion programa', 'consecución programa',
+    // 2026 verbose header
+    'porcentaje de consecución del objetivo de personas comienzan programa',
+    'porcentaje de consecucion del objetivo de personas comienzan programa',
+  ],
+  expectativa_finalizan: [
+    'expectativa finalizan', 'exp. finalizan',
+    // 2026 verbose header
+    'expectativa personas que finalizan',
+  ],
+  pct_exito_estimado: [
+    '% exito estimado', '% éxito estimado', 'exito estimado', 'éxito estimado',
+    // 2026 verbose header
+    'estimación del porcentaje de éxito', 'estimacion del porcentaje de exito',
+    'estimación de porcentaje de éxito',
+  ],
+  contratos_firmados: [
+    'contratos firmados', 'contratos',
+    // 2026 verbose header
+    'total personas firman contrato',
+  ],
 }
 
 function mapResumenHeader(header: string): string | null {
@@ -302,14 +341,25 @@ export interface ResumenResult {
  *
  * Skips rows without a "Promocion" value (totals/summary rows).
  */
-export async function importResumen(): Promise<ResumenResult> {
+export async function importResumen(sheetId: string): Promise<ResumenResult> {
   const result: ResumenResult = {
     upserted: 0,
     skipped: 0,
     errors: [],
   }
 
-  const { headers, rows } = await fetchMadreTab(RESUMEN_GID)
+  // Try headerRow=2 first (2026 sheet has a two-row header: section titles on row 1,
+  // actual column names on row 2).  Fall back to row 1 if row 2 doesn't yield a
+  // recognizable "Promoción" column.
+  let { headers, rows } = await readSheetAsRows(sheetId, parseInt(RESUMEN_GID, 10), { headerRow: 2 })
+  const hasPromocionInRow2 = headers.some((h) => {
+    const l = h.toLowerCase().trim()
+    return l === 'promocion' || l === 'promoción'
+  })
+  if (!hasPromocionInRow2) {
+    // Fall back to single-row header
+    ;({ headers, rows } = await readSheetAsRows(sheetId, parseInt(RESUMEN_GID, 10), { headerRow: 1 }))
+  }
 
   if (headers.length === 0 || rows.length === 0) {
     result.errors.push('Resumen tab returned no data')
@@ -468,7 +518,7 @@ async function createPromotionsFromCandidates(): Promise<PromotionsCreateResult>
  *   6. Curso Desarrollo — import training session attendance
  *   7. Sync promotion counts from candidates (including new state counts)
  */
-export async function importExcelMadre(): Promise<ExcelMadreResult> {
+export async function importExcelMadre(sheetId: string): Promise<ExcelMadreResult> {
   const errors: string[] = []
 
   let baseDatos: BaseDatosResult = { updated: 0, inserted: 0, skipped: 0, errors: [] }
@@ -481,7 +531,7 @@ export async function importExcelMadre(): Promise<ExcelMadreResult> {
 
   // Step 1: Base Datos
   try {
-    baseDatos = await importBaseDatos()
+    baseDatos = await importBaseDatos(sheetId)
     if (baseDatos.errors.length > 0) {
       errors.push(...baseDatos.errors.map((e) => `[BaseDatos] ${e}`))
     }
@@ -492,7 +542,7 @@ export async function importExcelMadre(): Promise<ExcelMadreResult> {
 
   // Step 2: Resumen
   try {
-    resumen = await importResumen()
+    resumen = await importResumen(sheetId)
     if (resumen.errors.length > 0) {
       errors.push(...resumen.errors.map((e) => `[Resumen] ${e}`))
     }
@@ -514,7 +564,7 @@ export async function importExcelMadre(): Promise<ExcelMadreResult> {
 
   // Step 4: Global Placement
   try {
-    globalPlacement = await importGlobalPlacement()
+    globalPlacement = await importGlobalPlacement(sheetId)
     if (globalPlacement.errors.length > 0) {
       errors.push(...globalPlacement.errors.map((e) => `[GlobalPlacement] ${e}`))
     }
@@ -525,7 +575,7 @@ export async function importExcelMadre(): Promise<ExcelMadreResult> {
 
   // Step 5: Pagos
   try {
-    pagos = await importPagos()
+    pagos = await importPagos(sheetId)
     if (pagos.errors.length > 0) {
       errors.push(...pagos.errors.map((e) => `[Pagos] ${e}`))
     }
@@ -536,7 +586,7 @@ export async function importExcelMadre(): Promise<ExcelMadreResult> {
 
   // Step 6: Curso Desarrollo
   try {
-    cursoDesarrollo = await importCursoDesarrollo()
+    cursoDesarrollo = await importCursoDesarrollo(sheetId)
     if (cursoDesarrollo.errors.length > 0) {
       errors.push(...cursoDesarrollo.errors.map((e) => `[CursoDesarrollo] ${e}`))
     }

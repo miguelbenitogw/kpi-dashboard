@@ -13,7 +13,6 @@
 
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { readSheetAsRows } from './client'
-import { MADRE_SHEET_ID } from './import-madre'
 
 // ---------------------------------------------------------------------------
 // Sheet constants
@@ -220,7 +219,7 @@ export interface PagosResult {
  * The three repeated "Promoción anterior / Anexo firmado / Precio" column groups
  * are packed into a JSONB array: promociones_anteriores = [{promo, anexo_firmado, precio}].
  */
-export async function importPagos(): Promise<PagosResult> {
+export async function importPagos(sheetId: string): Promise<PagosResult> {
   const result: PagosResult = {
     updated: 0,
     inserted: 0,
@@ -228,7 +227,7 @@ export async function importPagos(): Promise<PagosResult> {
     errors: [],
   }
 
-  const { headers, rows } = await readSheetAsRows(MADRE_SHEET_ID, parseInt(PAGOS_GID, 10))
+  const { headers, rows } = await readSheetAsRows(sheetId, parseInt(PAGOS_GID, 10))
 
   if (headers.length === 0 || rows.length === 0) {
     result.errors.push('Pagos tab returned no data')

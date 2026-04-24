@@ -11,7 +11,6 @@
 
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { readSheetAsRows } from './client'
-import { MADRE_SHEET_ID } from './import-madre'
 
 // ---------------------------------------------------------------------------
 // Sheet constants
@@ -159,7 +158,7 @@ export interface GlobalPlacementResult {
  *   2. If no ID, try matching by normalized full_name
  *   3. Update matched candidates with placement fields
  */
-export async function importGlobalPlacement(): Promise<GlobalPlacementResult> {
+export async function importGlobalPlacement(sheetId: string): Promise<GlobalPlacementResult> {
   const result: GlobalPlacementResult = {
     updated: 0,
     skipped: 0,
@@ -167,7 +166,7 @@ export async function importGlobalPlacement(): Promise<GlobalPlacementResult> {
     errors: [],
   }
 
-  const { headers, rows } = await readSheetAsRows(MADRE_SHEET_ID, parseInt(GLOBAL_PLACEMENT_GID, 10))
+  const { headers, rows } = await readSheetAsRows(sheetId, parseInt(GLOBAL_PLACEMENT_GID, 10))
 
   if (headers.length === 0 || rows.length === 0) {
     result.errors.push('Global Placement tab returned no data')

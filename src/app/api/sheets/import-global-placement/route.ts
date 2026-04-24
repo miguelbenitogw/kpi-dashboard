@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabase/server'
 import { validateApiKey, unauthorizedResponse } from '../../sync/middleware'
 import { importGlobalPlacement } from '@/lib/google-sheets/import-global-placement'
 
@@ -15,7 +16,7 @@ export async function OPTIONS() {
 /**
  * POST /api/sheets/import-global-placement
  *
- * Imports the Global Placement tab from the Excel madre Google Sheet.
+ * Imports the Global Placement tab from all active Excel madre sheets.
  * Updates gp_* fields (gp_training_status, gp_open_to, etc.) on candidates.
  * Protected by x-api-key (SYNC_API_KEY env var).
  */
@@ -25,17 +26,34 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await importGlobalPlacement()
+    const { data: madreSheets } = await supabaseAdmin
+      .from('madre_sheets_kpi' as any)
+      .select('sheet_id, label')
+      .eq('is_active', true)
+      .order('year', { ascending: true })
+
+    let updated = 0
+    let skipped = 0
+    let notMatched = 0
+    const errors: string[] = []
+
+    for (const madre of (madreSheets as Array<{ sheet_id: string; label: string }> | null) ?? []) {
+      const result = await importGlobalPlacement(madre.sheet_id)
+      updated += result.updated
+      skipped += result.skipped
+      notMatched += result.notMatched
+      errors.push(...result.errors)
+    }
 
     return NextResponse.json(
       {
         success: true,
-        updated: result.updated,
-        skipped: result.skipped,
-        not_matched: result.notMatched,
-        errors: result.errors,
+        updated,
+        skipped,
+        not_matched: notMatched,
+        errors,
       },
-      { status: result.errors.length > 0 ? 207 : 200, headers: CORS_HEADERS }
+      { status: errors.length > 0 ? 207 : 200, headers: CORS_HEADERS }
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

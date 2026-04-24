@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Search, ChevronDown, X, Loader2 } from 'lucide-react'
 import PerformanceDetail from '@/components/rendimiento/PerformanceDetail'
 import PromoComparisonView from '@/components/rendimiento/PromoComparisonView'
+import GlobalDropoutAnalysis from '@/components/rendimiento/GlobalDropoutAnalysis'
 import {
   getPerformancePromos,
   getPromoStudentList,
@@ -13,7 +14,7 @@ import {
 import type { Candidate } from '@/lib/supabase/types'
 
 type ViewMode = 'detail' | 'compare'
-type ActiveTab = 'rendimiento' | 'estudiantes'
+type ActiveTab = 'rendimiento' | 'estudiantes' | 'bajas-globales'
 
 // ---------------------------------------------------------------------------
 // Status dot colour map (same palette as CandidatosFormacionView)
@@ -408,10 +409,23 @@ export default function RendimientoPage() {
         >
           Estudiantes
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('bajas-globales')}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+            activeTab === 'bajas-globales'
+              ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+              : 'border border-gray-600/50 bg-gray-700/40 text-gray-400 hover:bg-gray-700'
+          }`}
+        >
+          Bajas globales
+        </button>
       </div>
 
       {/* Content area — full width */}
-      {activeTab === 'estudiantes' ? (
+      {activeTab === 'bajas-globales' ? (
+        <GlobalDropoutAnalysis />
+      ) : activeTab === 'estudiantes' ? (
         <EstudiantesTab promocion={selectedPromo} />
       ) : promos.length === 0 ? (
         <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-12 text-center">
