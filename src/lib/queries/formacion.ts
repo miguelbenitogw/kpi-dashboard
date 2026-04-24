@@ -180,20 +180,33 @@ export async function getRetentionMetrics(
 export async function getDropoutAnalysis(
   promoNombres?: string[],
 ): Promise<DropoutAnalysisData> {
-  const dropoutStatuses = ['Offer-Withdrawn', 'Expelled', 'Transferred']
-
-  let query = supabase
-    .from('candidates_kpi')
+  // Source of truth for dropout detail: promo_students_kpi (tab='Dropouts')
+  // candidates_kpi.dropout_* fields are NOT reliably populated — don't use them here.
+  let dropoutQuery = supabase
+    .from('promo_students_kpi')
     .select(
-      'dropout_reason, dropout_date, dropout_language_level, dropout_attendance_pct, dropout_weeks_of_training, dropout_months_of_training, dropout_interest_future, current_status',
+      'sheet_status, dropout_reason, dropout_date, dropout_language_level, dropout_days_of_training, promocion_nombre',
     )
-    .in('current_status', dropoutStatuses)
+    .eq('tab_name', 'Dropouts')
 
   if (promoNombres && promoNombres.length > 0) {
-    query = query.in('promocion_nombre', promoNombres)
+    dropoutQuery = dropoutQuery.in('promocion_nombre', promoNombres)
   }
 
-  const { data, error } = await query
+  // Total program count from candidates_kpi (for dropout rate denominator)
+  let totalProgramQuery = supabase
+    .from('candidates_kpi')
+    .select('id', { count: 'exact', head: true })
+    .in('current_status', [...FORMATION_STATES])
+
+  if (promoNombres && promoNombres.length > 0) {
+    totalProgramQuery = totalProgramQuery.in('promocion_nombre', promoNombres)
+  }
+
+  const [{ data, error }, { count: totalPrograma }] = await Promise.all([
+    dropoutQuery,
+    totalProgramQuery,
+  ])
 
   if (error) {
     console.error('Error fetching dropout analysis:', error)
@@ -211,28 +224,14 @@ export async function getDropoutAnalysis(
   }
 
   const dropouts = data ?? []
-
-  let totalProgramQuery = supabase
-    .from('candidates_kpi')
-    .select('id', { count: 'exact', head: true })
-    .in('current_status', [...FORMATION_STATES])
-
-  if (promoNombres && promoNombres.length > 0) {
-    totalProgramQuery = totalProgramQuery.in('promocion_nombre', promoNombres)
-  }
-
-  const { count: totalPrograma } = await totalProgramQuery
   const total = totalPrograma ?? 0
 
   const weekCounts = new Map<number, number>()
   const monthCounts = new Map<string, number>()
   const levelCounts = new Map<string, number>()
   const reasonCounts = new Map<string, number>()
-  const interestCounts = new Map<string, number>()
-  let weeksSum = 0
-  let weeksCount = 0
-  let attSum = 0
-  let attCount = 0
+  let daysSum = 0
+  let daysCount = 0
 
   for (const d of dropouts) {
     if (d.dropout_date) {
@@ -249,22 +248,19 @@ export async function getDropoutAnalysis(
       monthCounts.set(monthKey, (monthCounts.get(monthKey) ?? 0) + 1)
     }
 
+    // Language level when they dropped out ("Level of language they was in")
     const level = d.dropout_language_level ?? 'Sin dato'
     levelCounts.set(level, (levelCounts.get(level) ?? 0) + 1)
 
-    const reason = d.dropout_reason ?? d.current_status ?? 'Sin motivo'
+    // Reason for dropout — fall back to sheet_status if no specific reason
+    const reason = d.dropout_reason ?? d.sheet_status ?? 'Sin motivo'
     reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1)
 
-    const interest = d.dropout_interest_future ?? 'Sin dato'
-    interestCounts.set(interest, (interestCounts.get(interest) ?? 0) + 1)
-
-    if (d.dropout_weeks_of_training != null) {
-      weeksSum += Number(d.dropout_weeks_of_training)
-      weeksCount++
-    }
-    if (d.dropout_attendance_pct != null) {
-      attSum += Number(d.dropout_attendance_pct)
-      attCount++
+    // Weeks of training: convert days → weeks
+    const days = Number(d.dropout_days_of_training)
+    if (!isNaN(days) && days > 0 && days < 1000) {
+      daysSum += days
+      daysCount++
     }
   }
 
@@ -280,20 +276,16 @@ export async function getDropoutAnalysis(
     byReason: Array.from(reasonCounts.entries())
       .sort(([, a], [, b]) => b - a)
       .map(([reason, count]) => ({ reason, count })),
-    byInterest: Array.from(interestCounts.entries())
-      .sort(([, a], [, b]) => b - a)
-      .map(([interest, count]) => ({ interest, count })),
+    byInterest: [], // dropout_interest_future not tracked in promo sheets
     totalDropouts: dropouts.length,
     dropoutRate:
       total > 0
         ? Math.round((dropouts.length / total) * 10000) / 100
         : 0,
-    avgWeeksOfTraining: weeksCount > 0
-      ? Math.round((weeksSum / weeksCount) * 10) / 10
+    avgWeeksOfTraining: daysCount > 0
+      ? Math.round((daysSum / daysCount / 7) * 10) / 10
       : null,
-    avgAttendancePct: attCount > 0
-      ? Math.round((attSum / attCount) * 10) / 10
-      : null,
+    avgAttendancePct: null, // not tracked in promo sheets
   }
 }
 
