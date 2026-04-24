@@ -67,6 +67,9 @@ const DROPOUT_COLUMN_MAP: Record<string, string[]> = {
     'level of language they was in',
     'level of language they had',
   ],
+  dropout_interest_future: [
+    'interest in future projects',
+  ],
 }
 
 /**
