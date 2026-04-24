@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   PieChart,
   Pie,
@@ -156,7 +156,7 @@ interface DonutCardProps {
   totalLabel: string
   borderClass: string
   dotClass: string
-  children: React.ReactNode
+  children: ReactNode
   legend: LegendPillItem[]
   empty?: boolean
   emptyMessage?: string
