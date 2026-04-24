@@ -106,6 +106,9 @@ function PrefixChartCard({
   const total = data.reduce((acc, d) => acc + d.count, 0)
   // Dynamic height: 36px per item, bounded [120, 340]
   const chartHeight = Math.min(Math.max(120, data.length * 36), 340)
+  // Dynamic Y-axis width: ~7px per character, bounded [80, 200]
+  const maxLabelLen = data.reduce((max, d) => Math.max(max, d.label.length), 0)
+  const yAxisWidth = Math.min(Math.max(80, maxLabelLen * 7), 200)
 
   return (
     <div className={`rounded-xl border ${borderClass} bg-gray-800/50 p-5`}>
@@ -154,7 +157,7 @@ function PrefixChartCard({
                 type="category"
                 dataKey="label"
                 tick={{ fill: '#D1D5DB', fontSize: 11 }}
-                width={95}
+                width={yAxisWidth}
                 axisLine={false}
                 tickLine={false}
               />
