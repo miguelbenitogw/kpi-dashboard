@@ -127,6 +127,7 @@ export interface StudentRecord {
   dropout_date: string | null
   dropout_notes: string | null
   dropout_language_level: string | null
+  dropout_interest_future: string | null
   notes: string | null
   raw_data: SheetRow
   tab_name: string
@@ -180,6 +181,7 @@ function rowToStudentRecord(
     dropout_date: null,
     dropout_notes: null,
     dropout_language_level: null,
+    dropout_interest_future: null,
     notes: null,
   }
 
@@ -478,6 +480,7 @@ export async function importPromoSheet(
         dropout_date: student.dropout_date,
         dropout_notes: student.dropout_notes,
         dropout_language_level: student.dropout_language_level,
+        dropout_interest_future: student.dropout_interest_future,
         notes: student.notes,
         zoho_candidate_id: zohoMatch.zoho_candidate_id || null,
         zoho_status: zohoMatch.zoho_status,
@@ -790,6 +793,7 @@ export async function importDropoutsTab(
       dropout_date: student.dropout_date,
       dropout_notes: student.dropout_notes,
       dropout_language_level: student.dropout_language_level,
+      dropout_interest_future: (student as any).dropout_interest_future ?? null,
       notes: student.notes,
       zoho_candidate_id: zohoMatch.zoho_candidate_id || null,
       zoho_status: zohoMatch.zoho_status,
