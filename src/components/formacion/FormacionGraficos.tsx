@@ -1,18 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
   BarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie,
 } from 'recharts'
 import {
   getFormacionStates,
@@ -28,13 +27,18 @@ import {
 const STATE_COLORS: Record<string, string> = {
   Hired: '#10B981',
   'In Training': '#3B82F6',
-  'Offer-Withdrawn': '#F59E0B',
+  'Offer Withdrawn': '#F59E0B',
+  'Offer Declined': '#FB923C',
   Expelled: '#EF4444',
   Transferred: '#8B5CF6',
   'To Place': '#06B6D4',
   Assigned: '#22C55E',
   'Stand-by': '#6B7280',
   'Training Finished': '#14B8A6',
+  'No Show': '#DC2626',
+  'Next Project': '#A78BFA',
+  'Approved by client': '#34D399',
+  'Rejected by client': '#F87171',
 }
 
 const PREF_COLORS: Record<string, string> = {
@@ -56,8 +60,8 @@ const LEVEL_PALETTE = [
 ]
 
 const INTEREST_COLORS: Record<string, string> = {
-  'Yes': '#10B981',
-  'No': '#EF4444',
+  Yes: '#10B981',
+  No: '#EF4444',
   'Does not know': '#F59E0B',
   'Sin dato': '#6B7280',
 }
@@ -78,301 +82,144 @@ const TOOLTIP_STYLE = {
   itemStyle: { color: '#D1D5DB' },
 }
 
-// ─── Slides config ────────────────────────────────────────────────────────────
-
-const SLIDES = [
-  {
-    id: 'estados',
-    label: 'Estados',
-    subtitle: 'Distribución de candidatos por estado post-contrato',
-    dot: 'bg-blue-400',
-  },
-  {
-    id: 'preferencias',
-    label: 'Preferencias de Colocación',
-    subtitle: 'Tipo de trabajo al que están abiertos los candidatos en formación',
-    dot: 'bg-emerald-400',
-  },
-  {
-    id: 'abandonos',
-    label: 'Análisis de Abandonos',
-    subtitle: 'Causas, duración, asistencia e interés en proyectos futuros',
-    dot: 'bg-red-400',
-  },
-] as const
-
-// ─── Shared skeleton ──────────────────────────────────────────────────────────
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function Skeleton() {
   return (
-    <div className="p-6">
-      <div className="mb-4 flex justify-end">
-        <div className="h-4 w-32 animate-pulse rounded bg-gray-700" />
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
+            <div className="mb-4 h-4 w-36 animate-pulse rounded bg-gray-700" />
+            <div className="h-56 animate-pulse rounded-lg bg-gray-700/40" />
+            <div className="mt-4 space-y-2">
+              {Array.from({ length: 4 }).map((_, j) => (
+                <div key={j} className="h-3 animate-pulse rounded bg-gray-700/50" />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="h-64 animate-pulse rounded-lg bg-gray-700/50" />
-        <div className="h-64 animate-pulse rounded-lg bg-gray-700/50" />
+      <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
+        <div className="mb-4 h-4 w-44 animate-pulse rounded bg-gray-700" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-20 animate-pulse rounded-lg bg-gray-700/40" />
+          ))}
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="h-52 animate-pulse rounded-lg bg-gray-700/40" />
+          <div className="h-52 animate-pulse rounded-lg bg-gray-700/40" />
+        </div>
       </div>
-      <div className="mt-4 h-32 animate-pulse rounded-lg bg-gray-700/30" />
     </div>
   )
 }
 
-// ─── Shared legend table ──────────────────────────────────────────────────────
+// ─── Compact pill legend ──────────────────────────────────────────────────────
 
-interface LegendRow {
+interface LegendPillItem {
   label: string
   count: number
   percentage: number
   color: string
 }
 
-function LegendTable({ rows, countLabel = 'Candidatos' }: { rows: LegendRow[]; countLabel?: string }) {
-  const total = rows.reduce((s, r) => s + r.count, 0)
+function PillLegend({ items }: { items: LegendPillItem[] }) {
   return (
-    <div className="mt-4 overflow-x-auto rounded-lg border border-gray-700/50">
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-gray-700/50 bg-gray-800/80 text-[11px] uppercase tracking-wider text-gray-400">
-            <th className="px-3 py-2.5">Etiqueta</th>
-            <th className="px-3 py-2.5 text-right">{countLabel}</th>
-            <th className="px-3 py-2.5 text-right">%</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-800/50">
-          {rows.map((row) => (
-            <tr key={row.label} className="transition hover:bg-gray-700/20">
-              <td className="whitespace-nowrap px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
-                    style={{ backgroundColor: row.color }}
-                  />
-                  <span className="text-gray-200">{row.label}</span>
-                </div>
-              </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-gray-100">
-                {row.count.toLocaleString('es-AR')}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-gray-400">
-                {total > 0 ? Math.round((row.count / total) * 100) : row.percentage}%
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+      {items.map((item) => (
+        <div key={item.label} className="flex items-center gap-1.5">
+          <div
+            className="h-2 w-2 flex-shrink-0 rounded-full"
+            style={{ backgroundColor: item.color }}
+          />
+          <span className="text-xs text-gray-300">{item.label}</span>
+          <span className="text-xs tabular-nums text-gray-500">
+            {item.count.toLocaleString('es-AR')}
+          </span>
+          <span className="text-[10px] tabular-nums text-gray-600">
+            ({item.percentage}%)
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
 
-// ─── Slide 1: Estados ─────────────────────────────────────────────────────────
+// ─── Donut card ───────────────────────────────────────────────────────────────
 
-function EstadosSlide({ data }: { data: FormacionStateRow[] }) {
-  const total = data.reduce((acc, d) => acc + d.count, 0)
+interface DonutCardProps {
+  title: string
+  subtitle: string
+  total: number
+  totalLabel: string
+  borderClass: string
+  dotClass: string
+  children: React.ReactNode
+  legend: LegendPillItem[]
+  empty?: boolean
+  emptyMessage?: string
+}
 
-  if (data.length === 0) {
-    return (
-      <div className="p-8 text-center">
-        <p className="text-sm text-gray-400">Sin datos de estados</p>
-        <p className="mt-1 text-xs text-gray-500">No hay candidatos en estados de formación</p>
-      </div>
-    )
-  }
-
+function DonutCard({
+  title,
+  subtitle,
+  total,
+  totalLabel,
+  borderClass,
+  dotClass,
+  children,
+  legend,
+  empty,
+  emptyMessage,
+}: DonutCardProps) {
   return (
-    <div className="p-6">
-      <p className="mb-4 text-right text-xs tabular-nums text-gray-400">
-        {total.toLocaleString('es-AR')} candidatos en total
-      </p>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} layout="vertical" margin={{ left: 10, right: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
-              <XAxis
-                type="number"
-                tick={{ fill: '#9CA3AF', fontSize: 11 }}
-                axisLine={{ stroke: '#374151' }}
-                tickLine={false}
-                allowDecimals={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="status"
-                tick={{ fill: '#D1D5DB', fontSize: 11 }}
-                width={120}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={((v: number) => [v.toLocaleString('es-AR'), 'Candidatos']) as any}
-              />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                {data.map((e) => (
-                  <Cell key={e.status} fill={stateColor(e.status)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+    <div className={`rounded-xl border ${borderClass} bg-gray-800/50 p-5`}>
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
+          <div>
+            <h3 className="text-sm font-semibold text-gray-200">{title}</h3>
+            <p className="mt-0.5 text-xs text-gray-500">{subtitle}</p>
+          </div>
         </div>
-
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                dataKey="count"
-                nameKey="status"
-                cx="50%"
-                cy="50%"
-                outerRadius={90}
-                innerRadius={50}
-                paddingAngle={2}
-                label={({ payload }: any) => `${payload.status}: ${payload.percentage}%`}
-                labelLine={{ stroke: '#4B5563' }}
-              >
-                {data.map((e) => (
-                  <Cell key={e.status} fill={stateColor(e.status)} />
-                ))}
-              </Pie>
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={((v: number) => [v.toLocaleString('es-AR'), 'Candidatos']) as any}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+        {!empty && (
+          <span className="shrink-0 text-xs tabular-nums text-gray-400">
+            {total.toLocaleString('es-AR')} {totalLabel}
+          </span>
+        )}
       </div>
 
-      <LegendTable
-        rows={data.map((d) => ({
-          label: d.status,
-          count: d.count,
-          percentage: d.percentage,
-          color: stateColor(d.status),
-        }))}
-      />
+      {empty ? (
+        <div className="flex h-48 items-center justify-center">
+          <p className="text-xs text-gray-600">{emptyMessage ?? 'Sin datos'}</p>
+        </div>
+      ) : (
+        <>
+          <div className="h-56">{children}</div>
+          <PillLegend items={legend} />
+        </>
+      )}
     </div>
   )
 }
 
-// ─── Slide 2: Preferencias ────────────────────────────────────────────────────
+// ─── Abandonos section ────────────────────────────────────────────────────────
 
-function PreferenciasSlide({ data }: { data: PreferenceRow[] }) {
-  const total = data.reduce((acc, d) => acc + d.count, 0)
-
-  if (data.length === 0) {
-    return (
-      <div className="p-8 text-center">
-        <p className="text-sm text-gray-400">Sin datos de preferencias</p>
-        <p className="mt-1 text-xs text-gray-500">
-          La columna "gp_open_to" está vacía en la base de datos
-        </p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="p-6">
-      <p className="mb-4 text-right text-xs tabular-nums text-gray-400">
-        {total.toLocaleString('es-AR')} menciones registradas
-      </p>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} layout="vertical" margin={{ left: 10, right: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
-              <XAxis
-                type="number"
-                tick={{ fill: '#9CA3AF', fontSize: 11 }}
-                axisLine={{ stroke: '#374151' }}
-                tickLine={false}
-                allowDecimals={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="preference"
-                tick={{ fill: '#D1D5DB', fontSize: 10 }}
-                width={155}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={((v: number) => [v.toLocaleString('es-AR'), 'Menciones']) as any}
-              />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                {data.map((e) => (
-                  <Cell key={e.preference} fill={prefColor(e.preference)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                dataKey="count"
-                nameKey="preference"
-                cx="50%"
-                cy="50%"
-                outerRadius={90}
-                innerRadius={50}
-                paddingAngle={2}
-                label={({ payload }: any) => `${payload.percentage}%`}
-                labelLine={{ stroke: '#4B5563' }}
-              >
-                {data.map((e) => (
-                  <Cell key={e.preference} fill={prefColor(e.preference)} />
-                ))}
-              </Pie>
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={((v: number, name: string) => [
-                  v.toLocaleString('es-AR'),
-                  name,
-                ]) as any}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <LegendTable
-        rows={data.map((d) => ({
-          label: d.preference,
-          count: d.count,
-          percentage: d.percentage,
-          color: prefColor(d.preference),
-        }))}
-      />
-    </div>
-  )
-}
-
-// ─── Slide 3: Abandonos ───────────────────────────────────────────────────────
-
-function AbandonosSlide({ data }: { data: DropoutAnalysisData | null }) {
+function AbandonosSection({ data }: { data: DropoutAnalysisData | null }) {
   if (!data || data.totalDropouts === 0) {
     return (
-      <div className="p-8 text-center">
-        <p className="text-sm text-gray-400">Sin datos de abandonos</p>
-        <p className="mt-1 text-xs text-gray-500">No hay bajas registradas en formación</p>
+      <div className="flex h-32 items-center justify-center">
+        <p className="text-sm text-gray-500">Sin bajas registradas</p>
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
-
-      {/* ── KPI summary ── */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <div className="space-y-6 p-5">
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-gray-700/50 bg-gray-700/20 p-3 text-center">
           <p className="text-[10px] uppercase tracking-wider text-gray-500">Total bajas</p>
           <p className="mt-1 text-2xl font-bold tabular-nums text-red-400">
@@ -403,7 +250,7 @@ function AbandonosSlide({ data }: { data: DropoutAnalysisData | null }) {
         )}
       </div>
 
-      {/* ── Row 1: Motivos + Nivel de idioma ── */}
+      {/* Motivos + Nivel de idioma */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {data.byReason.length > 0 && (
           <div>
@@ -447,7 +294,7 @@ function AbandonosSlide({ data }: { data: DropoutAnalysisData | null }) {
         {data.byLanguageLevel.length > 0 && (
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
-              Nivel de idioma
+              Nivel de idioma al abandonar
             </p>
             <div className="h-52">
               <ResponsiveContainer width="100%" height="100%">
@@ -479,7 +326,7 @@ function AbandonosSlide({ data }: { data: DropoutAnalysisData | null }) {
         )}
       </div>
 
-      {/* ── Row 2: Por mes + Interés futuro ── */}
+      {/* Bajas por mes + Interés en proyectos futuros */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {data.byMonth.length > 0 && (
           <div>
@@ -547,32 +394,17 @@ function AbandonosSlide({ data }: { data: DropoutAnalysisData | null }) {
           </div>
         )}
       </div>
-
-      {/* ── Legend table: motivos ── */}
-      {data.byReason.length > 0 && (
-        <LegendTable
-          countLabel="Bajas"
-          rows={data.byReason.map((d, i) => ({
-            label: d.reason,
-            count: d.count,
-            percentage: 0,
-            color: REASON_PALETTE[i % REASON_PALETTE.length],
-          }))}
-        />
-      )}
     </div>
   )
 }
 
-// ─── Main carousel ────────────────────────────────────────────────────────────
+// ─── Main component ───────────────────────────────────────────────────────────
 
 interface Props {
   promoNombres?: string[]
 }
 
 export default function FormacionGraficos({ promoNombres }: Props) {
-  const [current, setCurrent] = useState(0)
-  const [visible, setVisible] = useState(true)
   const [statesData, setStatesData] = useState<FormacionStateRow[]>([])
   const [prefsData, setPrefsData] = useState<PreferenceRow[]>([])
   const [dropoutData, setDropoutData] = useState<DropoutAnalysisData | null>(null)
@@ -595,77 +427,117 @@ export default function FormacionGraficos({ promoNombres }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(promoNombres)])
 
-  function goTo(idx: number) {
-    if (idx === current) return
-    setVisible(false)
-    setTimeout(() => {
-      setCurrent(idx)
-      setVisible(true)
-    }, 150)
-  }
+  if (loading) return <Skeleton />
 
-  const prev = () => goTo((current - 1 + SLIDES.length) % SLIDES.length)
-  const next = () => goTo((current + 1) % SLIDES.length)
+  const statesTotal = statesData.reduce((acc, d) => acc + d.count, 0)
+  const prefsTotal = prefsData.reduce((acc, d) => acc + d.count, 0)
 
   return (
-    <div className="rounded-xl border border-gray-700/50 bg-gray-800/50">
-      {/* ── Header ── */}
-      <div className="flex items-center gap-3 border-b border-gray-700/50 px-5 py-4">
-        <button
-          onClick={prev}
-          aria-label="Gráfico anterior"
-          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-gray-600/50 bg-gray-700/40 text-gray-400 transition-all hover:border-gray-500 hover:bg-gray-700 hover:text-gray-100 active:scale-90"
+    <div className="space-y-6">
+      {/* ── Top row: Estados + Preferencias donuts ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+
+        {/* Estados */}
+        <DonutCard
+          title="Estados"
+          subtitle="Distribución de candidatos por estado post-contrato"
+          total={statesTotal}
+          totalLabel="candidatos"
+          borderClass="border-blue-500/30"
+          dotClass="bg-blue-500"
+          empty={statesData.length === 0}
+          emptyMessage="Sin datos de estados"
+          legend={statesData.map((d) => ({
+            label: d.status,
+            count: d.count,
+            percentage: d.percentage,
+            color: stateColor(d.status),
+          }))}
         >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-
-        <div className="flex flex-1 flex-col items-center gap-1">
-          <h3 className="text-sm font-semibold text-gray-200">
-            {SLIDES[current].label}
-          </h3>
-          <p className="text-center text-xs text-gray-500">
-            {SLIDES[current].subtitle}
-          </p>
-
-          <div className="mt-1 flex items-center gap-1.5">
-            {SLIDES.map((slide, i) => (
-              <button
-                key={slide.id}
-                onClick={() => goTo(i)}
-                aria-label={`Ver ${slide.label}`}
-                className={[
-                  'rounded-full transition-all duration-300',
-                  i === current
-                    ? `h-1.5 w-5 ${slide.dot}`
-                    : 'h-1.5 w-1.5 bg-gray-600 hover:bg-gray-400',
-                ].join(' ')}
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={statesData}
+                dataKey="count"
+                nameKey="status"
+                cx="50%"
+                cy="50%"
+                outerRadius={95}
+                innerRadius={52}
+                paddingAngle={2}
+              >
+                {statesData.map((e) => (
+                  <Cell key={e.status} fill={stateColor(e.status)} />
+                ))}
+              </Pie>
+              <Tooltip
+                {...TOOLTIP_STYLE}
+                formatter={((v: number) => [v.toLocaleString('es-AR'), 'Candidatos']) as any}
               />
-            ))}
-          </div>
-        </div>
+            </PieChart>
+          </ResponsiveContainer>
+        </DonutCard>
 
-        <button
-          onClick={next}
-          aria-label="Siguiente gráfico"
-          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-gray-600/50 bg-gray-700/40 text-gray-400 transition-all hover:border-gray-500 hover:bg-gray-700 hover:text-gray-100 active:scale-90"
+        {/* Preferencias de Colocación */}
+        <DonutCard
+          title="Preferencias de Colocación"
+          subtitle="Tipo de trabajo al que están abiertos los candidatos"
+          total={prefsTotal}
+          totalLabel="menciones"
+          borderClass="border-emerald-500/30"
+          dotClass="bg-emerald-500"
+          empty={prefsData.length === 0}
+          emptyMessage='Sin datos — columna "gp_open_to" vacía'
+          legend={prefsData.map((d) => ({
+            label: d.preference,
+            count: d.count,
+            percentage: d.percentage,
+            color: prefColor(d.preference),
+          }))}
         >
-          <ChevronRight className="h-4 w-4" />
-        </button>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={prefsData}
+                dataKey="count"
+                nameKey="preference"
+                cx="50%"
+                cy="50%"
+                outerRadius={95}
+                innerRadius={52}
+                paddingAngle={2}
+              >
+                {prefsData.map((e) => (
+                  <Cell key={e.preference} fill={prefColor(e.preference)} />
+                ))}
+              </Pie>
+              <Tooltip
+                {...TOOLTIP_STYLE}
+                formatter={((v: number) => [v.toLocaleString('es-AR'), 'Menciones']) as any}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </DonutCard>
       </div>
 
-      {/* ── Slide content ── */}
-      {loading ? (
-        <Skeleton />
-      ) : (
-        <div
-          className="transition-opacity duration-150"
-          style={{ opacity: visible ? 1 : 0 }}
-        >
-          {current === 0 && <EstadosSlide data={statesData} />}
-          {current === 1 && <PreferenciasSlide data={prefsData} />}
-          {current === 2 && <AbandonosSlide data={dropoutData} />}
+      {/* ── Abandonos ── */}
+      <div className="rounded-xl border border-red-500/20 bg-gray-800/50">
+        <div className="flex items-center gap-2 border-b border-gray-700/50 px-5 py-4">
+          <div className="h-2 w-2 rounded-full bg-red-500" />
+          <div>
+            <h3 className="text-sm font-semibold text-gray-200">Análisis de Abandonos</h3>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Causas, duración, nivel de idioma e interés en proyectos futuros
+            </p>
+          </div>
+          {dropoutData && dropoutData.totalDropouts > 0 && (
+            <span className="ml-auto text-xs tabular-nums text-red-400">
+              {dropoutData.totalDropouts.toLocaleString('es-AR')} bajas
+            </span>
+          )}
         </div>
-      )}
+        <AbandonosSection data={dropoutData} />
+      </div>
     </div>
   )
 }
