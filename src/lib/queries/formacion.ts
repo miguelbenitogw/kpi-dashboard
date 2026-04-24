@@ -185,7 +185,7 @@ export async function getDropoutAnalysis(
   let dropoutQuery = supabase
     .from('promo_students_kpi')
     .select(
-      'sheet_status, dropout_reason, dropout_date, dropout_language_level, dropout_days_of_training, promocion_nombre',
+      'sheet_status, dropout_reason, dropout_date, dropout_language_level, dropout_days_of_training, dropout_interest_future, promocion_nombre',
     )
     .eq('tab_name', 'Dropouts')
 
@@ -230,6 +230,7 @@ export async function getDropoutAnalysis(
   const monthCounts = new Map<string, number>()
   const levelCounts = new Map<string, number>()
   const reasonCounts = new Map<string, number>()
+  const interestCounts = new Map<string, number>()
   let daysSum = 0
   let daysCount = 0
 
@@ -256,6 +257,11 @@ export async function getDropoutAnalysis(
     const reason = d.dropout_reason ?? d.sheet_status ?? 'Sin motivo'
     reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1)
 
+    // Interest in future projects
+    if (d.dropout_interest_future) {
+      interestCounts.set(d.dropout_interest_future, (interestCounts.get(d.dropout_interest_future) ?? 0) + 1)
+    }
+
     // Weeks of training: convert days → weeks
     const days = Number(d.dropout_days_of_training)
     if (!isNaN(days) && days > 0 && days < 1000) {
@@ -276,7 +282,9 @@ export async function getDropoutAnalysis(
     byReason: Array.from(reasonCounts.entries())
       .sort(([, a], [, b]) => b - a)
       .map(([reason, count]) => ({ reason, count })),
-    byInterest: [], // dropout_interest_future not tracked in promo sheets
+    byInterest: Array.from(interestCounts.entries())
+      .sort(([, a], [, b]) => b - a)
+      .map(([interest, count]) => ({ interest, count })),
     totalDropouts: dropouts.length,
     dropoutRate:
       total > 0
