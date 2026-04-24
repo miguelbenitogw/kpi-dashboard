@@ -1,15 +1,5 @@
-import dynamic from 'next/dynamic'
 import Link from 'next/link'
-
-const MadreSheetsManager = dynamic(
-  () => import('@/components/configuracion/MadreSheetsManager'),
-  { ssr: false }
-)
-
-const SlaThresholdsManager = dynamic(
-  () => import('@/components/configuracion/SlaThresholdsManager'),
-  { ssr: false }
-)
+import ConfiguracionClient from './ConfiguracionClient'
 
 export const metadata = {
   title: 'Configuración | KPI Dashboard',
@@ -40,7 +30,7 @@ export default function ConfiguracionPage() {
             .
           </p>
         </div>
-        <MadreSheetsManager />
+        <ConfiguracionClient section="sheets" />
       </section>
 
       <section className="space-y-4">
@@ -50,7 +40,7 @@ export default function ConfiguracionPage() {
             Configurá los días de espera que activan alertas amarillas y rojas para cada estado del pipeline.
           </p>
         </div>
-        <SlaThresholdsManager />
+        <ConfiguracionClient section="sla" />
       </section>
     </div>
   )
