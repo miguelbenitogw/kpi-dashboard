@@ -1,16 +1,7 @@
 'use client'
 
-import dynamic from 'next/dynamic'
-
-const MadreSheetsManager = dynamic(
-  () => import('@/components/configuracion/MadreSheetsManager'),
-  { ssr: false }
-)
-
-const SlaThresholdsManager = dynamic(
-  () => import('@/components/configuracion/SlaThresholdsManager'),
-  { ssr: false }
-)
+import MadreSheetsManager from '@/components/configuracion/MadreSheetsManager'
+import SlaThresholdsManager from '@/components/configuracion/SlaThresholdsManager'
 
 export default function ConfiguracionClient({ section }: { section: 'sheets' | 'sla' }) {
   if (section === 'sheets') return <MadreSheetsManager />
