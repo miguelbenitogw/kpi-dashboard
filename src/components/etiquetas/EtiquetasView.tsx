@@ -18,19 +18,25 @@ import {
   type StatusCount,
 } from '@/lib/queries/etiquetas'
 import { tagChipStyle, TAG_LEGEND } from '@/lib/utils/tags'
+import TagPrefixCharts from './TagPrefixCharts'
 
 // ─── Color palette ────────────────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<string, string> = {
   'In Training': '#3B82F6',
   Hired: '#10B981',
-  'Offer-Withdrawn': '#F59E0B',
+  'Offer Withdrawn': '#F59E0B',
+  'Offer Declined': '#FB923C',
   Expelled: '#EF4444',
   Transferred: '#8B5CF6',
   'To Place': '#06B6D4',
   Assigned: '#22C55E',
   'Stand-by': '#6B7280',
   'Training Finished': '#14B8A6',
+  'No Show': '#DC2626',
+  'Next Project': '#A78BFA',
+  'Approved by client': '#34D399',
+  'Rejected by client': '#F87171',
 }
 
 function statusColor(s: string): string {
@@ -54,6 +60,16 @@ const TOOLTIP_STYLE = {
 function Skeleton() {
   return (
     <div className="space-y-6">
+      {/* Prefix charts skeleton */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
+            <div className="mb-4 h-4 w-32 animate-pulse rounded bg-gray-700" />
+            <div className="h-40 animate-pulse rounded-lg bg-gray-700/40" />
+          </div>
+        ))}
+      </div>
+      {/* Tag chips skeleton */}
       <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
         <div className="mb-4 h-4 w-40 animate-pulse rounded bg-gray-700" />
         <div className="flex flex-wrap gap-2">
@@ -66,6 +82,7 @@ function Skeleton() {
           ))}
         </div>
       </div>
+      {/* Status chart skeleton */}
       <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
         <div className="mb-4 h-4 w-48 animate-pulse rounded bg-gray-700" />
         <div className="h-64 animate-pulse rounded-lg bg-gray-700/40" />
@@ -200,6 +217,9 @@ export default function EtiquetasView() {
 
   return (
     <div className="space-y-6">
+      {/* ── Automatic FR / CP / GW comparison charts ── */}
+      <TagPrefixCharts allTags={allTags} />
+
       {/* ── Tag selector ── */}
       <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
         <div className="mb-3 flex items-center justify-between">
