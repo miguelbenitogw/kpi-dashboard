@@ -23,6 +23,21 @@ export interface WeeklyCVData {
   count: number
 }
 
+export interface VacancyWeeklyCvPoint {
+  weekStart: string
+  weekLabel: string
+  count: number
+}
+
+export interface VacancyWeeklyCvSummary {
+  vacancyId: string
+  title: string
+  clientName: string | null
+  owner: string | null
+  newThisWeek: number
+  history: VacancyWeeklyCvPoint[]
+}
+
 export interface ConversionRates {
   cvToApproved: number
   contactedToApproved: number
@@ -139,6 +154,246 @@ export async function getWeeklyCVCount(days = 84): Promise<WeeklyCVData[]> {
 function formatWeekLabel(mondayDate: string): string {
   const date = new Date(mondayDate)
   return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })
+}
+
+export function getCurrentIsoWeekMonday(referenceDate = new Date()): string {
+  const monday = new Date(referenceDate)
+  monday.setHours(0, 0, 0, 0)
+
+  const day = monday.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  monday.setDate(monday.getDate() + diff)
+
+  return monday.toISOString().split('T')[0]
+}
+
+export function sortWeeks(weeks: string[]): string[] {
+  return [...weeks].sort((a, b) => a.localeCompare(b))
+}
+
+function toIsoDate(input: unknown): string | null {
+  if (!input) return null
+
+  const parsed = new Date(String(input))
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString().split('T')[0]
+}
+
+function normalizeToIsoMonday(input: unknown): string | null {
+  const iso = toIsoDate(input)
+  if (!iso) return null
+
+  const date = new Date(iso)
+  const day = date.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  date.setDate(date.getDate() + diff)
+
+  return date.toISOString().split('T')[0]
+}
+
+function getRecentIsoMondays(weeks: number): string[] {
+  const currentMonday = getCurrentIsoWeekMonday()
+  const dates: string[] = []
+
+  for (let offset = weeks - 1; offset >= 0; offset -= 1) {
+    const date = new Date(currentMonday)
+    date.setDate(date.getDate() - offset * 7)
+    dates.push(date.toISOString().split('T')[0])
+  }
+
+  return sortWeeks(dates)
+}
+
+function toNumberCount(value: unknown): number {
+  const num = Number(value)
+  if (!Number.isFinite(num) || num < 0) return 0
+  return num
+}
+
+type VacancyCvWeeklyRow = {
+  vacancy_id?: string | null
+  job_opening_id?: string | null
+  week_start?: string | null
+  week?: string | null
+  count?: number | string | null
+  cv_count?: number | string | null
+  total?: number | string | null
+  new_cvs?: number | string | null
+  synced_at?: string | null
+}
+
+export async function getReceivedCvsByVacancy(
+  weeks = 12,
+): Promise<VacancyWeeklyCvSummary[]> {
+  const safeWeeks = Math.min(52, Math.max(1, Math.trunc(weeks)))
+  const weekStarts = getRecentIsoMondays(safeWeeks)
+  const oldestWeek = weekStarts[0]
+  const currentWeek = weekStarts[weekStarts.length - 1]
+
+  type VacancyCvWeeklyQueryClient = {
+    from: (table: string) => {
+      select: (columns: string) => {
+        gte: (column: string, value: string) => {
+          lte: (
+            finalColumn: string,
+            finalValue: string,
+          ) => Promise<{ data: VacancyCvWeeklyRow[] | null; error: { message: string } | null }>
+        }
+      }
+    }
+  }
+
+  const weeklyQueryClient = supabase as unknown as VacancyCvWeeklyQueryClient
+  const { data: rawRows, error: weeklyError } = await weeklyQueryClient
+    .from('vacancy_cv_weekly_kpi')
+    .select('*')
+    .gte('week_start', oldestWeek)
+    .lte('week_start', currentWeek)
+
+  if (weeklyError) {
+    console.error('Error fetching received CVs by vacancy:', weeklyError)
+    return []
+  }
+
+  const weeklyRows = (rawRows ?? []) as VacancyCvWeeklyRow[]
+  if (weeklyRows.length === 0) return []
+
+  const byVacancy = new Map<string, Map<string, number>>()
+
+  for (const row of weeklyRows) {
+    const vacancyId = row.vacancy_id ?? row.job_opening_id
+    if (!vacancyId) continue
+
+    const weekStart = normalizeToIsoMonday(row.week_start ?? row.week)
+    if (!weekStart) continue
+    if (weekStart < oldestWeek || weekStart > currentWeek) continue
+
+    const count = toNumberCount(
+      row.count ?? row.cv_count ?? row.new_cvs ?? row.total,
+    )
+
+    if (!byVacancy.has(vacancyId)) byVacancy.set(vacancyId, new Map())
+    const weekMap = byVacancy.get(vacancyId)!
+    weekMap.set(weekStart, (weekMap.get(weekStart) ?? 0) + count)
+  }
+
+  const vacancyIds = Array.from(byVacancy.keys())
+  if (vacancyIds.length === 0) return []
+
+  const { data: vacanciesMeta, error: vacError } = await supabase
+    .from('job_openings_kpi')
+    .select('id, title, client_name, owner')
+    .in('id', vacancyIds)
+
+  if (vacError) {
+    console.error('Error fetching vacancy metadata for CV weekly KPI:', vacError)
+  }
+
+  const metaMap = new Map(
+    (vacanciesMeta ?? []).map((v) => [
+      v.id,
+      {
+        title: v.title,
+        clientName: v.client_name ?? null,
+        owner: v.owner ?? null,
+      },
+    ]),
+  )
+
+  const summaries: VacancyWeeklyCvSummary[] = vacancyIds.map((vacancyId) => {
+    const weekMap = byVacancy.get(vacancyId) ?? new Map<string, number>()
+    const history: VacancyWeeklyCvPoint[] = weekStarts.map((weekStart) => ({
+      weekStart,
+      weekLabel: formatWeekLabel(weekStart),
+      count: weekMap.get(weekStart) ?? 0,
+    }))
+
+    const meta = metaMap.get(vacancyId)
+    const newThisWeek = weekMap.get(currentWeek) ?? 0
+
+    return {
+      vacancyId,
+      title: meta?.title ?? 'Vacante sin título',
+      clientName: meta?.clientName ?? null,
+      owner: meta?.owner ?? null,
+      newThisWeek,
+      history,
+    }
+  })
+
+  return summaries.sort(
+    (a, b) =>
+      b.newThisWeek - a.newThisWeek || a.title.localeCompare(b.title, 'es'),
+  )
+}
+
+
+export interface VacancyRankingRow {
+  vacancyId: string
+  vacancyTitle: string
+  newThisWeek: number
+  previousWeek: number
+}
+
+export interface VacancyWeeklySeries {
+  vacancyId: string
+  vacancyTitle: string
+  points: VacancyWeeklyCvPoint[]
+}
+
+export interface ReceivedCvsByVacancyStats {
+  ranking: VacancyRankingRow[]
+  weeklySeries: VacancyWeeklySeries[]
+  generatedAt: string | null
+}
+
+export async function getReceivedCvsByVacancyStats(
+  weeks = 12,
+): Promise<ReceivedCvsByVacancyStats> {
+  const summaries = await getReceivedCvsByVacancy(weeks)
+
+  if (summaries.length === 0) {
+    return {
+      ranking: [],
+      weeklySeries: [],
+      generatedAt: null,
+    }
+  }
+
+  const ranking: VacancyRankingRow[] = summaries.map((summary) => {
+    const previousWeek = summary.history.length > 1
+      ? summary.history[summary.history.length - 2]?.count ?? 0
+      : 0
+
+    return {
+      vacancyId: summary.vacancyId,
+      vacancyTitle: summary.title,
+      newThisWeek: summary.newThisWeek,
+      previousWeek,
+    }
+  })
+
+  const weeklySeries: VacancyWeeklySeries[] = summaries.map((summary) => ({
+    vacancyId: summary.vacancyId,
+    vacancyTitle: summary.title,
+    points: summary.history,
+  }))
+
+  const latestSyncedAt = summaries.reduce<string | null>((latest, summary) => {
+    const maxPointDate = summary.history.length > 0
+      ? summary.history[summary.history.length - 1]?.weekStart ?? null
+      : null
+
+    if (!maxPointDate) return latest
+    if (!latest || maxPointDate > latest) return `${maxPointDate}T00:00:00.000Z`
+    return latest
+  }, null)
+
+  return {
+    ranking,
+    weeklySeries,
+    generatedAt: latestSyncedAt,
+  }
 }
 
 export async function getConversionRates(

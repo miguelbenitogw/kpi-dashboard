@@ -21,6 +21,7 @@ import {
   Archive,
   FileSpreadsheet,
   Settings2,
+  FileText,
 } from "lucide-react";
 import SyncStatus from "./SyncStatus";
 
@@ -44,6 +45,7 @@ const navSections: NavSection[] = [
     title: "Atracción",
     items: [
       { href: "/dashboard/atraccion", label: "Reclutamiento", icon: Users },
+      { href: "/dashboard/atraccion/cvs-recibidos", label: "CVs recibidos", icon: FileText },
       { href: "/dashboard/analytics", label: "Web & RRSS", icon: Megaphone },
       { href: "/dashboard/funnel", label: "Funnel", icon: Filter },
       { href: "/dashboard/pipeline", label: "Pipeline", icon: GitBranch },
