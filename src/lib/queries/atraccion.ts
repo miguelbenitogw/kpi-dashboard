@@ -38,6 +38,11 @@ export interface VacancyWeeklyCvSummary {
   history: VacancyWeeklyCvPoint[]
 }
 
+export interface ReceivedCvsByVacancyResult {
+  summaries: VacancyWeeklyCvSummary[]
+  latestSyncedAt: string | null
+}
+
 export interface ConversionRates {
   cvToApproved: number
   contactedToApproved: number
@@ -224,7 +229,7 @@ type VacancyCvWeeklyRow = {
 
 export async function getReceivedCvsByVacancy(
   weeks = 12,
-): Promise<VacancyWeeklyCvSummary[]> {
+): Promise<ReceivedCvsByVacancyResult> {
   const safeWeeks = Math.min(52, Math.max(1, Math.trunc(weeks)))
   const weekStarts = getRecentIsoMondays(safeWeeks)
   const oldestWeek = weekStarts[0]
@@ -252,11 +257,18 @@ export async function getReceivedCvsByVacancy(
 
   if (weeklyError) {
     console.error('Error fetching received CVs by vacancy:', weeklyError)
-    return []
+    return { summaries: [], latestSyncedAt: null }
   }
 
   const weeklyRows = (rawRows ?? []) as VacancyCvWeeklyRow[]
-  if (weeklyRows.length === 0) return []
+  if (weeklyRows.length === 0) return { summaries: [], latestSyncedAt: null }
+
+  const latestSyncedAt = weeklyRows.reduce<string | null>((latest, row) => {
+    const value = row.synced_at ?? null
+    if (!value) return latest
+    if (!latest || value > latest) return value
+    return latest
+  }, null)
 
   const byVacancy = new Map<string, Map<string, number>>()
 
@@ -278,7 +290,7 @@ export async function getReceivedCvsByVacancy(
   }
 
   const vacancyIds = Array.from(byVacancy.keys())
-  if (vacancyIds.length === 0) return []
+  if (vacancyIds.length === 0) return { summaries: [], latestSyncedAt }
 
   const { data: vacanciesMeta, error: vacError } = await supabase
     .from('job_openings_kpi')
@@ -321,10 +333,13 @@ export async function getReceivedCvsByVacancy(
     }
   })
 
-  return summaries.sort(
-    (a, b) =>
-      b.newThisWeek - a.newThisWeek || a.title.localeCompare(b.title, 'es'),
-  )
+  return {
+    summaries: summaries.sort(
+      (a, b) =>
+        b.newThisWeek - a.newThisWeek || a.title.localeCompare(b.title, 'es'),
+    ),
+    latestSyncedAt,
+  }
 }
 
 
@@ -350,7 +365,7 @@ export interface ReceivedCvsByVacancyStats {
 export async function getReceivedCvsByVacancyStats(
   weeks = 12,
 ): Promise<ReceivedCvsByVacancyStats> {
-  const summaries = await getReceivedCvsByVacancy(weeks)
+  const { summaries, latestSyncedAt } = await getReceivedCvsByVacancy(weeks)
 
   if (summaries.length === 0) {
     return {
@@ -378,16 +393,6 @@ export async function getReceivedCvsByVacancyStats(
     vacancyTitle: summary.title,
     points: summary.history,
   }))
-
-  const latestSyncedAt = summaries.reduce<string | null>((latest, summary) => {
-    const maxPointDate = summary.history.length > 0
-      ? summary.history[summary.history.length - 1]?.weekStart ?? null
-      : null
-
-    if (!maxPointDate) return latest
-    if (!latest || maxPointDate > latest) return `${maxPointDate}T00:00:00.000Z`
-    return latest
-  }, null)
 
   return {
     ranking,

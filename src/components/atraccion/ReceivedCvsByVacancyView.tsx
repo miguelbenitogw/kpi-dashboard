@@ -146,7 +146,11 @@ export default function ReceivedCvsByVacancyView() {
       }
 
       const rowsUpserted = Number(payload?.rows_upserted ?? 0)
-      setSyncMessage(`Actualización completada. Filas sincronizadas: ${rowsUpserted}.`)
+      const synced = Number(payload?.vacancies_synced ?? 0)
+      const skipped = Number(payload?.vacancies_skipped_unchanged ?? 0)
+      setSyncMessage(
+        `Actualización completada. Vacantes sincronizadas: ${synced}. Sin cambios: ${skipped}. Filas actualizadas: ${rowsUpserted}.`,
+      )
       await refreshStats()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error inesperado al sincronizar.'
