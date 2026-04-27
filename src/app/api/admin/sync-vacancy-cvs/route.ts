@@ -2,6 +2,7 @@
 import { validateApiKey, unauthorizedResponse } from '../../sync/middleware'
 import { fetchAllCandidatesByJobOpening } from '@/lib/zoho/client'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server-auth'
 
 export const maxDuration = 300
 
@@ -37,7 +38,18 @@ function toIsoDate(date: Date): string {
 function getIsoWeekStart(date: Date): string {
   const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
   const day = utcDate.getUTCDay()
-  const diffToMonday = day === 0 ? -6 : 1 - day
+
+  // Semana laboral: lunes a viernes.
+  // Si cae fin de semana, lo atribuimos al viernes previo para que
+  // el agrupado semanal siempre represente la semana laboral vigente.
+  if (day === 6) {
+    utcDate.setUTCDate(utcDate.getUTCDate() - 1)
+  } else if (day === 0) {
+    utcDate.setUTCDate(utcDate.getUTCDate() - 2)
+  }
+
+  const adjustedDay = utcDate.getUTCDay()
+  const diffToMonday = adjustedDay === 0 ? -6 : 1 - adjustedDay
   utcDate.setUTCDate(utcDate.getUTCDate() + diffToMonday)
   return toIsoDate(utcDate)
 }
@@ -82,8 +94,20 @@ function buildWeeklyRows(
   }))
 }
 
+async function isAuthorizedRequest(request: Request): Promise<boolean> {
+  if (validateApiKey(request)) return true
+
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+
+  return Boolean(user) && !error
+}
+
 export async function POST(request: Request) {
-  if (!validateApiKey(request)) {
+  if (!(await isAuthorizedRequest(request))) {
     return unauthorizedResponse()
   }
 

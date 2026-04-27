@@ -6,7 +6,7 @@ export default function ReceivedCvsPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-100">CVs recibidos</h1>
         <p className="mt-1 text-sm text-gray-400">
-          Ranking semanal por vacante y evolución histórica de CVs nuevos.
+          Ranking semanal por vacante y evoluciÃ³n histÃ³rica de CVs nuevos.
         </p>
       </div>
 
