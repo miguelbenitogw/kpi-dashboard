@@ -85,6 +85,10 @@ export default function Sidebar() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
+  if (pathname.startsWith("/auth")) {
+    return null;
+  }
+
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
     return pathname.startsWith(href);
