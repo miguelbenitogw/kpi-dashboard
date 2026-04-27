@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Loader2, Minus, RefreshCw } from 'lucide-react'
+import { Loader2, RefreshCw } from 'lucide-react'
 import { getReceivedCvsByVacancyStats } from '@/lib/queries/atraccion'
 
 type WeeklyPoint = {
@@ -46,38 +46,6 @@ function getTrafficLight(target: number | null, value: number): TrafficLight {
   if (value >= target) return 'green'
   if (value >= Math.ceil(target * 0.7)) return 'yellow'
   return 'red'
-}
-
-function TrafficPill({ status }: { status: TrafficLight }) {
-  if (status === 'green') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
-        <CheckCircle2 className="h-3.5 w-3.5" /> Verde
-      </span>
-    )
-  }
-
-  if (status === 'yellow') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-300">
-        <AlertTriangle className="h-3.5 w-3.5" /> Amarillo
-      </span>
-    )
-  }
-
-  if (status === 'red') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-red-500/40 bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-300">
-        <AlertTriangle className="h-3.5 w-3.5" /> Rojo
-      </span>
-    )
-  }
-
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-gray-600/50 bg-gray-700/40 px-3 py-1 text-xs font-semibold text-gray-300">
-      <Minus className="h-3.5 w-3.5" /> Sin objetivo
-    </span>
-  )
 }
 
 export default function ReceivedCvsByVacancyView() {
@@ -286,7 +254,6 @@ export default function ReceivedCvsByVacancyView() {
                 <th className="px-4 py-3 text-left font-medium text-gray-500">#</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500 min-w-[320px]">Vacante</th>
                 <th className="px-3 py-3 text-center font-medium text-gray-500">Objetivo/sem</th>
-                <th className="px-3 py-3 text-center font-medium text-gray-500">Semáforo</th>
                 <th className="px-3 py-3 text-right font-medium text-gray-500">Semana cerrada</th>
                 {weekColumns.map((week) => (
                   <th key={week.weekLabel} className="px-3 py-3 text-right font-medium text-gray-500 whitespace-nowrap">
@@ -301,7 +268,16 @@ export default function ReceivedCvsByVacancyView() {
                 const traffic = getTrafficLight(row.weeklyTarget, row.newThisWeek)
 
                 return (
-                  <tr key={row.vacancyId} className="hover:bg-gray-700/20 transition-colors">
+                  <tr
+                    key={row.vacancyId}
+                    className={[
+                      'transition-colors',
+                      traffic === 'green' ? 'bg-emerald-500/5 hover:bg-emerald-500/10' : '',
+                      traffic === 'yellow' ? 'bg-amber-500/5 hover:bg-amber-500/10' : '',
+                      traffic === 'red' ? 'bg-red-500/5 hover:bg-red-500/10' : '',
+                      traffic === 'none' ? 'hover:bg-gray-700/20' : '',
+                    ].join(' ')}
+                  >
                     <td className="px-4 py-3 text-gray-500 tabular-nums">{index + 1}</td>
                     <td className="px-4 py-3 text-gray-100 font-medium">{row.vacancyTitle}</td>
                     <td className="px-3 py-3">
@@ -329,9 +305,6 @@ export default function ReceivedCvsByVacancyView() {
                           {savingTargetId === row.vacancyId ? '...' : 'Guardar'}
                         </button>
                       </div>
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <TrafficPill status={traffic} />
                     </td>
                     <td className="px-3 py-3 text-right text-base text-gray-100 tabular-nums font-semibold">{row.newThisWeek}</td>
                     {pointsDesc.map((point) => (
