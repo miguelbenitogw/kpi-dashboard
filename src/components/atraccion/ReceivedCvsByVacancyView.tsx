@@ -261,6 +261,7 @@ export default function ReceivedCvsByVacancyView() {
         <div>
           <p className="text-base font-semibold text-gray-200">Sincronización manual de CVs</p>
           <p className="text-sm text-gray-500">Semana KPI: lunes a domingo. Se muestra la última semana cerrada.</p>
+          <p className="mt-1 text-xs text-gray-500">{formatDateTime(data.generatedAt)}</p>
         </div>
         <button
           type="button"
@@ -278,16 +279,8 @@ export default function ReceivedCvsByVacancyView() {
       ) : null}
 
       <div className="rounded-xl border border-gray-700/50 bg-gray-800/50">
-        <div className="flex items-center justify-between border-b border-gray-700/50 px-5 py-4">
-          <div>
-            <h3 className="text-base font-semibold text-gray-200">Vista unificada por vacante</h3>
-            <p className="mt-0.5 text-sm text-gray-500">Tabla semanal (columnas de más reciente a más antiguo) + objetivo + semáforo</p>
-          </div>
-          <span className="text-xs text-gray-500">{formatDateTime(data.generatedAt)}</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto min-h-[62vh]">
+          <table className="w-full text-[15px]">
             <thead>
               <tr className="border-b border-gray-700/30">
                 <th className="px-4 py-3 text-left font-medium text-gray-500">#</th>
