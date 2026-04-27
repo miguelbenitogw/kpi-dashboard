@@ -29,13 +29,13 @@
   --color-accent-800: #782614;
   --color-accent-900: #4d180c;
 
-  /* Surface (navy-tinted dark) */
-  --color-surface-950: #0a1324;
-  --color-surface-900: #121c30;
-  --color-surface-850: #17243e;
-  --color-surface-800: #1e2d4c;
-  --color-surface-700: #2b3d61;
-  --color-surface-600: #3a4f78;
+  /* Surface (light default) */
+  --color-surface-950: #f8fafc;
+  --color-surface-900: #f1f5f9;
+  --color-surface-850: #e2e8f0;
+  --color-surface-800: #cbd5e1;
+  --color-surface-700: #94a3b8;
+  --color-surface-600: #64748b;
 
   /* Traffic light (warmed to sit with brand) */
   --color-ok-500: #16a34a;
@@ -47,12 +47,28 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
+  /*
+    Remap gray scale so existing dark-mode utility classes render in light theme
+    without rewriting every component class.
+  */
+  --color-gray-50: #0f172a;
+  --color-gray-100: #111827;
+  --color-gray-200: #1f2937;
+  --color-gray-300: #374151;
+  --color-gray-400: #4b5563;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #9ca3af;
+  --color-gray-700: #cbd5e1;
+  --color-gray-800: #e2e8f0;
+  --color-gray-850: #e2e8f0;
+  --color-gray-900: #f1f5f9;
+  --color-gray-950: #f8fafc;
 }
 
 body {
   background: var(--color-surface-950);
-  color: #eef2f8;
+  color: var(--color-gray-100);
   font-family: var(--font-sans);
 }
 
@@ -68,11 +84,11 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-surface-900);
+  background: #e2e8f0;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-700);
+  background: #94a3b8;
   border-radius: 3px;
 }
 

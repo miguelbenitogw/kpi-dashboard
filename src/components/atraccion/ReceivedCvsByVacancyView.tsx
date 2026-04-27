@@ -313,7 +313,7 @@ export default function ReceivedCvsByVacancyView() {
                           placeholder="-"
                         />
                         <span className="text-xs text-gray-500 min-w-[90px] text-center">
-                          {savingTargetIds[row.vacancyId] ? 'Guardando…' : 'Auto'}
+                          {savingTargetIds[row.vacancyId] ? 'Guardando…' : ''}
                         </span>
                       </div>
                     </td>
