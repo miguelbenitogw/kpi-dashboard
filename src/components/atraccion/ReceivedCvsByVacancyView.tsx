@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2, Minus, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Loader2, Minus, RefreshCw } from 'lucide-react'
 import { getReceivedCvsByVacancyStats } from '@/lib/queries/atraccion'
 
 type WeeklyPoint = {
@@ -12,6 +12,7 @@ type WeeklyPoint = {
 type VacancyRanking = {
   vacancyId: string
   vacancyTitle: string
+  weeklyTarget: number | null
   newThisWeek: number
   previousWeek: number
 }
@@ -28,56 +29,7 @@ type ReceivedCvsByVacancyStats = {
   generatedAt?: string | null
 }
 
-function deltaPill(current: number, previous: number) {
-  const delta = current - previous
-
-  if (delta > 0) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
-        <TrendingUp className="h-3 w-3" /> +{delta}
-      </span>
-    )
-  }
-
-  if (delta < 0) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-300">
-        <TrendingDown className="h-3 w-3" /> {delta}
-      </span>
-    )
-  }
-
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-gray-600/50 bg-gray-700/40 px-2 py-0.5 text-[10px] font-semibold text-gray-300">
-      <Minus className="h-3 w-3" /> 0
-    </span>
-  )
-}
-
-function MiniSeries({ points }: { points: WeeklyPoint[] }) {
-  const safePoints = points.slice(-8)
-  const max = Math.max(...safePoints.map((p) => p.count), 1)
-
-  return (
-    <div className="flex items-end gap-1.5">
-      {safePoints.map((point) => {
-        const height = Math.max(6, Math.round((point.count / max) * 32))
-        return (
-          <div key={point.weekLabel} className="group flex flex-col items-center gap-1">
-            <span className="opacity-0 transition-opacity group-hover:opacity-100 text-[9px] text-gray-500">
-              {point.weekLabel}
-            </span>
-            <div
-              className="w-2.5 rounded-sm bg-brand-500/70 transition-colors group-hover:bg-accent-500"
-              style={{ height }}
-              title={`${point.weekLabel}: ${point.count}`}
-            />
-          </div>
-        )
-      })}
-    </div>
-  )
-}
+type TrafficLight = 'green' | 'yellow' | 'red' | 'none'
 
 function formatDateTime(iso?: string | null) {
   if (!iso) return 'Sin timestamp de sync'
@@ -89,11 +41,52 @@ function formatDateTime(iso?: string | null) {
   })}`
 }
 
+function getTrafficLight(target: number | null, value: number): TrafficLight {
+  if (target === null || target <= 0) return 'none'
+  if (value >= target) return 'green'
+  if (value >= Math.ceil(target * 0.7)) return 'yellow'
+  return 'red'
+}
+
+function TrafficPill({ status }: { status: TrafficLight }) {
+  if (status === 'green') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">
+        <CheckCircle2 className="h-3.5 w-3.5" /> Verde
+      </span>
+    )
+  }
+
+  if (status === 'yellow') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-300">
+        <AlertTriangle className="h-3.5 w-3.5" /> Amarillo
+      </span>
+    )
+  }
+
+  if (status === 'red') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-red-500/40 bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-300">
+        <AlertTriangle className="h-3.5 w-3.5" /> Rojo
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-gray-600/50 bg-gray-700/40 px-3 py-1 text-xs font-semibold text-gray-300">
+      <Minus className="h-3.5 w-3.5" /> Sin objetivo
+    </span>
+  )
+}
+
 export default function ReceivedCvsByVacancyView() {
   const [data, setData] = useState<ReceivedCvsByVacancyStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
+  const [targetDrafts, setTargetDrafts] = useState<Record<string, string>>({})
+  const [savingTargetId, setSavingTargetId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -112,6 +105,15 @@ export default function ReceivedCvsByVacancyView() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!data) return
+    const nextDrafts: Record<string, string> = {}
+    for (const row of data.ranking) {
+      nextDrafts[row.vacancyId] = row.weeklyTarget == null ? '' : String(row.weeklyTarget)
+    }
+    setTargetDrafts(nextDrafts)
+  }, [data])
 
   async function refreshStats() {
     const result = (await getReceivedCvsByVacancyStats()) as ReceivedCvsByVacancyStats
@@ -160,25 +162,64 @@ export default function ReceivedCvsByVacancyView() {
     }
   }
 
-  const summary = useMemo(() => {
-    if (!data) return { current: 0, previous: 0 }
-    return data.ranking.reduce(
-      (acc, row) => ({
-        current: acc.current + row.newThisWeek,
-        previous: acc.previous + row.previousWeek,
-      }),
-      { current: 0, previous: 0 },
-    )
+  async function saveWeeklyTarget(vacancyId: string) {
+    if (savingTargetId) return
+
+    const raw = (targetDrafts[vacancyId] ?? '').trim()
+    const weeklyTarget = raw === '' ? null : Number(raw)
+    if (weeklyTarget !== null && (!Number.isFinite(weeklyTarget) || weeklyTarget < 0)) {
+      setSyncMessage('El objetivo debe ser un número mayor o igual a 0.')
+      return
+    }
+
+    setSavingTargetId(vacancyId)
+    setSyncMessage(null)
+
+    try {
+      const response = await fetch('/api/admin/vacancy-cv-target', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vacancyId, weeklyTarget }),
+      })
+
+      const payload = (await response.json().catch(() => null)) as Record<string, unknown> | null
+
+      if (!response.ok) {
+        const message = (payload?.error as string | undefined) ?? `No se pudo guardar (HTTP ${response.status})`
+        setSyncMessage(message)
+        return
+      }
+
+      setSyncMessage('Objetivo semanal guardado.')
+      await refreshStats()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error inesperado al guardar objetivo.'
+      setSyncMessage(message)
+    } finally {
+      setSavingTargetId(null)
+    }
+  }
+
+  const unifiedRows = useMemo(() => {
+    if (!data) return []
+    const seriesByVacancy = new Map(data.weeklySeries.map((serie) => [serie.vacancyId, serie]))
+    return data.ranking.map((rankingRow) => ({
+      ...rankingRow,
+      points: seriesByVacancy.get(rankingRow.vacancyId)?.points ?? [],
+    }))
+  }, [data])
+
+  const weekColumns = useMemo(() => {
+    if (!data || data.weeklySeries.length === 0) return []
+    const base = data.weeklySeries[0]?.points ?? []
+    return [...base].reverse()
   }, [data])
 
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2 h-56 animate-pulse rounded-xl border border-surface-700/60 bg-surface-850/60" />
-          <div className="h-56 animate-pulse rounded-xl border border-surface-700/60 bg-surface-850/60" />
-        </div>
-        <div className="h-72 animate-pulse rounded-xl border border-surface-700/60 bg-surface-850/60" />
+        <div className="h-16 animate-pulse rounded-xl border border-surface-700/60 bg-surface-850/60" />
+        <div className="h-96 animate-pulse rounded-xl border border-surface-700/60 bg-surface-850/60" />
       </div>
     )
   }
@@ -188,144 +229,129 @@ export default function ReceivedCvsByVacancyView() {
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-700/40 bg-gray-800/30 px-4 py-3">
           <div>
-            <p className="text-sm font-medium text-gray-200">Sincronización manual de CVs</p>
-            <p className="text-xs text-gray-500">Actualizá Zoho ahora y refrescá esta vista al instante.</p>
+            <p className="text-base font-semibold text-gray-200">Sincronización manual de CVs</p>
+            <p className="text-sm text-gray-500">Actualizá Zoho ahora y refrescá esta vista al instante.</p>
           </div>
           <button
             type="button"
             onClick={handleSyncNow}
             disabled={syncing}
-            className="inline-flex items-center gap-2 rounded-lg border border-brand-500/40 bg-brand-500/15 px-3 py-2 text-xs font-semibold text-brand-200 transition hover:bg-brand-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-lg border border-brand-500/40 bg-brand-500/15 px-4 py-2.5 text-sm font-semibold text-brand-200 transition hover:bg-brand-500/25 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             {syncing ? 'Actualizando...' : 'Actualizar info'}
           </button>
         </div>
 
         {syncMessage ? (
-          <div className="rounded-lg border border-gray-700/40 bg-gray-800/40 px-4 py-2.5 text-xs text-gray-300">{syncMessage}</div>
+          <div className="rounded-lg border border-gray-700/40 bg-gray-800/40 px-4 py-2.5 text-sm text-gray-300">{syncMessage}</div>
         ) : null}
 
         <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-8 text-center">
-          <p className="text-sm text-gray-300">Todavía no hay CVs recibidos para mostrar.</p>
-          <p className="mt-1 text-xs text-gray-500">Cuando haya actividad semanal, vas a ver el ranking por vacante acá.</p>
+          <p className="text-base text-gray-300">Todavía no hay CVs recibidos para mostrar.</p>
+          <p className="mt-1 text-sm text-gray-500">Cuando haya actividad semanal, vas a ver el ranking por vacante acá.</p>
         </div>
       </div>
     )
   }
 
-  const ranking = data.ranking.slice(0, 12)
-  const seriesByVacancy = new Map(data.weeklySeries.map((serie) => [serie.vacancyId, serie]))
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-700/40 bg-gray-800/30 px-4 py-3">
         <div>
-          <p className="text-sm font-medium text-gray-200">Sincronización manual de CVs</p>
-          <p className="text-xs text-gray-500">Actualizá Zoho ahora y refrescá esta vista al instante.</p>
+          <p className="text-base font-semibold text-gray-200">Sincronización manual de CVs</p>
+          <p className="text-sm text-gray-500">Semana KPI: lunes a domingo. Se muestra la última semana cerrada.</p>
         </div>
         <button
           type="button"
           onClick={handleSyncNow}
           disabled={syncing}
-          className="inline-flex items-center gap-2 rounded-lg border border-brand-500/40 bg-brand-500/15 px-3 py-2 text-xs font-semibold text-brand-200 transition hover:bg-brand-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg border border-brand-500/40 bg-brand-500/15 px-4 py-2.5 text-sm font-semibold text-brand-200 transition hover:bg-brand-500/25 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           {syncing ? 'Actualizando...' : 'Actualizar info'}
         </button>
       </div>
 
       {syncMessage ? (
-        <div className="rounded-lg border border-gray-700/40 bg-gray-800/40 px-4 py-2.5 text-xs text-gray-300">{syncMessage}</div>
+        <div className="rounded-lg border border-gray-700/40 bg-gray-800/40 px-4 py-2.5 text-sm text-gray-300">{syncMessage}</div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 rounded-xl border border-gray-700/50 bg-gray-800/50">
-          <div className="flex items-center justify-between border-b border-gray-700/50 px-5 py-3">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-200">Ranking de nuevos esta semana</h3>
-              <p className="mt-0.5 text-xs text-gray-500">Top vacantes activas por ingreso semanal de CVs</p>
-            </div>
-            <span className="text-[10px] text-gray-500">{formatDateTime(data.generatedAt)}</span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-gray-700/30">
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-500">#</th>
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-500">Vacante</th>
-                  <th className="px-3 py-2.5 text-right font-medium text-gray-500">Nuevos</th>
-                  <th className="px-3 py-2.5 text-right font-medium text-gray-500">Semana anterior</th>
-                  <th className="px-4 py-2.5 text-right font-medium text-gray-500">Variación</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700/20">
-                {ranking.map((row, index) => (
-                  <tr key={row.vacancyId} className="hover:bg-gray-700/20 transition-colors">
-                    <td className="px-4 py-2.5 text-gray-500 tabular-nums">{index + 1}</td>
-                    <td className="px-4 py-2.5 text-gray-200 font-medium">{row.vacancyTitle}</td>
-                    <td className="px-3 py-2.5 text-right text-gray-100 tabular-nums">{row.newThisWeek}</td>
-                    <td className="px-3 py-2.5 text-right text-gray-400 tabular-nums">{row.previousWeek}</td>
-                    <td className="px-4 py-2.5 text-right">{deltaPill(row.newThisWeek, row.previousWeek)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
-          <h3 className="text-sm font-semibold text-gray-200">Resumen semanal</h3>
-          <p className="mt-1 text-xs text-gray-500">Comparativa total vs semana anterior</p>
-
-          <div className="mt-4 space-y-3">
-            <div className="rounded-lg border border-gray-700/50 bg-gray-700/20 p-3">
-              <p className="text-[11px] uppercase tracking-wide text-gray-500">Esta semana</p>
-              <p className="mt-1 text-2xl font-bold text-gray-100 tabular-nums">{summary.current}</p>
-            </div>
-            <div className="rounded-lg border border-gray-700/50 bg-gray-700/20 p-3">
-              <p className="text-[11px] uppercase tracking-wide text-gray-500">Semana anterior</p>
-              <p className="mt-1 text-2xl font-bold text-gray-300 tabular-nums">{summary.previous}</p>
-            </div>
-            <div>{deltaPill(summary.current, summary.previous)}</div>
-          </div>
-        </div>
-      </div>
-
       <div className="rounded-xl border border-gray-700/50 bg-gray-800/50">
-        <div className="border-b border-gray-700/50 px-5 py-3">
-          <h3 className="text-sm font-semibold text-gray-200">Histórico semanal por vacante</h3>
-          <p className="mt-0.5 text-xs text-gray-500">Mini-series (últimas 8 semanas)</p>
+        <div className="flex items-center justify-between border-b border-gray-700/50 px-5 py-4">
+          <div>
+            <h3 className="text-base font-semibold text-gray-200">Vista unificada por vacante</h3>
+            <p className="mt-0.5 text-sm text-gray-500">Tabla semanal (columnas de más reciente a más antiguo) + objetivo + semáforo</p>
+          </div>
+          <span className="text-xs text-gray-500">{formatDateTime(data.generatedAt)}</span>
         </div>
 
-        {data.weeklySeries.length === 0 ? (
-          <div className="p-6 text-center">
-            <p className="text-xs text-gray-500">Sin histórico semanal para las vacantes actuales.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-700/20">
-            {ranking.map((row) => {
-              const serie = seriesByVacancy.get(row.vacancyId)
-              return (
-                <div key={`${row.vacancyId}-history`} className="flex flex-col gap-3 px-5 py-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-200">{row.vacancyTitle}</p>
-                    <p className="text-[11px] text-gray-500">Nuevos esta semana: {row.newThisWeek}</p>
-                  </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-700/30">
+                <th className="px-4 py-3 text-left font-medium text-gray-500">#</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500 min-w-[320px]">Vacante</th>
+                <th className="px-3 py-3 text-center font-medium text-gray-500">Objetivo/sem</th>
+                <th className="px-3 py-3 text-center font-medium text-gray-500">Semáforo</th>
+                <th className="px-3 py-3 text-right font-medium text-gray-500">Semana cerrada</th>
+                {weekColumns.map((week) => (
+                  <th key={week.weekLabel} className="px-3 py-3 text-right font-medium text-gray-500 whitespace-nowrap">
+                    {week.weekLabel}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-700/20">
+              {unifiedRows.map((row, index) => {
+                const pointsDesc = [...row.points].reverse()
+                const traffic = getTrafficLight(row.weeklyTarget, row.newThisWeek)
 
-                  <div className="min-h-10">
-                    {serie && serie.points.length > 0 ? (
-                      <MiniSeries points={serie.points} />
-                    ) : (
-                      <p className="text-[11px] text-gray-500">Sin muestras históricas</p>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+                return (
+                  <tr key={row.vacancyId} className="hover:bg-gray-700/20 transition-colors">
+                    <td className="px-4 py-3 text-gray-500 tabular-nums">{index + 1}</td>
+                    <td className="px-4 py-3 text-gray-100 font-medium">{row.vacancyTitle}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={targetDrafts[row.vacancyId] ?? ''}
+                          onChange={(e) =>
+                            setTargetDrafts((prev) => ({
+                              ...prev,
+                              [row.vacancyId]: e.target.value,
+                            }))
+                          }
+                          className="w-24 rounded-md border border-gray-600/60 bg-gray-900/70 px-2.5 py-1.5 text-right text-sm text-gray-100 outline-none focus:border-blue-500/60"
+                          placeholder="-"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => saveWeeklyTarget(row.vacancyId)}
+                          disabled={savingTargetId !== null}
+                          className="rounded-md border border-blue-500/40 bg-blue-500/15 px-2.5 py-1.5 text-xs font-semibold text-blue-300 hover:bg-blue-500/25 disabled:opacity-60"
+                        >
+                          {savingTargetId === row.vacancyId ? '...' : 'Guardar'}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <TrafficPill status={traffic} />
+                    </td>
+                    <td className="px-3 py-3 text-right text-base text-gray-100 tabular-nums font-semibold">{row.newThisWeek}</td>
+                    {pointsDesc.map((point) => (
+                      <td key={`${row.vacancyId}-${point.weekLabel}`} className="px-3 py-3 text-right tabular-nums text-gray-300">
+                        {point.count}
+                      </td>
+                    ))}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

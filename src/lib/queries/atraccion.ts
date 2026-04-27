@@ -34,6 +34,7 @@ export interface VacancyWeeklyCvSummary {
   title: string
   clientName: string | null
   owner: string | null
+  weeklyTarget: number | null
   newThisWeek: number
   history: VacancyWeeklyCvPoint[]
 }
@@ -177,6 +178,12 @@ export function getCurrentIsoWeekMonday(referenceDate = new Date()): string {
   return utcDate.toISOString().split('T')[0]
 }
 
+export function getLastCompletedIsoWeekMonday(referenceDate = new Date()): string {
+  const currentMonday = new Date(getCurrentIsoWeekMonday(referenceDate))
+  currentMonday.setUTCDate(currentMonday.getUTCDate() - 7)
+  return currentMonday.toISOString().split('T')[0]
+}
+
 export function sortWeeks(weeks: string[]): string[] {
   return [...weeks].sort((a, b) => a.localeCompare(b))
 }
@@ -202,7 +209,7 @@ function normalizeToIsoMonday(input: unknown): string | null {
 }
 
 function getRecentIsoMondays(weeks: number): string[] {
-  const currentMonday = getCurrentIsoWeekMonday()
+  const currentMonday = getLastCompletedIsoWeekMonday()
   const dates: string[] = []
 
   for (let offset = weeks - 1; offset >= 0; offset -= 1) {
@@ -231,6 +238,14 @@ type VacancyCvWeeklyRow = {
   total?: number | string | null
   new_cvs?: number | string | null
   synced_at?: string | null
+}
+
+type VacancyMetaRow = {
+  id: string
+  title: string | null
+  client_name: string | null
+  owner: string | null
+  weekly_cv_target: number | null
 }
 
 export async function getReceivedCvsByVacancy(
@@ -298,9 +313,21 @@ export async function getReceivedCvsByVacancy(
   const vacancyIds = Array.from(byVacancy.keys())
   if (vacancyIds.length === 0) return { summaries: [], latestSyncedAt }
 
-  const { data: vacanciesMeta, error: vacError } = await supabase
+  type VacancyMetaQueryClient = {
+    from: (table: string) => {
+      select: (columns: string) => {
+        in: (
+          column: string,
+          values: string[],
+        ) => Promise<{ data: VacancyMetaRow[] | null; error: { message: string } | null }>
+      }
+    }
+  }
+
+  const vacancyMetaClient = supabase as unknown as VacancyMetaQueryClient
+  const { data: vacanciesMeta, error: vacError } = await vacancyMetaClient
     .from('job_openings_kpi')
-    .select('id, title, client_name, owner')
+    .select('id, title, client_name, owner, weekly_cv_target')
     .in('id', vacancyIds)
 
   if (vacError) {
@@ -310,11 +337,12 @@ export async function getReceivedCvsByVacancy(
   const metaMap = new Map(
     (vacanciesMeta ?? []).map((v) => [
       v.id,
-      {
-        title: v.title,
-        clientName: v.client_name ?? null,
-        owner: v.owner ?? null,
-      },
+        {
+          title: v.title,
+          clientName: v.client_name ?? null,
+          owner: v.owner ?? null,
+          weeklyTarget: v.weekly_cv_target ?? null,
+        },
     ]),
   )
 
@@ -328,12 +356,17 @@ export async function getReceivedCvsByVacancy(
 
     const meta = metaMap.get(vacancyId)
     const newThisWeek = weekMap.get(currentWeek) ?? 0
+    const weeklyTarget =
+      typeof meta?.weeklyTarget === 'number' && Number.isFinite(meta.weeklyTarget)
+        ? Math.max(0, Math.trunc(meta.weeklyTarget))
+        : null
 
     return {
       vacancyId,
       title: meta?.title ?? 'Vacante sin título',
       clientName: meta?.clientName ?? null,
       owner: meta?.owner ?? null,
+      weeklyTarget,
       newThisWeek,
       history,
     }
@@ -352,6 +385,7 @@ export async function getReceivedCvsByVacancy(
 export interface VacancyRankingRow {
   vacancyId: string
   vacancyTitle: string
+  weeklyTarget: number | null
   newThisWeek: number
   previousWeek: number
 }
@@ -389,6 +423,7 @@ export async function getReceivedCvsByVacancyStats(
     return {
       vacancyId: summary.vacancyId,
       vacancyTitle: summary.title,
+      weeklyTarget: summary.weeklyTarget,
       newThisWeek: summary.newThisWeek,
       previousWeek,
     }
@@ -492,7 +527,7 @@ export async function getAttractionTrafficLight(
   const pct = target > 0 ? current / target : 0
 
   // Semanas hasta INICIO del proyecto (AJ3 del Cuadro de Mando).
-  // Fallback a fecha_fin si fecha_inicio no está cargada.
+  // Fallback a fecha_fin si fecha_inicio no estÃ¡ cargada.
   const now = new Date()
   const startRaw = data.fecha_inicio ?? data.fecha_fin
   const start = startRaw ? new Date(startRaw) : now
@@ -546,7 +581,7 @@ export interface AtraccionVacancy {
 }
 
 // ---------------------------------------------------------------------------
-// Vacancy × Status recruitment table (es_proceso_atraccion_actual)
+// Vacancy Ã— Status recruitment table (es_proceso_atraccion_actual)
 // ---------------------------------------------------------------------------
 
 export interface VacancyStatusRow {
@@ -558,7 +593,7 @@ export interface VacancyStatusRow {
   date_opened: string | null
   total_candidates: number
   hired_count: number
-  byStatus: Record<string, number>   // candidate_status_in_jo → count
+  byStatus: Record<string, number>   // candidate_status_in_jo â†’ count
   total: number
 }
 
@@ -591,7 +626,7 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
 
   if (countsError) console.error('Error fetching vacancy status counts:', countsError)
 
-  // Build a lookup: vacancyId → { status → count }
+  // Build a lookup: vacancyId â†’ { status â†’ count }
   const countMap = new Map<string, Record<string, number>>()
   let latestSyncedAt: string | null = null
 
@@ -629,11 +664,11 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
 }
 
 // ---------------------------------------------------------------------------
-// Promo × Status recruitment table
+// Promo Ã— Status recruitment table
 // ---------------------------------------------------------------------------
 
 export interface PromoStatusRow {
-  /** Promotion name, e.g. "Promoción 113" */
+  /** Promotion name, e.g. "PromociÃ³n 113" */
   nombre: string
   /** Recruitment target (objetivo_atraccion from promotions_kpi) */
   objetivo: number | null
@@ -643,7 +678,7 @@ export interface PromoStatusRow {
   fecha_fin: string | null
   /** Coordinator */
   coordinador: string | null
-  /** Map status → count for this promo */
+  /** Map status â†’ count for this promo */
   byStatus: Record<string, number>
   /** Total candidates in this promo */
   total: number
@@ -698,7 +733,7 @@ export async function getPromoRecruitmentStats(): Promise<PromoRecruitmentStats>
   }
   const statuses = Array.from(allStatuses).sort()
 
-  // Build rows — include all active promos even if they have 0 candidates
+  // Build rows â€” include all active promos even if they have 0 candidates
   const rows: PromoStatusRow[] = activePromos.map((p) => {
     const byStatus = promoMap.get(p.nombre) ?? {}
     const total = Object.values(byStatus).reduce((sum, n) => sum + n, 0)
@@ -739,7 +774,7 @@ export interface VacancyTagCount {
 
 /**
  * Get tag counts for a set of vacancy IDs from the pre-computed table.
- * Returns a map: vacancy_id → { tag → count }
+ * Returns a map: vacancy_id â†’ { tag â†’ count }
  */
 export async function getVacancyTagCountsMap(
   vacancyIds: string[]
@@ -750,7 +785,7 @@ export async function getVacancyTagCountsMap(
   const PAGE_SIZE = 1000
   let from = 0
 
-  // Paginate — Supabase default row limit is 1000, table has 13k+ rows
+  // Paginate â€” Supabase default row limit is 1000, table has 13k+ rows
   while (true) {
     const { data, error } = await supabase
       .from('vacancy_tag_counts_kpi')
@@ -912,7 +947,7 @@ export async function getClosedVacanciesData(): Promise<ClosedVacanciesData> {
 }
 
 export async function getAtraccionVacancies(): Promise<AtraccionVacancy[]> {
-  // Only show vacancies tagged "Proceso atracción actual" — the ~20 active
+  // Only show vacancies tagged "Proceso atracciÃ³n actual" â€” the ~20 active
   // recruitment processes. This is the source of truth for what's actively
   // being recruited right now, regardless of job opening status field.
   const { data, error } = await supabase
