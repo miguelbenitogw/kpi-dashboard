@@ -188,17 +188,26 @@ export default function ChatPage() {
   return (
     <div className="flex h-[calc(100vh-6rem)] flex-col lg:h-[calc(100vh-3rem)]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-800 pb-4">
+      <div className="flex items-center justify-between pb-4" style={{ borderBottom: '1px solid #e7e2d8' }}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-100">Asistente IA</h1>
-          <p className="mt-1 text-sm text-gray-400">
+          <h1 className="text-2xl font-bold" style={{ color: '#1c1917' }}>Asistente IA</h1>
+          <p className="mt-1 text-sm" style={{ color: '#78716c' }}>
             Consultá datos de Zoho Recruit en lenguaje natural.
           </p>
         </div>
         {messages.length > 0 && (
           <button
             onClick={clearConversation}
-            className="flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-gray-600 hover:text-gray-200"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm transition-colors"
+            style={{ border: '1px solid #e7e2d8', color: '#78716c', borderRadius: 8 }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = '#cbd5e1'
+              e.currentTarget.style.color = '#44403c'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = '#e7e2d8'
+              e.currentTarget.style.color = '#78716c'
+            }}
           >
             <Trash2 className="h-4 w-4" />
             Limpiar
@@ -215,7 +224,10 @@ export default function ChatPage() {
           /* Welcome state */
           <div className="flex h-full flex-col items-center justify-center gap-8 px-4">
             <div className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-600/20 text-blue-400">
+              <div
+                className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+                style={{ background: 'linear-gradient(135deg, #1e4b9e22, #e55a2b22)', color: '#1e4b9e' }}
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
@@ -231,10 +243,10 @@ export default function ChatPage() {
                   />
                 </svg>
               </div>
-              <h2 className="text-lg font-semibold text-gray-200">
+              <h2 className="text-lg font-semibold" style={{ color: '#1c1917' }}>
                 ¿En qué puedo ayudarte?
               </h2>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm" style={{ color: '#78716c' }}>
                 Tengo acceso en tiempo real a los datos de Zoho Recruit.
               </p>
             </div>
@@ -277,9 +289,9 @@ export default function ChatPage() {
             {isLoading && !streamingContent && activeToolCalls.length === 0 && (
               <div className="flex items-center gap-3 pl-11">
                 <div className="flex gap-1">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-500 [animation-delay:-0.3s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-500 [animation-delay:-0.15s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-500" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:-0.3s]" style={{ background: '#cbd5e1' }} />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:-0.15s]" style={{ background: '#cbd5e1' }} />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full" style={{ background: '#cbd5e1' }} />
                 </div>
               </div>
             )}
@@ -288,14 +300,14 @@ export default function ChatPage() {
       </div>
 
       {/* Input area */}
-      <div className="border-t border-gray-800 pt-4">
+      <div className="pt-4" style={{ borderTop: '1px solid #e7e2d8' }}>
         <ChatInput
           value={input}
           onChange={setInput}
           onSend={() => sendMessage()}
           disabled={isLoading}
         />
-        <p className="mt-2 text-center text-xs text-gray-600">
+        <p className="mt-2 text-center text-xs" style={{ color: '#a8a29e' }}>
           Los datos se consultan en tiempo real desde Zoho Recruit.
         </p>
       </div>

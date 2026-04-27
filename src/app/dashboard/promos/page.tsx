@@ -24,15 +24,15 @@ interface PromoData {
 // Loading skeleton for promo cards
 function CardSkeleton() {
   return (
-    <div className="animate-pulse rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
-      <div className="mb-3 h-4 w-3/4 rounded bg-gray-700/50" />
-      <div className="mb-3 h-8 w-16 rounded bg-gray-700/50" />
-      <div className="mb-3 h-2 w-full rounded-full bg-gray-700/50" />
-      <div className="mb-3 h-2 w-full rounded-full bg-gray-700/50" />
+    <div className="animate-pulse rounded-xl p-5" style={{ border: '1px solid #e7e2d8', background: '#f5f1ea' }}>
+      <div className="mb-3 h-4 w-3/4 rounded" style={{ background: '#e7e2d8' }} />
+      <div className="mb-3 h-8 w-16 rounded" style={{ background: '#e7e2d8' }} />
+      <div className="mb-3 h-2 w-full rounded-full" style={{ background: '#e7e2d8' }} />
+      <div className="mb-3 h-2 w-full rounded-full" style={{ background: '#e7e2d8' }} />
       <div className="grid grid-cols-3 gap-2">
-        <div className="h-10 rounded bg-gray-700/50" />
-        <div className="h-10 rounded bg-gray-700/50" />
-        <div className="h-10 rounded bg-gray-700/50" />
+        <div className="h-10 rounded" style={{ background: '#e7e2d8' }} />
+        <div className="h-10 rounded" style={{ background: '#e7e2d8' }} />
+        <div className="h-10 rounded" style={{ background: '#e7e2d8' }} />
       </div>
     </div>
   )
@@ -42,24 +42,24 @@ function DetailSkeleton() {
   return (
     <div className="animate-pulse space-y-6">
       <div>
-        <div className="h-6 w-2/3 rounded bg-gray-700/50" />
-        <div className="mt-2 h-4 w-1/2 rounded bg-gray-700/50" />
+        <div className="h-6 w-2/3 rounded" style={{ background: '#e7e2d8' }} />
+        <div className="mt-2 h-4 w-1/2 rounded" style={{ background: '#e7e2d8' }} />
       </div>
-      <div className="flex gap-1 rounded-lg bg-gray-800/80 p-1">
-        <div className="h-8 flex-1 rounded-md bg-gray-700/50" />
-        <div className="h-8 flex-1 rounded-md bg-gray-700/50" />
-        <div className="h-8 flex-1 rounded-md bg-gray-700/50" />
+      <div className="flex gap-1 rounded-lg p-1" style={{ background: '#f5f1ea' }}>
+        <div className="h-8 flex-1 rounded-md" style={{ background: '#e7e2d8' }} />
+        <div className="h-8 flex-1 rounded-md" style={{ background: '#e7e2d8' }} />
+        <div className="h-8 flex-1 rounded-md" style={{ background: '#e7e2d8' }} />
       </div>
-      <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-6">
-        <div className="mb-4 h-4 w-1/3 rounded bg-gray-700/50" />
+      <div className="rounded-xl p-6" style={{ border: '1px solid #e7e2d8', background: '#ffffff' }}>
+        <div className="mb-4 h-4 w-1/3 rounded" style={{ background: '#e7e2d8' }} />
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="space-y-1">
               <div className="flex justify-between">
-                <div className="h-3 w-24 rounded bg-gray-700/50" />
-                <div className="h-3 w-12 rounded bg-gray-700/50" />
+                <div className="h-3 w-24 rounded" style={{ background: '#e7e2d8' }} />
+                <div className="h-3 w-12 rounded" style={{ background: '#e7e2d8' }} />
               </div>
-              <div className="h-1.5 w-full rounded-full bg-gray-700/50" />
+              <div className="h-1.5 w-full rounded-full" style={{ background: '#e7e2d8' }} />
             </div>
           ))}
         </div>
@@ -261,13 +261,19 @@ export default function PromosPage() {
       <div className="space-y-6">
         <div className="flex items-start justify-between">
           <div>
-            <div className="h-7 w-56 animate-pulse rounded bg-gray-700/50" />
-            <div className="mt-2 h-4 w-80 animate-pulse rounded bg-gray-700/50" />
+            <div
+              className="h-7 w-56 animate-pulse rounded"
+              style={{ background: '#e7e2d8' }}
+            />
+            <div
+              className="mt-2 h-4 w-80 animate-pulse rounded"
+              style={{ background: '#e7e2d8' }}
+            />
           </div>
         </div>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-4 lg:col-span-1">
-            <div className="h-4 w-32 animate-pulse rounded bg-gray-700/50" />
+            <div className="h-4 w-32 animate-pulse rounded" style={{ background: '#e7e2d8' }} />
             <CardSkeleton />
             <CardSkeleton />
           </div>
@@ -284,10 +290,10 @@ export default function PromosPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-100">
+          <h1 className="text-2xl font-bold" style={{ color: '#1c1917' }}>
             Promociones Activas
           </h1>
-          <p className="mt-1 text-gray-400">
+          <p className="mt-1" style={{ color: '#78716c' }}>
             Seguimiento en tiempo real de estudiantes por promoción.
           </p>
         </div>
@@ -295,12 +301,23 @@ export default function PromosPage() {
       </div>
 
       {promos.length === 0 ? (
-        <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-12 text-center">
-          <svg className="mx-auto h-12 w-12 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div
+          className="rounded-xl p-12 text-center"
+          style={{ border: '1px solid #e7e2d8', background: '#ffffff' }}
+        >
+          <svg
+            className="mx-auto h-12 w-12"
+            style={{ color: '#a8a29e' }}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
           </svg>
-          <p className="mt-4 text-lg font-medium text-gray-400">No hay promos activas</p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-4 text-lg font-medium" style={{ color: '#78716c' }}>
+            No hay promos activas
+          </p>
+          <p className="mt-1 text-sm" style={{ color: '#78716c' }}>
             Las promociones aparecen cuando hay job openings activas con "promo" en el título.
           </p>
         </div>
@@ -308,7 +325,10 @@ export default function PromosPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Promo cards grid */}
           <div className="space-y-4 lg:col-span-1">
-            <h2 className="text-xs font-medium uppercase tracking-wider text-gray-400">
+            <h2
+              className="text-xs font-medium uppercase tracking-wider"
+              style={{ color: '#78716c' }}
+            >
               Promociones ({promos.length})
             </h2>
             <div className="space-y-3">
@@ -341,7 +361,10 @@ export default function PromosPage() {
               {otherSummaries.length > 0 && (
                 <>
                   {favoriteSummaries.length > 0 && (
-                    <p className="pt-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                    <p
+                      className="pt-1 text-[10px] font-semibold uppercase tracking-wider"
+                      style={{ color: '#78716c' }}
+                    >
                       Otras promos
                     </p>
                   )}
@@ -374,12 +397,21 @@ export default function PromosPage() {
                 statusBreakdown={promoData[selectedId!].breakdown}
               />
             ) : (
-              <div className="flex h-64 items-center justify-center rounded-xl border border-gray-700/50 bg-gray-800/50">
+              <div
+                className="flex h-64 items-center justify-center rounded-xl"
+                style={{ border: '1px solid #e7e2d8', background: '#ffffff' }}
+              >
                 <div className="text-center">
-                  <svg className="mx-auto h-8 w-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg
+                    className="mx-auto h-8 w-8"
+                    style={{ color: '#a8a29e' }}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                   </svg>
-                  <p className="mt-2 text-sm text-gray-500">
+                  <p className="mt-2 text-sm" style={{ color: '#78716c' }}>
                     Seleccioná una promoción para ver el detalle
                   </p>
                 </div>

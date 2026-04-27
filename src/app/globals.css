@@ -44,6 +44,24 @@
   --color-warn-400: #facc15;
   --color-danger-500: #dc2626;
   --color-danger-400: #ef4444;
+
+  /* Warm cream (Clínico Cálido design system) */
+  --color-warm-50: #f5f1ea;
+  --color-warm-100: #e7e2d8;
+  --color-warm-200: #d4c9b8;
+
+  /* Semáforo exact */
+  --color-sema-good: #16a34a;
+  --color-sema-good-bg: #dcfce7;
+  --color-sema-warn: #ca8a04;
+  --color-sema-warn-bg: #fef9c3;
+  --color-sema-danger: #dc2626;
+  --color-sema-danger-bg: #fee2e2;
+
+  /* Category colors */
+  --color-cat-formacion: #7c3aed;
+  --color-cat-formacion-soft: #f3eaff;
+  --color-cat-formacion-text: #5b21b6;
 }
 
 html {
@@ -67,8 +85,8 @@ html {
 }
 
 body {
-  background: var(--color-surface-950);
-  color: var(--color-gray-100);
+  background: #f5f1ea; /* warm cream — Clínico Cálido */
+  color: #1c1917;
   font-family: var(--font-sans);
 }
 
