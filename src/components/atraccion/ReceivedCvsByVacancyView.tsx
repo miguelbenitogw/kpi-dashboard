@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { getReceivedCvsByVacancyStats } from '@/lib/queries/atraccion'
 
@@ -54,7 +54,8 @@ export default function ReceivedCvsByVacancyView() {
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const [targetDrafts, setTargetDrafts] = useState<Record<string, string>>({})
-  const [savingTargetId, setSavingTargetId] = useState<string | null>(null)
+  const [savingTargetIds, setSavingTargetIds] = useState<Record<string, boolean>>({})
+  const saveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   useEffect(() => {
     let cancelled = false
@@ -82,6 +83,12 @@ export default function ReceivedCvsByVacancyView() {
     }
     setTargetDrafts(nextDrafts)
   }, [data])
+
+  useEffect(() => {
+    return () => {
+      Object.values(saveTimersRef.current).forEach((timer) => clearTimeout(timer))
+    }
+  }, [])
 
   async function refreshStats() {
     const result = (await getReceivedCvsByVacancyStats()) as ReceivedCvsByVacancyStats
@@ -130,17 +137,15 @@ export default function ReceivedCvsByVacancyView() {
     }
   }
 
-  async function saveWeeklyTarget(vacancyId: string) {
-    if (savingTargetId) return
-
-    const raw = (targetDrafts[vacancyId] ?? '').trim()
+  async function saveWeeklyTarget(vacancyId: string, rawValue: string) {
+    const raw = rawValue.trim()
     const weeklyTarget = raw === '' ? null : Number(raw)
     if (weeklyTarget !== null && (!Number.isFinite(weeklyTarget) || weeklyTarget < 0)) {
       setSyncMessage('El objetivo debe ser un número mayor o igual a 0.')
       return
     }
 
-    setSavingTargetId(vacancyId)
+    setSavingTargetIds((prev) => ({ ...prev, [vacancyId]: true }))
     setSyncMessage(null)
 
     try {
@@ -158,14 +163,23 @@ export default function ReceivedCvsByVacancyView() {
         return
       }
 
-      setSyncMessage('Objetivo semanal guardado.')
+      setSyncMessage('Objetivo semanal guardado automáticamente.')
       await refreshStats()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error inesperado al guardar objetivo.'
       setSyncMessage(message)
     } finally {
-      setSavingTargetId(null)
+      setSavingTargetIds((prev) => ({ ...prev, [vacancyId]: false }))
     }
+  }
+
+  function scheduleAutoSave(vacancyId: string, value: string) {
+    const existing = saveTimersRef.current[vacancyId]
+    if (existing) clearTimeout(existing)
+
+    saveTimersRef.current[vacancyId] = setTimeout(() => {
+      void saveWeeklyTarget(vacancyId, value)
+    }, 700)
   }
 
   const unifiedRows = useMemo(() => {
@@ -287,23 +301,20 @@ export default function ReceivedCvsByVacancyView() {
                           min={0}
                           step={1}
                           value={targetDrafts[row.vacancyId] ?? ''}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const nextValue = e.target.value
                             setTargetDrafts((prev) => ({
                               ...prev,
-                              [row.vacancyId]: e.target.value,
+                              [row.vacancyId]: nextValue,
                             }))
-                          }
+                            scheduleAutoSave(row.vacancyId, nextValue)
+                          }}
                           className="w-24 rounded-md border border-gray-600/60 bg-gray-900/70 px-2.5 py-1.5 text-right text-sm text-gray-100 outline-none focus:border-blue-500/60"
                           placeholder="-"
                         />
-                        <button
-                          type="button"
-                          onClick={() => saveWeeklyTarget(row.vacancyId)}
-                          disabled={savingTargetId !== null}
-                          className="rounded-md border border-blue-500/40 bg-blue-500/15 px-2.5 py-1.5 text-xs font-semibold text-blue-300 hover:bg-blue-500/25 disabled:opacity-60"
-                        >
-                          {savingTargetId === row.vacancyId ? '...' : 'Guardar'}
-                        </button>
+                        <span className="text-xs text-gray-500 min-w-[90px] text-center">
+                          {savingTargetIds[row.vacancyId] ? 'Guardando…' : 'Auto'}
+                        </span>
                       </div>
                     </td>
                     <td className="px-3 py-3 text-right text-base text-gray-100 tabular-nums font-semibold">{row.newThisWeek}</td>
