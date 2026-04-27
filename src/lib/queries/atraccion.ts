@@ -225,6 +225,7 @@ type VacancyCvWeeklyRow = {
   job_opening_id?: string | null
   week_start?: string | null
   week?: string | null
+  candidate_count?: number | string | null
   count?: number | string | null
   cv_count?: number | string | null
   total?: number | string | null
@@ -286,7 +287,7 @@ export async function getReceivedCvsByVacancy(
     if (weekStart < oldestWeek || weekStart > currentWeek) continue
 
     const count = toNumberCount(
-      row.count ?? row.cv_count ?? row.new_cvs ?? row.total,
+      row.candidate_count ?? row.count ?? row.cv_count ?? row.new_cvs ?? row.total,
     )
 
     if (!byVacancy.has(vacancyId)) byVacancy.set(vacancyId, new Map())
