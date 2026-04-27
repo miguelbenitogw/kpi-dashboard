@@ -162,14 +162,19 @@ function formatWeekLabel(mondayDate: string): string {
 }
 
 export function getCurrentIsoWeekMonday(referenceDate = new Date()): string {
-  const monday = new Date(referenceDate)
-  monday.setHours(0, 0, 0, 0)
+  const utcDate = new Date(
+    Date.UTC(
+      referenceDate.getUTCFullYear(),
+      referenceDate.getUTCMonth(),
+      referenceDate.getUTCDate(),
+    ),
+  )
 
-  const day = monday.getDay()
+  const day = utcDate.getUTCDay()
   const diff = day === 0 ? -6 : 1 - day
-  monday.setDate(monday.getDate() + diff)
+  utcDate.setUTCDate(utcDate.getUTCDate() + diff)
 
-  return monday.toISOString().split('T')[0]
+  return utcDate.toISOString().split('T')[0]
 }
 
 export function sortWeeks(weeks: string[]): string[] {
@@ -189,9 +194,9 @@ function normalizeToIsoMonday(input: unknown): string | null {
   if (!iso) return null
 
   const date = new Date(iso)
-  const day = date.getDay()
+  const day = date.getUTCDay()
   const diff = day === 0 ? -6 : 1 - day
-  date.setDate(date.getDate() + diff)
+  date.setUTCDate(date.getUTCDate() + diff)
 
   return date.toISOString().split('T')[0]
 }
@@ -202,7 +207,7 @@ function getRecentIsoMondays(weeks: number): string[] {
 
   for (let offset = weeks - 1; offset >= 0; offset -= 1) {
     const date = new Date(currentMonday)
-    date.setDate(date.getDate() - offset * 7)
+    date.setUTCDate(date.getUTCDate() - offset * 7)
     dates.push(date.toISOString().split('T')[0])
   }
 
