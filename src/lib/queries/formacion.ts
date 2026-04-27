@@ -448,6 +448,15 @@ export interface FormacionCandidateHistory {
   fetched_at: string | null
 }
 
+export interface FormacionCandidateNote {
+  id: string
+  note_title: string | null
+  note_content: string | null
+  author: string | null
+  is_system: boolean
+  created_at: string | null
+}
+
 export interface FormacionPromoCount {
   name: string
   count: number
@@ -716,6 +725,28 @@ export async function getFormacionCandidateHistory(
 
   if (error) {
     console.error('Error fetching candidate history:', error)
+    return []
+  }
+
+  return data ?? []
+}
+
+/** Returns notes timeline for a candidate, ordered by created_at DESC. */
+export async function getFormacionCandidateNotes(
+  candidateId: string,
+): Promise<FormacionCandidateNote[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('candidate_notes_kpi')
+    .select('id, note_title, note_content, author, is_system, created_at')
+    .eq('candidate_id', candidateId)
+    .order('created_at', { ascending: false, nullsFirst: false }) as {
+      data: FormacionCandidateNote[] | null
+      error: unknown
+    }
+
+  if (error) {
+    console.error('Error fetching candidate notes:', error)
     return []
   }
 

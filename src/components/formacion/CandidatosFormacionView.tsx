@@ -6,10 +6,12 @@ import {
   getFormacionPromos,
   getFormacionCandidates,
   getFormacionCandidateHistory,
+  getFormacionCandidateNotes,
 } from '@/lib/queries/formacion'
 import type {
   FormacionCandidateRow,
   FormacionCandidateHistory,
+  FormacionCandidateNote,
   FormacionPromoCount,
 } from '@/lib/queries/formacion'
 
@@ -39,6 +41,50 @@ function shortPromoName(name: string): string {
   return name.replace(/^Promoci[oó]n\s+/i, 'Prom. ')
 }
 
+type TimelineItem =
+  | { type: 'history'; date: string | null; entry: FormacionCandidateHistory }
+  | { type: 'note'; date: string | null; note: FormacionCandidateNote }
+
+function parseDate(value: string | null): number {
+  if (!value) return -Infinity
+  const ts = Date.parse(value)
+  return Number.isNaN(ts) ? -Infinity : ts
+}
+
+function formatDateTime(value: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function mergeTimeline(
+  history: FormacionCandidateHistory[],
+  notes: FormacionCandidateNote[],
+): TimelineItem[] {
+  const items: TimelineItem[] = [
+    ...history.map((entry) => ({ type: 'history', date: entry.fetched_at ?? null, entry })),
+    ...notes.map((note) => ({ type: 'note', date: note.created_at ?? null, note })),
+  ]
+
+  items.sort((a, b) => {
+    const aDate = parseDate(a.date)
+    const bDate = parseDate(b.date)
+    if (aDate === -Infinity && bDate === -Infinity) return 0
+    if (aDate === -Infinity) return 1
+    if (bDate === -Infinity) return -1
+    return bDate - aDate
+  })
+
+  return items
+}
+
 // ---------------------------------------------------------------------------
 // Skeleton
 // ---------------------------------------------------------------------------
@@ -65,18 +111,25 @@ function SkeletonRows() {
 
 function HistoryRow({ candidateId }: { candidateId: string }) {
   const [history, setHistory] = useState<FormacionCandidateHistory[]>([])
+  const [notes, setNotes] = useState<FormacionCandidateNote[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
-    getFormacionCandidateHistory(candidateId).then((data) => {
+    Promise.all([
+      getFormacionCandidateHistory(candidateId),
+      getFormacionCandidateNotes(candidateId),
+    ]).then(([historyData, notesData]) => {
       if (!cancelled) {
-        setHistory(data)
+        setHistory(historyData)
+        setNotes(notesData)
         setLoading(false)
       }
     })
     return () => { cancelled = true }
   }, [candidateId])
+
+  const timeline = mergeTimeline(history, notes)
 
   return (
     <tr>
@@ -84,23 +137,54 @@ function HistoryRow({ candidateId }: { candidateId: string }) {
         {loading ? (
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <Loader2 className="h-3 w-3 animate-spin" />
-            <span>Cargando historial…</span>
+            <span>Cargando cronologia...</span>
           </div>
-        ) : history.length === 0 ? (
-          <p className="text-xs text-gray-500 italic">Sin historial de formación</p>
+        ) : timeline.length === 0 ? (
+          <p className="text-xs text-gray-500 italic">Sin cronologia disponible</p>
         ) : (
           <ul className="space-y-1.5">
-            {history.map((entry, idx) => (
-              <li key={idx} className="flex items-center gap-2 text-xs">
-                <span className="text-gray-300 truncate max-w-xs">
-                  {entry.job_opening_title ?? '—'}
-                </span>
-                {entry.candidate_status_in_jo && (
-                  <span className="rounded-full border border-surface-600/60 bg-surface-700 px-2 py-0.5 text-[10px] text-gray-300 whitespace-nowrap">
-                    {entry.candidate_status_in_jo}
-                  </span>
-                )}
-              </li>
+            {timeline.map((item, idx) => (
+              item.type === 'history' ? (
+                <li key={`history-${idx}`} className="rounded-lg border border-surface-700/60 bg-surface-800/60 px-3 py-2 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-gray-200">
+                      {item.entry.job_opening_title ?? '-'}
+                    </span>
+                    <span className="shrink-0 text-[10px] text-gray-500">
+                      {formatDateTime(item.entry.fetched_at)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    {item.entry.candidate_status_in_jo && (
+                      <span className="rounded-full border border-surface-600/60 bg-surface-700 px-2 py-0.5 text-[10px] text-gray-300 whitespace-nowrap">
+                        {item.entry.candidate_status_in_jo}
+                      </span>
+                    )}
+                    {item.entry.association_type && (
+                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-300 whitespace-nowrap">
+                        {item.entry.association_type}
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ) : (
+                <li key={`note-${item.note.id}`} className="rounded-lg border border-surface-700/60 bg-surface-800/60 px-3 py-2 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-gray-200">
+                      {item.note.note_title ?? (item.note.is_system ? 'Cambio de estado' : 'Nota')}
+                    </span>
+                    <span className="shrink-0 text-[10px] text-gray-500">
+                      {formatDateTime(item.note.created_at)}
+                    </span>
+                  </div>
+                  {item.note.note_content && (
+                    <p className="mt-1 whitespace-pre-wrap text-gray-400">{item.note.note_content}</p>
+                  )}
+                  {!item.note.is_system && item.note.author && (
+                    <p className="mt-1 text-[10px] text-gray-500">{item.note.author}</p>
+                  )}
+                </li>
+              )
             ))}
           </ul>
         )}

@@ -10,7 +10,6 @@ import {
   GitBranch,
   Filter,
   GraduationCap,
-  TrendingUp,
   TrendingDown,
   UserCheck,
   Wallet,
@@ -56,7 +55,6 @@ const navSections: NavSection[] = [
     title: "Formación",
     items: [
       { href: "/dashboard/formacion", label: "Gráficos", icon: GraduationCap },
-      { href: "/dashboard/rendimiento", label: "Rendimiento", icon: TrendingUp },
       { href: "/dashboard/formacion/candidatos", label: "Candidatos", icon: UserCheck },
       { href: "/dashboard/formacion/abandonos", label: "Abandonos", icon: TrendingDown },
       { href: "/dashboard/formacion/sheets", label: "Edición Promos", icon: FileSpreadsheet },
