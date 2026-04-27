@@ -1,0 +1,22 @@
+🔑 Getting Zoho token...
+✓ Token OK
+📥 Fetching 358 candidates in 8 batches of 50...
+  Batch 1/8: HTTP 400 {"code":"INVALID_QUERY","details":{},"message":"invalid query formed","status":"error"}
+
+  Batch 2/8: HTTP 400 {"code":"INVALID_QUERY","details":{},"message":"invalid query formed","status":"error"}
+
+  Batch 3/8: HTTP 400 {"code":"INVALID_QUERY","details":{},"message":"invalid query formed","status":"error"}
+
+  Batch 4/8: HTTP 400 {"code":"INVALID_QUERY","details":{},"message":"invalid query formed","status":"error"}
+
+  Batch 5/8: HTTP 400 {"code":"INVALID_QUERY","details":{},"message":"invalid query formed","status":"error"}
+
+  Batch 6/8: HTTP 400 {"code":"INVALID_QUERY","details":{},"message":"invalid query formed","status":"error"}
+
+  Batch 7/8: HTTP 400 {"code":"INVALID_QUERY","details":{},"message":"invalid query formed","status":"error"}
+
+  Batch 8/8: HTTP 400 {"code":"INVALID_QUERY","details":{},"message":"invalid query formed","status":"error"}
+
+
+✅ Done: 0/358 candidates have tags
+[]
