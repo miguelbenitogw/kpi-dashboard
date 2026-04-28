@@ -113,6 +113,83 @@ export default function RetentionOverview({
   return (
     <>
       <div className="space-y-4">
+        {/* ── Filter tabs + Promo chips (compact, on top) ── */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(['active', 'finished', 'all'] as const).map((f) => {
+            const labels: Record<PromoFilter, string> = {
+              active: 'Activas',
+              finished: 'Terminadas',
+              all: 'Todas',
+            }
+            return (
+              <button
+                key={f}
+                onClick={() => setPromoFilter(f)}
+                className={[
+                  'rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors',
+                  promoFilter === f
+                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                    : 'border border-gray-600/50 bg-gray-700/40 text-gray-400 hover:bg-gray-700 hover:text-gray-200',
+                ].join(' ')}
+              >
+                {labels[f]}
+              </button>
+            )
+          })}
+
+          <span className="mx-1 h-4 w-px bg-gray-700/60" aria-hidden />
+
+          {promos.map((promo) => {
+            const pct =
+              promo.objetivo > 0
+                ? Math.round((promo.actual / promo.objetivo) * 100)
+                : 0
+            const isSelected = selectedPromos.includes(promo.nombre)
+            const isDimmed = hasSelection && !isSelected
+
+            return (
+              <div
+                key={promo.id}
+                className={[
+                  'relative group inline-flex',
+                  isDimmed ? 'opacity-40' : '',
+                ].filter(Boolean).join(' ')}
+              >
+                <button
+                  onClick={() => onToggle(promo.nombre)}
+                  title={`${promo.nombre} — Obj ${promo.objetivo} · Actual ${promo.actual} · Bajas ${promo.dropouts} · ${pct}%`}
+                  className={[
+                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer border',
+                    isSelected
+                      ? `${trafficLightRing[promo.trafficLight]} ring-2 border-transparent bg-gray-700/60 text-gray-100`
+                      : 'border-gray-600/50 bg-gray-700/40 text-gray-300 hover:bg-gray-700 hover:text-gray-100',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${trafficLightColor[promo.trafficLight]}`}
+                  />
+                  <span className="truncate">{promo.nombre}</span>
+                  <span className="tabular-nums text-gray-400">{pct}%</span>
+                </button>
+
+                {/* Edit pencil button — visible on group hover */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditingPromo(promo)
+                  }}
+                  className="ml-0.5 rounded p-0.5 text-gray-500 opacity-0 transition-opacity hover:text-gray-300 group-hover:opacity-100"
+                  title="Editar promoción"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+
         {/* ── Summary bar ── */}
         <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
           <div className="flex items-center justify-between">
@@ -218,149 +295,6 @@ export default function RetentionOverview({
               </div>
             </div>
           </div>
-        </div>
-
-        {/* ── Filter tabs ── */}
-        <div className="flex items-center gap-1.5">
-          {(['active', 'finished', 'all'] as const).map((f) => {
-            const labels: Record<PromoFilter, string> = {
-              active: 'Activas',
-              finished: 'Terminadas',
-              all: 'Todas',
-            }
-            return (
-              <button
-                key={f}
-                onClick={() => setPromoFilter(f)}
-                className={[
-                  'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                  promoFilter === f
-                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                    : 'border border-gray-600/50 bg-gray-700/40 text-gray-400 hover:bg-gray-700 hover:text-gray-200',
-                ].join(' ')}
-              >
-                {labels[f]}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* ── Promo cards (selectable) ── */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {promos.map((promo) => {
-            const pct =
-              promo.objetivo > 0
-                ? Math.round((promo.actual / promo.objetivo) * 100)
-                : 0
-            const isSelected = selectedPromos.includes(promo.nombre)
-            const isDimmed = hasSelection && !isSelected
-
-            return (
-              <div
-                key={promo.id}
-                className={[
-                  'relative group',
-                  isDimmed ? 'opacity-40' : '',
-                ].filter(Boolean).join(' ')}
-              >
-                <button
-                  onClick={() => onToggle(promo.nombre)}
-                  className={[
-                    'w-full text-left rounded-xl border bg-gray-800/50 p-5 border-l-4 transition-all duration-200 cursor-pointer',
-                    trafficLightBorder[promo.trafficLight],
-                    isSelected
-                      ? `ring-2 ${trafficLightRing[promo.trafficLight]} ring-offset-1 ring-offset-gray-900 brightness-110`
-                      : 'border-gray-700/50',
-                    'hover:brightness-105 hover:border-gray-600/50',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="min-w-0 flex-1 pr-8">
-                      <p className="truncate text-sm font-medium text-gray-200">
-                        {promo.nombre}
-                      </p>
-                      {promo.season && (
-                        <p className="text-xs text-gray-500">{promo.season}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {/* Selection indicator */}
-                      {isSelected && (
-                        <svg
-                          className="h-3.5 w-3.5 text-blue-400 flex-shrink-0"
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      )}
-                      <div
-                        className={`h-3 w-3 flex-shrink-0 rounded-full ${trafficLightColor[promo.trafficLight]}`}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-500">
-                        Obj
-                      </p>
-                      <p className="text-sm font-bold tabular-nums text-gray-100">
-                        {promo.objetivo.toLocaleString('es-AR')}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-500">
-                        Actual
-                      </p>
-                      <p className="text-sm font-bold tabular-nums text-emerald-400">
-                        {promo.actual.toLocaleString('es-AR')}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-gray-500">
-                        Bajas
-                      </p>
-                      <p className="text-sm font-bold tabular-nums text-red-400">
-                        {promo.dropouts.toLocaleString('es-AR')}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-3">
-                    <div className="h-1.5 overflow-hidden rounded-full bg-gray-700">
-                      <div
-                        className={`h-full rounded-full ${trafficLightColor[promo.trafficLight]}`}
-                        style={{ width: `${Math.min(pct, 100)}%` }}
-                      />
-                    </div>
-                    <p className="mt-1 text-right text-[10px] tabular-nums text-gray-500">
-                      {pct}%
-                    </p>
-                  </div>
-                </button>
-
-                {/* Edit pencil button — top-right of card, visible on group hover */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setEditingPromo(promo)
-                  }}
-                  className="absolute right-2 top-2 rounded p-1 text-gray-500 opacity-0 transition-opacity hover:text-gray-300 group-hover:opacity-100"
-                  title="Editar promoción"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )
-          })}
         </div>
       </div>
 
