@@ -60,7 +60,20 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
 
   const fetchedAt = new Date().toISOString()
 
-  // 2. For each vacancy, pull all associated candidates from Zoho
+  // 2. Load all candidate IDs that exist in the Madre (candidates_kpi).
+  //    We never create history rows for candidates not in the Madre.
+  const { data: madreCandidates, error: madreError } = await supabaseAdmin
+    .from('candidates_kpi')
+    .select('id')
+
+  if (madreError) {
+    errors.push(`Failed to fetch madre candidate IDs: ${madreError.message}`)
+    return { vacancies_processed: 0, candidates_synced: 0, status_changes_logged: 0, api_calls: 0, errors }
+  }
+
+  const madreCandidateIds = new Set((madreCandidates ?? []).map((c) => c.id))
+
+  // 3. For each vacancy, pull all associated candidates from Zoho
   for (let i = 0; i < vacancies.length; i++) {
     const vacancy = vacancies[i]
 
@@ -74,7 +87,7 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
         continue
       }
 
-      // 3. Load existing statuses for this vacancy to detect changes
+      // 4. Load existing statuses for this vacancy to detect changes
       const { data: existingRows } = await supabaseAdmin
         .from('candidate_job_history_kpi')
         .select('candidate_id, candidate_status_in_jo')
@@ -85,8 +98,10 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
         (existingRows ?? []).map((r) => [r.candidate_id, r.candidate_status_in_jo as string | null])
       )
 
-      // 4. Transform records
-      const rows = zohoRecords.map((record) => ({
+      // 5. Transform records — skip any candidate not in the Madre
+      const rows = zohoRecords
+        .filter((record) => madreCandidateIds.has(String(record.id)))
+        .map((record) => ({
         candidate_id: String(record.id),
         candidate_name: (record.Full_Name as string) || null,
         zoho_record_id: String(record.id),
@@ -97,7 +112,7 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
         fetched_at: fetchedAt,
       }))
 
-      // 5. Build status-change entries for stage_history_kpi
+      // 6. Build status-change entries for stage_history_kpi
       //    Only log when there WAS a previous status and it's different from the new one
       const statusChanges = rows
         .filter((row) => {
@@ -132,7 +147,7 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
         }
       }
 
-      // 6. Upsert candidate rows in batches
+      // 7. Upsert candidate rows in batches
       //    New rows get association_type = 'atraccion'.
       //    Existing rows: only update status, name, title and fetched_at — never overwrite association_type.
       const newRows = rows.filter((r) => !prevStatus.has(r.candidate_id))
