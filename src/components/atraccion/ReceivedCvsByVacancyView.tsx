@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { getReceivedCvsByVacancyStats } from '@/lib/queries/atraccion'
 import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
+import { type TipoProfesional, deriveProfesionTipo } from '@/lib/utils/vacancy-profession'
 
 type WeeklyPoint = {
   weekLabel: string
@@ -49,7 +50,11 @@ function getTrafficLight(target: number | null, value: number): TrafficLight {
   return 'red'
 }
 
-export default function ReceivedCvsByVacancyView() {
+export default function ReceivedCvsByVacancyView({
+  profesionFilter = 'todos',
+}: {
+  profesionFilter?: TipoProfesional | 'todos'
+}) {
   const [data, setData] = useState<ReceivedCvsByVacancyStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -186,11 +191,16 @@ export default function ReceivedCvsByVacancyView() {
   const unifiedRows = useMemo(() => {
     if (!data) return []
     const seriesByVacancy = new Map(data.weeklySeries.map((serie) => [serie.vacancyId, serie]))
-    return data.ranking.map((rankingRow) => ({
-      ...rankingRow,
-      points: seriesByVacancy.get(rankingRow.vacancyId)?.points ?? [],
-    }))
-  }, [data])
+    return data.ranking
+      .filter((rankingRow) =>
+        profesionFilter === 'todos' ||
+        deriveProfesionTipo(rankingRow.vacancyTitle) === profesionFilter,
+      )
+      .map((rankingRow) => ({
+        ...rankingRow,
+        points: seriesByVacancy.get(rankingRow.vacancyId)?.points ?? [],
+      }))
+  }, [data, profesionFilter])
 
   // weekColumns[0] = current (in-progress) week, weekColumns[1..] = historical (most-recent-first)
   const weekColumns = useMemo(() => {

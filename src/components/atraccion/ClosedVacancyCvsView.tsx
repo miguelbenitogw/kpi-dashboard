@@ -18,6 +18,7 @@ import {
   type ClosedVacancyPromoSummary,
 } from '@/lib/queries/atraccion'
 import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
+import { type TipoProfesional, deriveProfesionTipo } from '@/lib/utils/vacancy-profession'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -208,8 +209,18 @@ function PromoLineChart({
 
 // ─── vacancy table view ───────────────────────────────────────────────────────
 
-function VacancyTable({ entries }: { entries: ClosedVacancyCvsEntry[] }) {
-  const rows = entries.slice(0, 50)
+function VacancyTable({
+  entries,
+  profesionFilter = 'todos',
+}: {
+  entries: ClosedVacancyCvsEntry[]
+  profesionFilter?: TipoProfesional | 'todos'
+}) {
+  const rows = (
+    profesionFilter === 'todos'
+      ? entries
+      : entries.filter((e) => deriveProfesionTipo(e.title) === profesionFilter)
+  ).slice(0, 50)
 
   if (rows.length === 0) {
     return (
@@ -338,7 +349,11 @@ function VacancyTable({ entries }: { entries: ClosedVacancyCvsEntry[] }) {
 
 // ─── main component ───────────────────────────────────────────────────────────
 
-export default function ClosedVacancyCvsView() {
+export default function ClosedVacancyCvsView({
+  profesionFilter = 'todos',
+}: {
+  profesionFilter?: TipoProfesional | 'todos'
+}) {
   const [subView, setSubView] = useState<SubView>('promo')
   const [weeksWindow, setWeeksWindow] = useState<WeeksWindow>(26)
   const [loading, setLoading] = useState(true)
@@ -432,7 +447,7 @@ export default function ClosedVacancyCvsView() {
         {subView === 'promo' ? (
           <PromoLineChart promos={promos} window={weeksWindow} />
         ) : (
-          <VacancyTable entries={entries} />
+          <VacancyTable entries={entries} profesionFilter={profesionFilter} />
         )}
       </div>
     </div>

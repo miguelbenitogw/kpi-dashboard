@@ -10,6 +10,7 @@ import {
 } from '@/lib/queries/atraccion'
 import { tagChipStyle } from '@/lib/utils/tags'
 import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
+import { type TipoProfesional, deriveProfesionTipo } from '@/lib/utils/vacancy-profession'
 
 const ALL_STATUSES = [
   'Associated', 'Waiting for Evaluation', 'Rejected', 'First Call', 'Not Valid',
@@ -116,7 +117,11 @@ function VacancyTagRow({
   )
 }
 
-export default function VacancyRecruitmentTable() {
+export default function VacancyRecruitmentTable({
+  profesionFilter = 'todos',
+}: {
+  profesionFilter?: TipoProfesional | 'todos'
+}) {
   const [data, setData] = useState<VacancyRecruitmentStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -224,9 +229,13 @@ export default function VacancyRecruitmentTable() {
 
   // Use visible columns for the table
   const cols = visibleCols
-  const filtered = search.trim()
-    ? data.rows.filter((r) => r.title.toLowerCase().includes(search.toLowerCase()))
-    : data.rows
+  const filtered = data.rows
+    .filter((r) =>
+      profesionFilter === 'todos' || deriveProfesionTipo(r.title) === profesionFilter,
+    )
+    .filter((r) =>
+      !search.trim() || r.title.toLowerCase().includes(search.toLowerCase()),
+    )
 
   return (
     <div className="rounded-xl border border-gray-700/50 bg-gray-800/50">

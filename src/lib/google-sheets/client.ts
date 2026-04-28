@@ -55,6 +55,9 @@ export function extractSheetId(url: string): string {
  *      {\"type\":\"service_account\",...}
  */
 function parseServiceAccountJson(raw: string): Record<string, string> {
+  // Strip surrounding single quotes — common .env.local / .env.production-local pitfall
+  if (raw.startsWith("'")) raw = raw.replace(/^'+|'+$/g, '').trim()
+
   let parsed: Record<string, string> | null = null
 
   try {
