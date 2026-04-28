@@ -121,7 +121,9 @@ export default function FormacionPage() {
             <p style={{ marginBottom: '16px', fontSize: '13px', color: '#78716c' }}>
               Estado de colocación y preferencias de los candidatos en formación.
             </p>
-            {panel === 'candidatos' && <CandidatosFormacionView />}
+            {panel === 'candidatos' && (
+              <CandidatosFormacionView initialPromo={selectedPromos[0] ?? null} />
+            )}
           </div>
         </div>
       </div>

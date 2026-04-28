@@ -197,17 +197,24 @@ function HistoryRow({ candidateId }: { candidateId: string }) {
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function CandidatosFormacionView() {
+interface CandidatosFormacionViewProps {
+  /** When provided the chip strip is hidden and this promo is pre-selected */
+  initialPromo?: string | null
+}
+
+export default function CandidatosFormacionView({ initialPromo }: CandidatosFormacionViewProps = {}) {
   const [promos, setPromos] = useState<FormacionPromoCount[]>([])
   const [candidates, setCandidates] = useState<FormacionCandidateRow[]>([])
-  const [selectedPromo, setSelectedPromo] = useState<string | null>(null)
+  const [selectedPromo, setSelectedPromo] = useState<string | null>(initialPromo ?? null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [loadingCandidates, setLoadingCandidates] = useState(true)
 
-  // Load promos once on mount
+  const showChips = initialPromo === undefined || initialPromo === null
+
+  // Load promos only when chip strip is visible
   useEffect(() => {
-    getFormacionPromos().then(setPromos)
-  }, [])
+    if (showChips) getFormacionPromos().then(setPromos)
+  }, [showChips])
 
   // Load candidates when filter changes
   useEffect(() => {
@@ -227,36 +234,37 @@ export default function CandidatosFormacionView() {
 
   return (
     <div className="space-y-4">
-      {/* Promo chip strip */}
-      <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
-        {/* "Todas" chip */}
-        <button
-          onClick={() => setSelectedPromo(null)}
-          className={[
-            'rounded-full px-3 py-1 text-xs font-medium border transition-colors whitespace-nowrap',
-            selectedPromo === null
-              ? 'bg-brand-600/30 border-brand-400 text-white'
-              : 'border-surface-600/60 bg-surface-800 text-gray-400 hover:border-brand-500/50 hover:text-gray-200',
-          ].join(' ')}
-        >
-          Todas ({totalCount})
-        </button>
-
-        {promos.map((promo) => (
+      {/* Promo chip strip — only when no pre-selection from parent */}
+      {showChips && (
+        <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
           <button
-            key={promo.name}
-            onClick={() => setSelectedPromo(promo.name)}
+            onClick={() => setSelectedPromo(null)}
             className={[
               'rounded-full px-3 py-1 text-xs font-medium border transition-colors whitespace-nowrap',
-              selectedPromo === promo.name
+              selectedPromo === null
                 ? 'bg-brand-600/30 border-brand-400 text-white'
                 : 'border-surface-600/60 bg-surface-800 text-gray-400 hover:border-brand-500/50 hover:text-gray-200',
             ].join(' ')}
           >
-            {shortPromoName(promo.name)} ({promo.count})
+            Todas ({totalCount})
           </button>
-        ))}
-      </div>
+
+          {promos.map((promo) => (
+            <button
+              key={promo.name}
+              onClick={() => setSelectedPromo(promo.name)}
+              className={[
+                'rounded-full px-3 py-1 text-xs font-medium border transition-colors whitespace-nowrap',
+                selectedPromo === promo.name
+                  ? 'bg-brand-600/30 border-brand-400 text-white'
+                  : 'border-surface-600/60 bg-surface-800 text-gray-400 hover:border-brand-500/50 hover:text-gray-200',
+              ].join(' ')}
+            >
+              {shortPromoName(promo.name)} ({promo.count})
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Table card */}
       <div className="rounded-xl border border-surface-700/60 overflow-hidden">
