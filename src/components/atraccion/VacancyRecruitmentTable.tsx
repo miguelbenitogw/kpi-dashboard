@@ -10,7 +10,7 @@ import {
 } from '@/lib/queries/atraccion'
 import { tagChipStyle } from '@/lib/utils/tags'
 import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
-import { type TipoProfesional, deriveProfesionTipo } from '@/lib/utils/vacancy-profession'
+import { type TipoProfesional, deriveProfesionTipo, PROFESION_LABELS, PROFESION_COLORS } from '@/lib/utils/vacancy-profession'
 
 const ALL_STATUSES = [
   'Associated', 'Waiting for Evaluation', 'Rejected', 'First Call', 'Not Valid',
@@ -65,9 +65,11 @@ type SyncState = 'idle' | 'syncing' | 'success' | 'error'
 
 function VacancyTagRow({
   vacancyId,
+  vacancyTitle,
   colSpan,
 }: {
   vacancyId: string
+  vacancyTitle: string
   colSpan: number
 }) {
   const [tags, setTags] = useState<VacancyTagCount[]>([])
@@ -80,6 +82,11 @@ function VacancyTagRow({
     })
     return () => { cancelled = true }
   }, [vacancyId])
+
+  const country = getVacancyCountry(vacancyTitle)
+  const countryColors = COUNTRY_COLORS[country]
+  const profesion = deriveProfesionTipo(vacancyTitle)
+  const profesionColors = PROFESION_COLORS[profesion]
 
   return (
     <tr>
@@ -97,19 +104,56 @@ function VacancyTagRow({
               />
             ))}
           </div>
-        ) : tags.length === 0 ? (
-          <p className="text-xs text-gray-600 italic">Sin datos de etiquetas</p>
         ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {tags.map(({ tag, count }) => (
-              <span
-                key={tag}
-                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] ${tagChipStyle(tag)}`}
-              >
-                {tag}
-                <span className="font-semibold tabular-nums opacity-75">{count}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Always show vacancy metadata chips */}
+            <span
+              style={{
+                background: countryColors.bg,
+                color: countryColors.text,
+                border: `1px solid ${countryColors.border}`,
+                borderRadius: 99,
+                fontSize: 10,
+                fontWeight: 600,
+                padding: '2px 8px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {country}
+            </span>
+            <span
+              style={{
+                background: profesionColors.bg,
+                color: profesionColors.text,
+                border: `1px solid ${profesionColors.border}`,
+                borderRadius: 99,
+                fontSize: 10,
+                fontWeight: 600,
+                padding: '2px 8px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {PROFESION_LABELS[profesion]}
+            </span>
+
+            {tags.length > 0 ? (
+              <>
+                <span style={{ width: 1, height: 14, background: '#374151', display: 'inline-block', margin: '0 2px' }} />
+                {tags.map(({ tag, count }) => (
+                  <span
+                    key={tag}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] ${tagChipStyle(tag)}`}
+                  >
+                    {tag}
+                    <span className="font-semibold tabular-nums opacity-75">{count}</span>
+                  </span>
+                ))}
+              </>
+            ) : (
+              <span className="text-xs text-gray-600 italic ml-1">
+                Sin etiquetas de candidatos
               </span>
-            ))}
+            )}
           </div>
         )}
       </td>
@@ -450,6 +494,7 @@ export default function VacancyRecruitmentTable({
                   {isExpanded && (
                     <VacancyTagRow
                       vacancyId={row.id}
+                      vacancyTitle={row.title}
                       colSpan={cols.length + 3}
                     />
                   )}
