@@ -133,19 +133,29 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
       }
 
       // 6. Upsert candidate rows in batches
-      for (let j = 0; j < rows.length; j += UPSERT_BATCH_SIZE) {
-        const batch = rows.slice(j, j + UPSERT_BATCH_SIZE)
+      //    New rows get association_type = 'atraccion'.
+      //    Existing rows: only update status, name, title and fetched_at — never overwrite association_type.
+      const newRows = rows.filter((r) => !prevStatus.has(r.candidate_id))
+      const existingRows = rows
+        .filter((r) => prevStatus.has(r.candidate_id))
+        .map(({ association_type: _at, ...rest }) => rest)
 
+      const allBatches: Array<typeof rows[number] | Omit<typeof rows[number], 'association_type'>>[] = []
+      for (let j = 0; j < newRows.length; j += UPSERT_BATCH_SIZE) allBatches.push(newRows.slice(j, j + UPSERT_BATCH_SIZE) as any)
+      for (let j = 0; j < existingRows.length; j += UPSERT_BATCH_SIZE) allBatches.push(existingRows.slice(j, j + UPSERT_BATCH_SIZE) as any)
+
+      for (let b = 0; b < allBatches.length; b++) {
+        const batch = allBatches[b]
         const { error: upsertError } = await supabaseAdmin
           .from('candidate_job_history_kpi')
-          .upsert(batch, {
+          .upsert(batch as any, {
             onConflict: 'candidate_id,job_opening_id',
             ignoreDuplicates: false,
           })
 
         if (upsertError) {
           errors.push(
-            `Upsert error for vacancy ${vacancy.id} batch ${Math.floor(j / UPSERT_BATCH_SIZE)}: ${upsertError.message}`
+            `Upsert error for vacancy ${vacancy.id} batch ${b}: ${upsertError.message}`
           )
         } else {
           candidatesSynced += batch.length
