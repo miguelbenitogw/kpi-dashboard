@@ -1268,6 +1268,68 @@ export async function getClosedVacancyCvsByPromo(
   return result.slice(0, 15)
 }
 
+// ---------------------------------------------------------------------------
+// Closed vacancies — weekly CV history grouped by VACANCY (top 12)
+// ---------------------------------------------------------------------------
+
+export interface ClosedVacancyHistoryPoint {
+  weekStart: string
+  weekLabel: string
+  count: number
+}
+
+export interface ClosedVacancyBySeries {
+  vacancyId: string
+  title: string
+  totalCandidates: number
+  peakWeekLabel: string | null
+  points: ClosedVacancyHistoryPoint[]
+}
+
+/**
+ * Returns top-12 closed vacancies (by total CVs in the last N weeks),
+ * each with their weekly CV history.
+ *
+ * Data source: vacancy_cv_weekly_kpi joined with job_openings_kpi
+ * where es_proceso_atraccion_actual = false.
+ *
+ * Reuses getClosedVacancyCvsHistory to avoid duplicating query logic.
+ */
+export async function getClosedVacancyCvsHistoryByVacancy(
+  weeks = 52,
+): Promise<ClosedVacancyBySeries[]> {
+  const safeWeeks = Math.min(52, Math.max(1, Math.trunc(weeks)))
+  const entries = await getClosedVacancyCvsHistory(safeWeeks)
+
+  // entries is already sorted by totalCandidates desc — take top 12
+  const top12 = entries.slice(0, 12)
+
+  return top12.map((entry) => {
+    // Find the week with the most CVs (peak week)
+    let peakCount = 0
+    let peakWeekLabel: string | null = null
+
+    for (const point of entry.history) {
+      if (point.count > peakCount) {
+        peakCount = point.count
+        peakWeekLabel = point.weekLabel
+      }
+    }
+
+    return {
+      vacancyId: entry.vacancyId,
+      title: entry.title,
+      totalCandidates: entry.totalCandidates,
+      peakWeekLabel: peakCount > 0 ? peakWeekLabel : null,
+      points: entry.history.map((p) => ({
+        weekStart: p.weekStart,
+        weekLabel: p.weekLabel,
+        count: p.count,
+      })),
+    }
+  })
+}
+
 export async function getAtraccionVacancies(): Promise<AtraccionVacancy[]> {
   // Only show vacancies tagged "Proceso atracciÃ³n actual" â€” the ~20 active
   // recruitment processes. This is the source of truth for what's actively

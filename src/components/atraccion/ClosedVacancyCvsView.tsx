@@ -12,17 +12,16 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import {
-  getClosedVacancyCvsHistory,
-  getClosedVacancyCvsByPromo,
-  type ClosedVacancyCvsEntry,
-  type ClosedVacancyPromoSummary,
+  getClosedVacancyCvsHistoryByVacancy,
+  type ClosedVacancyBySeries,
 } from '@/lib/queries/atraccion'
 import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
 import { type TipoProfesional, deriveProfesionTipo } from '@/lib/utils/vacancy-profession'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
-const PROMO_COLORS = [
+/** 12 branded colors — enough for top-12 vacancies */
+const VACANCY_COLORS = [
   '#1e4b9e',
   '#e55a2b',
   '#16a34a',
@@ -33,42 +32,49 @@ const PROMO_COLORS = [
   '#059669',
   '#d97706',
   '#7c3aed',
+  '#0284c7',
+  '#be185d',
 ]
 
-type SubView = 'promo' | 'vacante'
 type WeeksWindow = 26 | 52
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
 type ChartDataPoint = {
   weekLabel: string
-  [promoName: string]: string | number
+  [vacancyId: string]: string | number
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 function buildChartData(
-  promos: ClosedVacancyPromoSummary[],
+  vacancies: ClosedVacancyBySeries[],
   window: WeeksWindow,
 ): ChartDataPoint[] {
-  if (promos.length === 0) return []
+  if (vacancies.length === 0) return []
 
-  const allPoints = promos[0].history
+  // All vacancies share the same week series — use the first as reference
+  const allPoints = vacancies[0].points
   const sliced = allPoints.slice(-window)
 
   return sliced.map((point) => {
     const row: ChartDataPoint = { weekLabel: point.weekLabel }
-    for (const promo of promos) {
-      const match = promo.history.find((p) => p.weekStart === point.weekStart)
-      row[promo.promoName] = match?.count ?? 0
+    for (const v of vacancies) {
+      const match = v.points.find((p) => p.weekStart === point.weekStart)
+      row[v.vacancyId] = match?.count ?? 0
     }
     return row
   })
 }
 
-// Show every 4th tick to avoid crowding
+/** Show every 4th tick to avoid crowding */
 function xAxisTickFormatter(value: string, index: number): string {
   return index % 4 === 0 ? value : ''
+}
+
+/** Truncate long vacancy titles for the legend */
+function truncateTitle(title: string, maxLength = 38): string {
+  return title.length <= maxLength ? title : `${title.slice(0, maxLength - 1)}…`
 }
 
 // ─── pill button ─────────────────────────────────────────────────────────────
@@ -119,7 +125,7 @@ function LoadingSkeleton() {
     >
       <div style={{ padding: '16px 20px', borderBottom: '1px solid #e7e2d8' }}>
         <div
-          style={{ width: 260, height: 18, background: '#f0ece4', borderRadius: 6 }}
+          style={{ width: 280, height: 18, background: '#f0ece4', borderRadius: 6 }}
           className="animate-pulse"
         />
         <div
@@ -137,17 +143,16 @@ function LoadingSkeleton() {
   )
 }
 
-// ─── promo line chart view ────────────────────────────────────────────────────
+// ─── line chart ───────────────────────────────────────────────────────────────
 
-function PromoLineChart({
-  promos,
+function VacancyLineChart({
+  vacancies,
   window,
 }: {
-  promos: ClosedVacancyPromoSummary[]
+  vacancies: ClosedVacancyBySeries[]
   window: WeeksWindow
 }) {
-  const top10 = promos.slice(0, 10)
-  const data = buildChartData(top10, window)
+  const data = buildChartData(vacancies, window)
 
   if (data.length === 0) {
     return (
@@ -189,14 +194,18 @@ function PromoLineChart({
         <Legend
           iconType="circle"
           iconSize={8}
-          wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+          wrapperStyle={{ fontSize: 10, paddingTop: 8 }}
+          formatter={(value: string) => {
+            const v = vacancies.find((vac) => vac.vacancyId === value)
+            return truncateTitle(v?.title ?? value)
+          }}
         />
-        {top10.map((promo, i) => (
+        {vacancies.map((v, i) => (
           <Line
-            key={promo.promoName}
+            key={v.vacancyId}
             type="monotone"
-            dataKey={promo.promoName}
-            stroke={PROMO_COLORS[i % PROMO_COLORS.length]}
+            dataKey={v.vacancyId}
+            stroke={VACANCY_COLORS[i % VACANCY_COLORS.length]}
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4 }}
@@ -207,136 +216,126 @@ function PromoLineChart({
   )
 }
 
-// ─── vacancy table view ───────────────────────────────────────────────────────
+// ─── summary table ────────────────────────────────────────────────────────────
 
-function VacancyTable({
-  entries,
-  profesionFilter = 'todos',
-}: {
-  entries: ClosedVacancyCvsEntry[]
-  profesionFilter?: TipoProfesional | 'todos'
-}) {
-  const rows = (
-    profesionFilter === 'todos'
-      ? entries
-      : entries.filter((e) => deriveProfesionTipo(e.title) === profesionFilter)
-  ).slice(0, 50)
-
-  if (rows.length === 0) {
-    return (
-      <div
-        style={{
-          padding: '32px',
-          textAlign: 'center',
-          color: '#a8a29e',
-          fontSize: 13,
-        }}
-      >
-        Sin datos históricos — ejecutá el sync de vacantes cerradas
-      </div>
-    )
-  }
+function VacancySummaryTable({ vacancies }: { vacancies: ClosedVacancyBySeries[] }) {
+  if (vacancies.length === 0) return null
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full" style={{ fontSize: 13 }}>
+    <div
+      className="overflow-x-auto"
+      style={{ borderTop: '1px solid #e7e2d8', marginTop: 8 }}
+    >
+      <table className="w-full" style={{ fontSize: 12 }}>
         <thead>
           <tr style={{ background: '#f7f4ef', borderBottom: '1px solid #e7e2d8' }}>
             <th
               style={{
-                padding: '8px 12px',
+                padding: '7px 12px',
                 textAlign: 'left',
                 color: '#78716c',
                 fontWeight: 500,
-                fontSize: 12,
-                minWidth: 280,
+                minWidth: 260,
               }}
             >
               Vacante
             </th>
             <th
               style={{
-                padding: '8px 12px',
+                padding: '7px 12px',
                 textAlign: 'left',
                 color: '#78716c',
                 fontWeight: 500,
-                fontSize: 12,
-                minWidth: 140,
+                minWidth: 80,
               }}
             >
-              Promo
+              País
             </th>
             <th
               style={{
-                padding: '8px 12px',
+                padding: '7px 12px',
                 textAlign: 'right',
                 color: '#78716c',
                 fontWeight: 500,
-                fontSize: 12,
               }}
             >
               Total CVs
             </th>
             <th
               style={{
-                padding: '8px 12px',
+                padding: '7px 12px',
                 textAlign: 'right',
                 color: '#78716c',
                 fontWeight: 500,
-                fontSize: 12,
+                minWidth: 100,
               }}
             >
-              Contratados
+              Semana pico
             </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((entry, index) => {
-            const country = getVacancyCountry(entry.title)
+          {vacancies.map((v, index) => {
+            const country = getVacancyCountry(v.title)
             const c = COUNTRY_COLORS[country]
             const rowBg = index % 2 === 0 ? '#ffffff' : '#faf8f5'
+            const dotColor = VACANCY_COLORS[index % VACANCY_COLORS.length]
 
             return (
               <tr
-                key={entry.vacancyId}
+                key={v.vacancyId}
                 style={{ background: rowBg, borderBottom: '1px solid #f0ece4' }}
               >
-                <td style={{ padding: '8px 12px', color: '#1c1917', fontWeight: 500 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    {entry.title}
+                <td style={{ padding: '7px 12px', color: '#1c1917', fontWeight: 500 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                     <span
                       style={{
-                        background: c.bg,
-                        color: c.text,
-                        border: `1px solid ${c.border}`,
-                        borderRadius: 99,
-                        fontSize: 10,
-                        fontWeight: 600,
-                        padding: '1px 6px',
-                        whiteSpace: 'nowrap',
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: dotColor,
                         flexShrink: 0,
+                        display: 'inline-block',
                       }}
-                    >
-                      {country}
-                    </span>
+                    />
+                    {v.title}
                   </span>
                 </td>
-                <td style={{ padding: '8px 12px', color: '#78716c' }}>
-                  {entry.promoName ?? (
-                    <span style={{ color: '#a8a29e', fontStyle: 'italic' }}>Sin promo</span>
-                  )}
+                <td style={{ padding: '7px 12px' }}>
+                  <span
+                    style={{
+                      background: c.bg,
+                      color: c.text,
+                      border: `1px solid ${c.border}`,
+                      borderRadius: 99,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '1px 6px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {country}
+                  </span>
                 </td>
                 <td
-                  style={{ padding: '8px 12px', textAlign: 'right', color: '#1c1917', fontWeight: 600 }}
+                  style={{
+                    padding: '7px 12px',
+                    textAlign: 'right',
+                    color: '#1c1917',
+                    fontWeight: 600,
+                  }}
                   className="tabular-nums"
                 >
-                  {entry.totalCandidates.toLocaleString('es-AR')}
+                  {v.totalCandidates.toLocaleString('es-AR')}
                 </td>
                 <td
-                  style={{ padding: '8px 12px', textAlign: 'right', color: '#78716c' }}
-                  className="tabular-nums"
+                  style={{
+                    padding: '7px 12px',
+                    textAlign: 'right',
+                    color: '#78716c',
+                  }}
                 >
-                  {entry.hiredCount}
+                  {v.peakWeekLabel ?? <span style={{ color: '#a8a29e' }}>—</span>}
                 </td>
               </tr>
             )
@@ -349,29 +348,23 @@ function VacancyTable({
 
 // ─── main component ───────────────────────────────────────────────────────────
 
-export default function ClosedVacancyCvsView({
-  profesionFilter = 'todos',
-}: {
+interface Props {
   profesionFilter?: TipoProfesional | 'todos'
-}) {
-  const [subView, setSubView] = useState<SubView>('promo')
+}
+
+export default function ClosedVacancyCvsView({ profesionFilter = 'todos' }: Props) {
   const [weeksWindow, setWeeksWindow] = useState<WeeksWindow>(26)
   const [loading, setLoading] = useState(true)
-  const [promos, setPromos] = useState<ClosedVacancyPromoSummary[]>([])
-  const [entries, setEntries] = useState<ClosedVacancyCvsEntry[]>([])
+  const [allVacancies, setAllVacancies] = useState<ClosedVacancyBySeries[]>([])
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
       setLoading(true)
-      const [promosData, entriesData] = await Promise.all([
-        getClosedVacancyCvsByPromo(52),
-        getClosedVacancyCvsHistory(52),
-      ])
+      const data = await getClosedVacancyCvsHistoryByVacancy(52)
       if (!cancelled) {
-        setPromos(promosData)
-        setEntries(entriesData)
+        setAllVacancies(data)
         setLoading(false)
       }
     }
@@ -382,6 +375,12 @@ export default function ClosedVacancyCvsView({
       cancelled = true
     }
   }, [])
+
+  // Apply profesion filter — keep vacancies whose title matches the selected type
+  const vacancies =
+    profesionFilter === 'todos'
+      ? allVacancies
+      : allVacancies.filter((v) => deriveProfesionTipo(v.title) === profesionFilter)
 
   if (loading) return <LoadingSkeleton />
 
@@ -408,48 +407,32 @@ export default function ClosedVacancyCvsView({
         }}
       >
         <div>
-          <p style={{ fontSize: 15, fontWeight: 600, color: '#1c1917', margin: 0 }}>
-            CVs históricos — Vacantes cerradas
+          <p style={{ fontSize: 14, fontWeight: 600, color: '#1c1917', margin: 0 }}>
+            CVs históricos por vacante cerrada
           </p>
           <p style={{ fontSize: 12, color: '#a8a29e', marginTop: 2 }}>
-            Datos de Zoho backfilleados
+            Top 12 vacantes · Datos de Zoho backfilleados
           </p>
         </div>
 
-        {/* Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {/* Sub-view toggle */}
-          <div style={{ display: 'flex', gap: 4 }}>
-            <PillButton active={subView === 'promo'} onClick={() => setSubView('promo')}>
-              Por promo
-            </PillButton>
-            <PillButton active={subView === 'vacante'} onClick={() => setSubView('vacante')}>
-              Por vacante
-            </PillButton>
-          </div>
-
-          {/* Weeks toggle — only relevant for chart */}
-          {subView === 'promo' && (
-            <div style={{ display: 'flex', gap: 4 }}>
-              <PillButton active={weeksWindow === 26} onClick={() => setWeeksWindow(26)}>
-                Últ. 26 sem.
-              </PillButton>
-              <PillButton active={weeksWindow === 52} onClick={() => setWeeksWindow(52)}>
-                52 sem.
-              </PillButton>
-            </div>
-          )}
+        {/* Weeks toggle */}
+        <div style={{ display: 'flex', gap: 4 }}>
+          <PillButton active={weeksWindow === 26} onClick={() => setWeeksWindow(26)}>
+            Últ. 26 sem.
+          </PillButton>
+          <PillButton active={weeksWindow === 52} onClick={() => setWeeksWindow(52)}>
+            52 sem.
+          </PillButton>
         </div>
       </div>
 
-      {/* Content */}
-      <div style={{ padding: subView === 'promo' ? '16px 20px' : 0 }}>
-        {subView === 'promo' ? (
-          <PromoLineChart promos={promos} window={weeksWindow} />
-        ) : (
-          <VacancyTable entries={entries} profesionFilter={profesionFilter} />
-        )}
+      {/* Chart */}
+      <div style={{ padding: '16px 20px 8px' }}>
+        <VacancyLineChart vacancies={vacancies} window={weeksWindow} />
       </div>
+
+      {/* Summary table */}
+      <VacancySummaryTable vacancies={vacancies} />
     </div>
   )
 }

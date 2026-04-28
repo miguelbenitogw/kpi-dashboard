@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { SlidersHorizontal } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import {
   getClosedVacanciesData,
@@ -116,6 +117,17 @@ export default function ClosedVacanciesView() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
   const [selectedCountry, setSelectedCountry] = useState<VacancyCountry | 'Todos'>('Todos')
+  const [hiddenStatusCols, setHiddenStatusCols] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('closed-vacancy-hidden-cols')
+        if (saved) return new Set(JSON.parse(saved) as string[])
+      } catch {}
+    }
+    return new Set<string>()
+  })
+  const [showColMenu, setShowColMenu] = useState(false)
+  const colMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     getClosedVacanciesData().then((d) => {
@@ -163,6 +175,27 @@ export default function ClosedVacanciesView() {
   }, [])
 
   const clearTagFilter = useCallback(() => setSelectedTags(new Set()), [])
+
+  const toggleStatusCol = useCallback((col: string) => {
+    setHiddenStatusCols((prev) => {
+      const next = new Set(prev)
+      if (next.has(col)) next.delete(col)
+      else next.add(col)
+      localStorage.setItem('closed-vacancy-hidden-cols', JSON.stringify([...next]))
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!showColMenu) return
+    function handleMouseDown(e: MouseEvent) {
+      if (colMenuRef.current && !colMenuRef.current.contains(e.target as Node)) {
+        setShowColMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [showColMenu])
 
   if (loading) {
     return (
@@ -251,9 +284,12 @@ export default function ClosedVacanciesView() {
       : `${selectedIds.size} vacantes`
 
   // All statuses that appear across visible vacancies — dynamic, no hardcoding
-  const activeStatusCols = (data.allStatuses ?? [])
+  const allStatusCols = (data.allStatuses ?? [])
     .filter((status) => filteredVacancies.some((v) => (v.byStatus[status] ?? 0) > 0))
     .map((status) => ({ key: status, label: status, colorClass: statusColorClass(status) }))
+
+  // Apply hidden-column filter
+  const activeStatusCols = allStatusCols.filter((col) => !hiddenStatusCols.has(col.key))
 
   return (
     <div className="space-y-3 p-4">
@@ -567,8 +603,58 @@ export default function ClosedVacanciesView() {
             </div>
           )}
 
+          {/* Column selector + Search */}
+          <div className="flex items-center gap-2">
+          {/* Columns dropdown */}
+          <div className="relative shrink-0" ref={colMenuRef}>
+            <button
+              onClick={() => setShowColMenu((v) => !v)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-600/50 bg-gray-700/50 px-3 py-1.5 text-xs font-medium text-gray-300 hover:bg-gray-700 hover:text-gray-100 transition-colors"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Columnas
+              {hiddenStatusCols.size > 0 && (
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-400 inline-block" />
+              )}
+            </button>
+            {showColMenu && (
+              <div className="absolute left-0 top-full mt-1.5 z-20 rounded-xl border border-gray-700/50 bg-gray-800 shadow-xl w-64 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-gray-300">Columnas visibles</span>
+                  <div className="flex gap-2">
+                    {hiddenStatusCols.size > 0 && (
+                      <button
+                        onClick={() => {
+                          setHiddenStatusCols(new Set())
+                          localStorage.removeItem('closed-vacancy-hidden-cols')
+                        }}
+                        className="text-[10px] text-indigo-400 hover:text-indigo-300"
+                      >
+                        Mostrar todas
+                      </button>
+                    )}
+                    <button onClick={() => setShowColMenu(false)} className="text-gray-500 hover:text-gray-300 text-sm leading-none">×</button>
+                  </div>
+                </div>
+                <div className="max-h-64 overflow-y-auto space-y-0.5">
+                  {allStatusCols.map((col) => (
+                    <label key={col.key} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-700/50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!hiddenStatusCols.has(col.key)}
+                        onChange={() => toggleStatusCol(col.key)}
+                        className="h-3.5 w-3.5 rounded border-gray-600 bg-gray-700 accent-blue-500 cursor-pointer"
+                      />
+                      <span className={`text-xs ${col.colorClass}`}>{col.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Search input */}
-          <div className="relative">
+          <div className="relative flex-1">
             <svg
               className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500"
               fill="none"
@@ -600,6 +686,7 @@ export default function ClosedVacanciesView() {
               </button>
             )}
           </div>
+          </div>{/* end flex row */}
         </div>
 
         {filteredVacancies.length === 0 ? (
@@ -620,6 +707,7 @@ export default function ClosedVacanciesView() {
                   <th className="px-3 py-1.5 text-left font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>Estado</th>
                   <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>Candidatos</th>
                   <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>Contratados</th>
+                  <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>% Conv.</th>
                   {activeStatusCols.map((col) => (
                     <th
                       key={col.key}
@@ -694,6 +782,23 @@ export default function ClosedVacanciesView() {
                       </td>
                       <td className="px-3 py-1.5 text-right tabular-nums text-gray-300" style={{ fontSize: 13 }}>
                         {v.hired_count}
+                      </td>
+                      <td className="px-3 py-1.5 text-right tabular-nums" style={{ fontSize: 13 }}>
+                        {(() => {
+                          const approved = v.byStatus['Approved by client'] ?? 0
+                          if (!hasStatusData || v.total_candidates === 0) {
+                            return <span className="text-gray-600 text-[10px]">n/d</span>
+                          }
+                          const rate = Math.round((approved / v.total_candidates) * 1000) / 10
+                          const color =
+                            rate >= 15 ? '#16a34a' :
+                            rate >= 8  ? '#d97706' : '#9ca3af'
+                          return (
+                            <span style={{ color, fontWeight: rate >= 8 ? 600 : 400 }}>
+                              {rate.toLocaleString('es-AR')}%
+                            </span>
+                          )
+                        })()}
                       </td>
                       {activeStatusCols.map((col) => {
                         const count = v.byStatus[col.key] ?? 0

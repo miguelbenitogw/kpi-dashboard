@@ -26,8 +26,8 @@ export function deriveProfesionTipo(title: string | null | undefined): TipoProfe
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
 
-  if (/enferm|infermier|infirmier|nurs|enfermeiro|sjukepleier/.test(t)) return 'enfermero'
   if (/auxiliar|tapsd|cuidador|gerocult/.test(t)) return 'auxiliar_enfermeria'
+  if (/enferm|infermier|infirmier|nurs|enfermeiro|sjukepleier/.test(t)) return 'enfermero'
   if (/medic|doctor|physician|lege/.test(t)) return 'medico'
   if (/fisioterap|physiother/.test(t)) return 'fisioterapeuta'
   if (/primaria|primary/.test(t)) return 'maestro_primaria'
