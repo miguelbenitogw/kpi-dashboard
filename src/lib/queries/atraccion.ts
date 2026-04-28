@@ -865,12 +865,6 @@ export async function getPromoRecruitmentStats(): Promise<PromoRecruitmentStats>
 // Pre-computed vacancy tag counts
 // ---------------------------------------------------------------------------
 
-export interface VacancyTagCount {
-  vacancy_id: string
-  tag: string
-  count: number
-}
-
 /**
  * Get tag counts for a set of vacancy IDs from the pre-computed table.
  * Returns a map: vacancy_id â†’ { tag â†’ count }
