@@ -5,6 +5,7 @@ import { importExcelMadre } from '@/lib/google-sheets/import-madre'
 import { syncCandidateTags } from '@/lib/zoho/sync-candidate-tags'
 import { syncVacancyTagCountsLocal } from '@/lib/supabase/sync-vacancy-tags-local'
 import { syncVacancyTagCountsFromZoho } from '@/lib/zoho/sync-vacancy-tags-zoho'
+import { syncCandidatesForActiveVacancies } from '@/lib/zoho/sync-candidates'
 
 export const maxDuration = 60
 
@@ -62,12 +63,20 @@ export async function GET(request: NextRequest) {
       zoho_api_calls: number
       errors: string[]
     } | null
+    candidates_stage_history: {
+      vacancies_processed: number
+      candidates_synced: number
+      status_changes_logged: number
+      api_calls: number
+      errors: string[]
+    } | null
   } = {
     zoho_job_openings: null,
     excel_madre: [],
     candidate_tags: null,
     vacancy_tag_counts_local: null,
     vacancy_tag_counts_zoho: null,
+    candidates_stage_history: null,
   }
 
   // ---- Phase 1: Zoho job openings ----------------------------------------
@@ -163,12 +172,27 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // ---- Phase 6: Candidate stage history (status changes across active vacancies) --
+  try {
+    const stageResult = await syncCandidatesForActiveVacancies()
+    results.candidates_stage_history = stageResult
+  } catch (err) {
+    results.candidates_stage_history = {
+      vacancies_processed: 0,
+      candidates_synced: 0,
+      status_changes_logged: 0,
+      api_calls: 0,
+      errors: [err instanceof Error ? err.message : String(err)],
+    }
+  }
+
   const allErrors = [
     ...(results.zoho_job_openings?.errors ?? []),
     ...results.excel_madre.flatMap((m) => m.errors),
     ...(results.candidate_tags?.errors ?? []),
     ...(results.vacancy_tag_counts_local?.errors ?? []),
     ...(results.vacancy_tag_counts_zoho?.errors ?? []),
+    ...(results.candidates_stage_history?.errors ?? []),
   ]
   const hasErrors = allErrors.length > 0
   const totalRecords =
