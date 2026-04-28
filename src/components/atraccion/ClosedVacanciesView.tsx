@@ -283,13 +283,18 @@ export default function ClosedVacanciesView() {
       ? (selectedVacancies[0]?.title ?? '')
       : `${selectedIds.size} vacantes`
 
-  // All statuses that appear across visible vacancies — dynamic, no hardcoding
-  const allStatusCols = (data.allStatuses ?? [])
-    .filter((status) => filteredVacancies.some((v) => (v.byStatus[status] ?? 0) > 0))
+  // ALL statuses ever seen across the full dataset — used for the column selector dropdown
+  const allColOptions = (data.allStatuses ?? [])
     .map((status) => ({ key: status, label: status, colorClass: statusColorClass(status) }))
 
-  // Apply hidden-column filter
-  const activeStatusCols = allStatusCols.filter((col) => !hiddenStatusCols.has(col.key))
+  // Table columns: only statuses with data in the CURRENT filtered vacancies, minus hidden ones
+  const activeStatusCols = (data.allStatuses ?? [])
+    .filter(
+      (status) =>
+        !hiddenStatusCols.has(status) &&
+        filteredVacancies.some((v) => (v.byStatus[status] ?? 0) > 0),
+    )
+    .map((status) => ({ key: status, label: status, colorClass: statusColorClass(status) }))
 
   return (
     <div className="space-y-3 p-4">
@@ -637,7 +642,7 @@ export default function ClosedVacanciesView() {
                   </div>
                 </div>
                 <div className="max-h-64 overflow-y-auto space-y-0.5">
-                  {allStatusCols.map((col) => (
+                  {allColOptions.map((col) => (
                     <label key={col.key} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-700/50 cursor-pointer">
                       <input
                         type="checkbox"
