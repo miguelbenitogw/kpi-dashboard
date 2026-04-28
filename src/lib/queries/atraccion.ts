@@ -1,17 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 
-// Statuses considered as "contacted" (candidate was reached out to)
-const CONTACTED_STATUSES = [
-  'First Call',
-  'Second Call',
-  'Check Interest',
-  'No Answer',
-  'Interview in Progress',
-  'Approved by client',
-]
-
-// Terminal positive statuses
-const TERMINAL_POSITIVE = ['Approved by client', 'Hired']
+// Statuses NOT considered as "contacted" — candidates that never progressed beyond intake
+const NOT_CONTACTED_STATUSES = ['Associated', 'New', 'Not Valid']
 
 export interface StatusCount {
   status: string
@@ -521,55 +511,60 @@ export async function getReceivedCvsByVacancyStats(
   }
 }
 
+/**
+ * Computes conversion rates for active (or inactive) attraction vacancies.
+ *
+ * Source of truth: vacancy_status_counts_kpi joined with job_openings_kpi.
+ * The previous implementation relied on candidate_job_history_kpi with
+ * association_type = 'atraccion', which has no rows for atraccion — that's
+ * why it was returning 0% for both metrics.
+ *
+ * - Total CVs  = SUM(job_openings_kpi.total_candidates) for active vacancies
+ * - Approved   = SUM(vacancy_status_counts_kpi.count) WHERE status = 'Approved by client'
+ * - Contacted  = SUM(vacancy_status_counts_kpi.count) WHERE status NOT IN ('Associated', 'New', 'Not Valid')
+ */
 export async function getConversionRates(
-  jobOpeningId?: string,
+  active = true,
 ): Promise<ConversionRates> {
-  // Fetch candidate IDs linked to atraccion vacantes
-  const { data: historyRows, error: historyError } = await supabase
-    .from('candidate_job_history_kpi')
-    .select('candidate_id')
-    .eq('association_type', 'atraccion')
+  // 1. Fetch vacancies: id + total_candidates in a single query
+  const { data: vacancies, error: vacError } = await supabase
+    .from('job_openings_kpi')
+    .select('id, total_candidates')
+    .eq('es_proceso_atraccion_actual', active)
 
-  if (historyError) {
-    console.error('Error fetching atraccion candidate ids for conversion:', historyError)
+  if (vacError) {
+    console.error('[atraccion] getConversionRates vacancies error:', vacError)
     return { cvToApproved: 0, contactedToApproved: 0 }
   }
 
-  const candidateIds = [
-    ...new Set((historyRows ?? []).map((r) => r.candidate_id)),
-  ]
+  const vacList = vacancies ?? []
+  if (vacList.length === 0) return { cvToApproved: 0, contactedToApproved: 0 }
 
-  if (candidateIds.length === 0) {
+  // total_candidates is the authoritative CV count from Zoho (no join duplication)
+  const totalCVs = vacList.reduce((sum, row) => sum + (row.total_candidates ?? 0), 0)
+  if (totalCVs === 0) return { cvToApproved: 0, contactedToApproved: 0 }
+
+  const ids = vacList.map((v) => v.id)
+
+  // 2. Fetch per-status counts for those vacancies
+  const { data: statusRows, error: statusError } = await supabase
+    .from('vacancy_status_counts_kpi')
+    .select('status, count')
+    .in('vacancy_id', ids)
+
+  if (statusError) {
+    console.error('[atraccion] getConversionRates statusCounts error:', statusError)
     return { cvToApproved: 0, contactedToApproved: 0 }
   }
 
-  let query = supabase
-    .from('candidates_kpi')
-    .select('current_status')
-    .in('id', candidateIds)
+  let approved = 0
+  let contacted = 0
 
-  if (jobOpeningId) {
-    query = query.eq('job_opening_id', jobOpeningId)
+  for (const row of statusRows ?? []) {
+    const cnt = row.count ?? 0
+    if (row.status === 'Approved by client') approved += cnt
+    if (!NOT_CONTACTED_STATUSES.includes(row.status)) contacted += cnt
   }
-
-  const { data, error } = await query
-
-  if (error) {
-    console.error('Error fetching conversion rates:', error)
-    return { cvToApproved: 0, contactedToApproved: 0 }
-  }
-
-  if (!data || data.length === 0) {
-    return { cvToApproved: 0, contactedToApproved: 0 }
-  }
-
-  const totalCVs = data.length
-  const contacted = data.filter((r) =>
-    CONTACTED_STATUSES.includes(r.current_status ?? ''),
-  ).length
-  const approved = data.filter((r) =>
-    TERMINAL_POSITIVE.includes(r.current_status ?? ''),
-  ).length
 
   const cvToApproved =
     totalCVs > 0 ? Math.round((approved / totalCVs) * 10000) / 100 : 0
