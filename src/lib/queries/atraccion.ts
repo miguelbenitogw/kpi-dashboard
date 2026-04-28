@@ -37,6 +37,9 @@ export interface ReceivedCvsByVacancyResult {
 export interface ConversionRates {
   cvToApproved: number
   contactedToApproved: number
+  totalCVs: number
+  approved: number
+  contacted: number
 }
 
 export interface TrafficLight {
@@ -515,34 +518,55 @@ export async function getReceivedCvsByVacancyStats(
  * Computes conversion rates for active (or inactive) attraction vacancies.
  *
  * Source of truth: vacancy_status_counts_kpi joined with job_openings_kpi.
- * The previous implementation relied on candidate_job_history_kpi with
- * association_type = 'atraccion', which has no rows for atraccion — that's
- * why it was returning 0% for both metrics.
  *
- * - Total CVs  = SUM(job_openings_kpi.total_candidates) for active vacancies
+ * - Total CVs  = SUM(job_openings_kpi.total_candidates)
  * - Approved   = SUM(vacancy_status_counts_kpi.count) WHERE status = 'Approved by client'
- * - Contacted  = SUM(vacancy_status_counts_kpi.count) WHERE status NOT IN ('Associated', 'New', 'Not Valid')
+ * - Contacted  = SUM counts WHERE status NOT IN ('Associated', 'New', 'Not Valid')
+ *
+ * By default, vacancies with pais_destino = 'Interno' are excluded (internal
+ * promotional campaigns, not real recruitment openings). Pass pais = 'Interno'
+ * explicitly to include them.
  */
 export async function getConversionRates(
   active = true,
+  tipoProfesional?: string,
+  pais?: string,
 ): Promise<ConversionRates> {
-  // 1. Fetch vacancies: id + total_candidates in a single query
-  const { data: vacancies, error: vacError } = await supabase
+  const EMPTY: ConversionRates = {
+    cvToApproved: 0, contactedToApproved: 0,
+    totalCVs: 0, approved: 0, contacted: 0,
+  }
+
+  // 1. Fetch vacancies with optional filters
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase as any)
     .from('job_openings_kpi')
     .select('id, total_candidates')
     .eq('es_proceso_atraccion_actual', active)
 
-  if (vacError) {
-    console.error('[atraccion] getConversionRates vacancies error:', vacError)
-    return { cvToApproved: 0, contactedToApproved: 0 }
+  if (tipoProfesional) {
+    query = query.eq('tipo_profesional', tipoProfesional)
+  }
+  if (pais) {
+    // Explicit country requested — show it even if it's Interno
+    query = query.eq('pais_destino', pais)
+  } else {
+    // Default: exclude internal promotions (campaigns, not real job openings)
+    query = query.neq('pais_destino', 'Interno')
   }
 
-  const vacList = vacancies ?? []
-  if (vacList.length === 0) return { cvToApproved: 0, contactedToApproved: 0 }
+  const { data: vacancies, error: vacError } = await query
 
-  // total_candidates is the authoritative CV count from Zoho (no join duplication)
+  if (vacError) {
+    console.error('[atraccion] getConversionRates vacancies error:', vacError)
+    return EMPTY
+  }
+
+  const vacList = (vacancies ?? []) as { id: string; total_candidates: number }[]
+  if (vacList.length === 0) return EMPTY
+
   const totalCVs = vacList.reduce((sum, row) => sum + (row.total_candidates ?? 0), 0)
-  if (totalCVs === 0) return { cvToApproved: 0, contactedToApproved: 0 }
+  if (totalCVs === 0) return EMPTY
 
   const ids = vacList.map((v) => v.id)
 
@@ -554,13 +578,13 @@ export async function getConversionRates(
 
   if (statusError) {
     console.error('[atraccion] getConversionRates statusCounts error:', statusError)
-    return { cvToApproved: 0, contactedToApproved: 0 }
+    return EMPTY
   }
 
   let approved = 0
   let contacted = 0
 
-  for (const row of statusRows ?? []) {
+  for (const row of (statusRows ?? []) as { status: string; count: number }[]) {
     const cnt = row.count ?? 0
     if (row.status === 'Approved by client') approved += cnt
     if (!NOT_CONTACTED_STATUSES.includes(row.status)) contacted += cnt
@@ -571,7 +595,7 @@ export async function getConversionRates(
   const contactedToApproved =
     contacted > 0 ? Math.round((approved / contacted) * 10000) / 100 : 0
 
-  return { cvToApproved, contactedToApproved }
+  return { cvToApproved, contactedToApproved, totalCVs, approved, contacted }
 }
 
 export async function getAttractionTrafficLight(
