@@ -68,6 +68,7 @@ const PLACEMENT_COLUMN_MAP: Record<string, string[]> = {
   gp_assignment: ['assignment'],
   gp_kontaktperson: ['kontaktperson', 'kontakt', 'contact person', 'contacto'],
   gp_training_status: ['status (training)', 'training status', 'estado formación', 'estado formacion'],
+  placement_status: ['status (placement)', 'placement status', 'estado colocacion', 'estado colocación'],
   gp_availability: ['availability', 'disponibilidad', 'available'],
   gp_open_to: ['open to', 'abierto a', 'abierta a'],
   gp_priority: ['priority', 'prioridad'],
@@ -259,6 +260,9 @@ export async function importGlobalPlacement(sheetId: string): Promise<GlobalPlac
     }
     if (mapped['gp_training_status']) {
       updateData.gp_training_status = mapped['gp_training_status']
+    }
+    if (mapped['placement_status']) {
+      updateData.placement_status = mapped['placement_status']
     }
     if (mapped['gp_availability']) {
       updateData.gp_availability = mapped['gp_availability']
