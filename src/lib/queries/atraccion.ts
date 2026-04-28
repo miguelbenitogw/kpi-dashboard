@@ -227,6 +227,73 @@ function toNumberCount(value: unknown): number {
   return num
 }
 
+/**
+ * Aggregate total CVs received per week from vacancy_cv_weekly_kpi.
+ * This is the correct source — candidates_kpi.created_time is NULL for all rows
+ * because the Zoho sync never mapped that field.
+ */
+export async function getWeeklyCVCountFromWeeklyTable(
+  weeks = 12,
+): Promise<WeeklyCVData[]> {
+  const safeWeeks = Math.min(52, Math.max(1, Math.trunc(weeks)))
+  const weekStarts = getRecentIsoMondays(safeWeeks)
+  const oldestWeek = weekStarts[0]
+  const newestWeek = weekStarts[weekStarts.length - 1]
+
+  // Use a typed cast because vacancy_cv_weekly_kpi may not be in the generated types yet
+  type WeeklyQueryClient = {
+    from: (table: string) => {
+      select: (columns: string) => {
+        gte: (column: string, value: string) => {
+          lte: (
+            col: string,
+            val: string,
+          ) => Promise<{
+            data: Array<{
+              week_start: string | null
+              candidate_count: number | null
+              cv_count: number | null
+              new_cvs: number | null
+              total: number | null
+            }> | null
+            error: { message: string } | null
+          }>
+        }
+      }
+    }
+  }
+
+  const client = supabase as unknown as WeeklyQueryClient
+  const { data, error } = await client
+    .from('vacancy_cv_weekly_kpi')
+    .select('week_start, candidate_count, cv_count, new_cvs, total')
+    .gte('week_start', oldestWeek)
+    .lte('week_start', newestWeek)
+
+  if (error) {
+    console.error('[atraccion] getWeeklyCVCountFromWeeklyTable error:', error)
+    return []
+  }
+
+  // Initialize all weeks with 0 so we always return a full series
+  const weekMap = new Map<string, number>()
+  for (const w of weekStarts) weekMap.set(w, 0)
+
+  for (const row of data ?? []) {
+    const weekStart = normalizeToIsoMonday(row.week_start)
+    if (!weekStart || !weekMap.has(weekStart)) continue
+    const count = toNumberCount(
+      row.candidate_count ?? row.cv_count ?? row.new_cvs ?? row.total,
+    )
+    weekMap.set(weekStart, (weekMap.get(weekStart) ?? 0) + count)
+  }
+
+  return weekStarts.map((weekStart) => ({
+    week: formatWeekLabel(weekStart),
+    count: weekMap.get(weekStart) ?? 0,
+  }))
+}
+
 type VacancyCvWeeklyRow = {
   vacancy_id?: string | null
   job_opening_id?: string | null
