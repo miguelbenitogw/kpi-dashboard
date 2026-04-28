@@ -52,7 +52,6 @@ export default function ReceivedCvsByVacancyView() {
   const [data, setData] = useState<ReceivedCvsByVacancyStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
-  const [syncingHistorical, setSyncingHistorical] = useState(false)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const [targetDrafts, setTargetDrafts] = useState<Record<string, string>>({})
   const [savingTargetIds, setSavingTargetIds] = useState<Record<string, boolean>>({})
@@ -135,50 +134,6 @@ export default function ReceivedCvsByVacancyView() {
       setSyncMessage(message)
     } finally {
       setSyncing(false)
-    }
-  }
-
-  async function handleSyncHistorical() {
-    if (syncingHistorical) return
-
-    setSyncingHistorical(true)
-    setSyncMessage(null)
-
-    try {
-      const response = await fetch('/api/admin/sync-vacancy-cvs-historical', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ onlyInactive: true }),
-      })
-
-      let payload: Record<string, unknown> | null = null
-      try {
-        payload = (await response.json()) as Record<string, unknown>
-      } catch {
-        payload = null
-      }
-
-      if (!response.ok && response.status !== 207) {
-        const errorMessage =
-          (payload?.error as string | undefined) ??
-          `No se pudo sincronizar el historial (HTTP ${response.status})`
-        setSyncMessage(errorMessage)
-        return
-      }
-
-      const rowsUpserted = Number(payload?.rows_upserted ?? 0)
-      const synced = Number(payload?.vacancies_synced ?? 0)
-      const failed = Number(payload?.vacancies_failed ?? 0)
-      const durationMs = Number(payload?.duration_ms ?? 0)
-      setSyncMessage(
-        `Historial sincronizado. Vacantes: ${synced} ok${failed > 0 ? `, ${failed} con errores` : ''}. Filas actualizadas: ${rowsUpserted}. Tiempo: ${Math.round(durationMs / 1000)}s.`,
-      )
-      await refreshStats()
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error inesperado al sincronizar historial.'
-      setSyncMessage(message)
-    } finally {
-      setSyncingHistorical(false)
     }
   }
 
@@ -281,7 +236,7 @@ export default function ReceivedCvsByVacancyView() {
             <button
               type="button"
               onClick={handleSyncNow}
-              disabled={syncing || syncingHistorical}
+              disabled={syncing}
               style={{
                 background: '#1e4b9e',
                 color: '#ffffff',
@@ -290,8 +245,8 @@ export default function ReceivedCvsByVacancyView() {
                 padding: '8px 16px',
                 fontSize: 13,
                 fontWeight: 600,
-                opacity: syncing || syncingHistorical ? 0.6 : 1,
-                cursor: syncing || syncingHistorical ? 'not-allowed' : 'pointer',
+                opacity: syncing ? 0.6 : 1,
+                cursor: syncing ? 'not-allowed' : 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
@@ -299,29 +254,6 @@ export default function ReceivedCvsByVacancyView() {
             >
               {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               {syncing ? 'Actualizando...' : 'Actualizar info'}
-            </button>
-            <button
-              type="button"
-              onClick={handleSyncHistorical}
-              disabled={syncing || syncingHistorical}
-              title="Sincroniza el historial completo de CVs para vacantes cerradas"
-              style={{
-                background: '#44403c',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 8,
-                padding: '8px 16px',
-                fontSize: 13,
-                fontWeight: 600,
-                opacity: syncing || syncingHistorical ? 0.6 : 1,
-                cursor: syncing || syncingHistorical ? 'not-allowed' : 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              {syncingHistorical ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              {syncingHistorical ? 'Sync historial...' : 'Sync histórico CVs'}
             </button>
           </div>
         </div>
@@ -380,7 +312,7 @@ export default function ReceivedCvsByVacancyView() {
           <button
             type="button"
             onClick={handleSyncNow}
-            disabled={syncing || syncingHistorical}
+            disabled={syncing}
             style={{
               background: '#1e4b9e',
               color: '#ffffff',
@@ -389,8 +321,8 @@ export default function ReceivedCvsByVacancyView() {
               padding: '8px 16px',
               fontSize: 13,
               fontWeight: 600,
-              opacity: syncing || syncingHistorical ? 0.6 : 1,
-              cursor: syncing || syncingHistorical ? 'not-allowed' : 'pointer',
+              opacity: syncing ? 0.6 : 1,
+              cursor: syncing ? 'not-allowed' : 'pointer',
               display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
@@ -398,29 +330,6 @@ export default function ReceivedCvsByVacancyView() {
           >
             {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             {syncing ? 'Actualizando...' : 'Actualizar info'}
-          </button>
-          <button
-            type="button"
-            onClick={handleSyncHistorical}
-            disabled={syncing || syncingHistorical}
-            title="Sincroniza el historial completo de CVs para vacantes cerradas"
-            style={{
-              background: '#44403c',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: 8,
-              padding: '8px 16px',
-              fontSize: 13,
-              fontWeight: 600,
-              opacity: syncing || syncingHistorical ? 0.6 : 1,
-              cursor: syncing || syncingHistorical ? 'not-allowed' : 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            {syncingHistorical ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {syncingHistorical ? 'Sync historial...' : 'Sync histórico CVs'}
           </button>
         </div>
       </div>
