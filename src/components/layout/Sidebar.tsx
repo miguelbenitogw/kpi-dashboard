@@ -15,7 +15,6 @@ import {
   X,
   Archive,
   Settings2,
-  FileText,
   Briefcase,
   Calendar,
 } from "lucide-react";
@@ -43,7 +42,6 @@ const navSections: NavSection[] = [
     title: "OPERACIÓN",
     items: [
       { href: "/dashboard/atraccion", label: "Atracción", icon: Users },
-      { href: "/dashboard/atraccion/cvs-recibidos", label: "CVs recibidos", icon: FileText },
       { href: "/dashboard/atraccion/cerradas", label: "Vacantes cerradas", icon: Archive },
       { href: "/dashboard/formacion", label: "Formación", icon: GraduationCap },
       { href: "/dashboard/formacion/candidatos", label: "Candidatos", icon: UserCheck },
