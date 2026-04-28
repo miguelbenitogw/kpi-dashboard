@@ -6,30 +6,18 @@ const promos = ['Todas', 'P116', 'P117', 'P118', 'P119', 'P120']
 export default function FormacionPage() {
   return (
     <div>
-      {/* Encabezado warm */}
-      <div>
-        <h1
-          style={{ color: '#1c1917', fontSize: '1.5rem', fontWeight: 700, lineHeight: 1.25 }}
-        >
-          Formación
-        </h1>
-        <p style={{ marginTop: '4px', fontSize: '0.875rem', color: '#78716c' }}>
-          Seguimiento de candidatos, promociones y abandonos
-        </p>
-      </div>
-
-      {/* Chips de promo decorativos */}
+      {/* Filter row with inline label */}
       <div
         style={{
-          marginTop: '20px',
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          gap: 6,
           flexWrap: 'wrap',
+          marginBottom: 12,
         }}
       >
-        <span style={{ fontSize: '0.8125rem', color: '#78716c', fontWeight: 500 }}>
-          Filtrar:
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#78716c', marginRight: 2 }}>
+          Formación
         </span>
         {promos.map((promo) => {
           const isActive = promo === 'Todas'
@@ -39,13 +27,13 @@ export default function FormacionPage() {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                padding: '3px 12px',
-                borderRadius: '9999px',
-                fontSize: '0.8125rem',
+                padding: '3px 10px',
+                borderRadius: 99,
+                fontSize: 12,
                 fontWeight: isActive ? 600 : 400,
-                border: isActive ? '1px solid #7c3aed' : '1px solid #e7e2d8',
-                background: isActive ? '#f3eaff' : '#ffffff',
-                color: isActive ? '#5b21b6' : '#78716c',
+                border: isActive ? 'none' : '1px solid #e7e2d8',
+                background: isActive ? '#1e4b9e' : '#ffffff',
+                color: isActive ? '#ffffff' : '#78716c',
                 cursor: 'default',
                 userSelect: 'none',
               }}
@@ -59,7 +47,7 @@ export default function FormacionPage() {
       {/* Card warm — Gráficos (FormacionLayout) */}
       <div
         style={{
-          marginTop: '24px',
+          marginTop: '0',
           background: '#ffffff',
           border: '1px solid #e7e2d8',
           borderRadius: '14px',
@@ -72,7 +60,7 @@ export default function FormacionPage() {
       {/* Card warm — Vista General por Promoción */}
       <div
         style={{
-          marginTop: '24px',
+          marginTop: '16px',
           background: '#ffffff',
           border: '1px solid #e7e2d8',
           borderRadius: '14px',

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { getReceivedCvsByVacancyStats, type VacancyRankingRow } from '@/lib/queries/atraccion'
+import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
 
 interface BarItem {
   vacancyId: string
@@ -229,8 +230,22 @@ export default function CvsPerVacancyChart() {
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
                     }}
                   >
+                    {/* Country dot */}
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        flexShrink: 0,
+                        background: COUNTRY_COLORS[getVacancyCountry(item.title)].border,
+                        border: `1px solid ${COUNTRY_COLORS[getVacancyCountry(item.title)].text}`,
+                      }}
+                    />
                     {label}
                   </div>
 

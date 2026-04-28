@@ -9,6 +9,11 @@ import {
 } from '@/lib/queries/atraccion'
 import { tagChipStyle, tagColor, TAG_LEGEND } from '@/lib/utils/tags'
 import TagPrefixCharts from '@/components/etiquetas/TagPrefixCharts'
+import {
+  getVacancyCountry,
+  COUNTRY_COLORS,
+  type VacancyCountry,
+} from '@/lib/utils/vacancy-country'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -110,6 +115,7 @@ export default function ClosedVacanciesView() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
+  const [selectedCountry, setSelectedCountry] = useState<VacancyCountry | 'Todos'>('Todos')
 
   useEffect(() => {
     getClosedVacanciesData().then((d) => {
@@ -121,12 +127,13 @@ export default function ClosedVacanciesView() {
     })
   }, [])
 
-  // When year changes, clear selection, search, and tag filters
+  // When year changes, clear selection, search, tag filters, and country filter
   const handleYearChange = useCallback((year: number | 'all') => {
     setSelectedYear(year)
     setSelectedIds(new Set())
     setSearchQuery('')
     setSelectedTags(new Set())
+    setSelectedCountry('Todos')
   }, [])
 
   const toggleVacancy = useCallback((id: string) => {
@@ -191,13 +198,24 @@ export default function ClosedVacanciesView() {
     ? vacanciesInView.filter((v) => v.title.toLowerCase().includes(searchLower))
     : vacanciesInView
 
+  // Apply country filter
+  const afterCountry =
+    selectedCountry !== 'Todos'
+      ? afterSearch.filter((v) => getVacancyCountry(v.title) === selectedCountry)
+      : afterSearch
+
   // Apply tag intersection filter (every selected tag must have count > 0)
   const filteredVacancies =
     selectedTags.size > 0
-      ? afterSearch.filter((v) =>
+      ? afterCountry.filter((v) =>
           Array.from(selectedTags).every((tag) => (v.tags[tag] ?? 0) > 0)
         )
-      : afterSearch
+      : afterCountry
+
+  // Countries present in the current year's data (for filter pills)
+  const countriesInView = Array.from(
+    new Set(vacanciesInView.map((v) => getVacancyCountry(v.title)))
+  ).sort() as VacancyCountry[]
 
   // Tags to display in chart:
   // - if any selected → aggregate of those vacancies only
@@ -273,6 +291,50 @@ export default function ClosedVacanciesView() {
           </button>
         ))}
       </div>
+
+      {/* Country filter */}
+      {countriesInView.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={() => setSelectedCountry('Todos')}
+            className={[
+              'rounded-full px-2.5 py-0.5 text-[11px] font-medium border transition-colors',
+              selectedCountry === 'Todos'
+                ? 'bg-gray-600 text-gray-100 border-gray-500'
+                : 'bg-gray-700/40 text-gray-400 border-gray-600/50 hover:bg-gray-700 hover:text-gray-200',
+            ].join(' ')}
+          >
+            Todos
+          </button>
+          {countriesInView.map((country) => {
+            const colors = COUNTRY_COLORS[country]
+            const isActive = selectedCountry === country
+            return (
+              <button
+                key={country}
+                onClick={() => setSelectedCountry(isActive ? 'Todos' : country)}
+                style={
+                  isActive
+                    ? {
+                        background: colors.bg,
+                        color: colors.text,
+                        border: `1px solid ${colors.border}`,
+                      }
+                    : undefined
+                }
+                className={[
+                  'rounded-full px-2.5 py-0.5 text-[11px] font-medium border transition-colors',
+                  isActive
+                    ? ''
+                    : 'bg-gray-700/40 text-gray-400 border-gray-600/50 hover:bg-gray-700 hover:text-gray-200',
+                ].join(' ')}
+              >
+                {country}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* FR / CP / GW breakdown charts */}
       {hasTagData && (() => {
@@ -599,6 +661,28 @@ export default function ClosedVacanciesView() {
                         <span className={['font-medium leading-snug', isSelected ? 'text-indigo-200' : 'text-gray-200'].join(' ')}>
                           {v.title}
                         </span>
+                        {(() => {
+                          const country = getVacancyCountry(v.title)
+                          const colors = COUNTRY_COLORS[country]
+                          return (
+                            <span
+                              style={{
+                                background: colors.bg,
+                                color: colors.text,
+                                border: `1px solid ${colors.border}`,
+                                borderRadius: 99,
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: '1px 6px',
+                                marginLeft: 6,
+                                whiteSpace: 'nowrap',
+                                display: 'inline-block',
+                              }}
+                            >
+                              {country}
+                            </span>
+                          )
+                        })()}
                       </td>
                       <td className="px-3 py-1.5 whitespace-nowrap" style={{ fontSize: 13 }}>
                         <span className={vacancyStatusColor(v.status)}>

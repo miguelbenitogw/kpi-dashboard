@@ -322,16 +322,16 @@ export default function PromosPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           {/* Promo cards grid */}
-          <div className="space-y-4 lg:col-span-1">
+          <div className="space-y-3 lg:col-span-1">
             <h2
               className="text-xs font-medium uppercase tracking-wider"
               style={{ color: '#78716c' }}
             >
               Promociones ({promos.length})
             </h2>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {/* Favorites section */}
               {favoriteSummaries.length > 0 && (
                 <>

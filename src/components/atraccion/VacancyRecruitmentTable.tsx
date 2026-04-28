@@ -9,6 +9,7 @@ import {
   type VacancyTagCount,
 } from '@/lib/queries/atraccion'
 import { tagChipStyle } from '@/lib/utils/tags'
+import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
 
 const ALL_STATUSES = [
   'Associated', 'Waiting for Evaluation', 'Rejected', 'First Call', 'Not Valid',
@@ -390,7 +391,31 @@ export default function VacancyRecruitmentTable() {
                     className="cursor-pointer hover:bg-gray-700/20 transition-colors"
                   >
                     <td className="sticky left-0 z-10 bg-gray-800/95 px-3 py-2">
-                      <div className="font-medium text-gray-200 leading-snug">{row.title}</div>
+                      <div className="font-medium text-gray-200 leading-snug">
+                        {row.title}
+                        {(() => {
+                          const country = getVacancyCountry(row.title)
+                          const colors = COUNTRY_COLORS[country]
+                          return (
+                            <span
+                              style={{
+                                background: colors.bg,
+                                color: colors.text,
+                                border: `1px solid ${colors.border}`,
+                                borderRadius: 99,
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: '1px 6px',
+                                marginLeft: 6,
+                                whiteSpace: 'nowrap',
+                                display: 'inline-block',
+                              }}
+                            >
+                              {country}
+                            </span>
+                          )
+                        })()}
+                      </div>
                     </td>
 
                     {cols.map((s) => {

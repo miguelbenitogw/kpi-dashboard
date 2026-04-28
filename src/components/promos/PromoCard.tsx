@@ -51,7 +51,7 @@ export default function PromoCard({
     <button
       type="button"
       onClick={() => onSelect(promo.id)}
-      className="relative w-full rounded-xl border p-5 text-left transition-all duration-200"
+      className="relative w-full rounded-xl border p-3 text-left transition-all duration-200"
       style={{
         border: isSelected
           ? '1px solid #93c5fd'
@@ -89,8 +89,8 @@ export default function PromoCard({
       </button>
 
       {/* Header */}
-      <div className="mb-3 flex items-start justify-between gap-2 pr-6">
-        <h3 className="text-sm font-semibold leading-tight" style={{ color: '#1c1917' }}>
+      <div className="mb-2 flex items-start justify-between gap-2 pr-6">
+        <h3 className="text-[13px] font-semibold leading-tight" style={{ color: '#1c1917' }}>
           {promo.title}
         </h3>
         {isRecent && (
@@ -105,19 +105,19 @@ export default function PromoCard({
       </div>
 
       {/* Total candidates - prominent */}
-      <div className="mb-3 flex items-baseline gap-2">
-        <span className="text-3xl font-bold tabular-nums" style={{ color: '#1c1917' }}>{total}</span>
-        <span className="text-xs" style={{ color: '#78716c' }}>candidatos</span>
+      <div className="mb-2 flex items-baseline gap-1.5">
+        <span className="text-2xl font-bold tabular-nums" style={{ color: '#1c1917' }}>{total}</span>
+        <span className="text-[11px]" style={{ color: '#78716c' }}>candidatos</span>
       </div>
 
       {/* Hired progress bar */}
       {total > 0 && (
-        <div className="mb-3">
-          <div className="mb-1 flex items-center justify-between text-[10px]">
+        <div className="mb-2">
+          <div className="mb-0.5 flex items-center justify-between text-[10px]">
             <span style={{ color: '#78716c' }}>Hired {hiredCount}/{total}</span>
             <span className="tabular-nums" style={{ color: '#16a34a' }}>{hiredPct.toFixed(0)}%</span>
           </div>
-          <div className="flex h-1.5 w-full overflow-hidden rounded-full" style={{ background: '#e7e2d8' }}>
+          <div className="flex h-1 w-full overflow-hidden rounded-full" style={{ background: '#e7e2d8' }}>
             <div
               className="h-full rounded-full transition-all duration-500"
               style={{ width: `${hiredPct}%`, background: '#16a34a' }}
@@ -128,7 +128,7 @@ export default function PromoCard({
 
       {/* Stacked bar for all statuses */}
       {total > 0 && (
-        <div className="mb-3 flex h-2 w-full overflow-hidden rounded-full" style={{ background: '#e7e2d8' }}>
+        <div className="mb-2 flex h-1.5 w-full overflow-hidden rounded-full" style={{ background: '#e7e2d8' }}>
           {statusBreakdown.map((d) => {
             const pct = (d.count / total) * 100
             if (pct < 0.5) return null
@@ -148,7 +148,7 @@ export default function PromoCard({
       )}
 
       {/* Key numbers */}
-      <div className="mb-3 grid grid-cols-3 gap-2 text-center">
+      <div className="mb-2 grid grid-cols-3 gap-1 text-center">
         <div>
           <p className="text-sm font-bold tabular-nums" style={{ color: '#1e4b9e' }}>{activeCount}</p>
           <p className="text-[10px] uppercase tracking-wider" style={{ color: '#78716c' }}>Activos</p>
@@ -165,7 +165,7 @@ export default function PromoCard({
 
       {/* Top 5 status badges */}
       {topStatuses.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-1">
+        <div className="mb-2 flex flex-wrap gap-1">
           {topStatuses.map((d) => (
             <span
               key={d.status}
