@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { getReceivedCvsByVacancyStats } from '@/lib/queries/atraccion'
+import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
 
 type WeeklyPoint = {
   weekLabel: string
@@ -458,7 +459,22 @@ export default function ReceivedCvsByVacancyView() {
                   >
                     {/* Vacancy title */}
                     <td style={{ padding: '7px 14px', color: '#1c1917', fontWeight: 500, fontSize: 13 }}>
-                      {row.vacancyTitle}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        {row.vacancyTitle}
+                        {(() => {
+                          const country = getVacancyCountry(row.vacancyTitle)
+                          const c = COUNTRY_COLORS[country]
+                          return (
+                            <span style={{
+                              background: c.bg, color: c.text, border: `1px solid ${c.border}`,
+                              borderRadius: 99, fontSize: 10, fontWeight: 600,
+                              padding: '1px 6px', whiteSpace: 'nowrap', flexShrink: 0,
+                            }}>
+                              {country}
+                            </span>
+                          )
+                        })()}
+                      </span>
                     </td>
 
                     {/* Objetivo/sem — compact input with inline spinner */}
