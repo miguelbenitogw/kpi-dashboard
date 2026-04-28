@@ -1,4 +1,5 @@
 // Real field mappings from Zoho Recruit API
+import { deriveProfesionTipo } from '@/lib/utils/vacancy-profession'
 
 export function transformCandidate(zoho: Record<string, unknown>) {
   // Associated_Tags: Zoho returns either string[] or {name, id, color_code}[]
@@ -83,7 +84,7 @@ export function transformJobOpening(zoho: Record<string, unknown>) {
     job_description: (zoho.Job_Description as string) || null,
     es_proceso_atraccion_actual: esProcesoAtraccionActual,
     category,
-    tipo_profesional: 'otro' as const,
+    tipo_profesional: deriveProfesionTipo(title),
   }
 }
 
