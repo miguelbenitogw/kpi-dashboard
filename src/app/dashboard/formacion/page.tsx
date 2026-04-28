@@ -2,146 +2,125 @@
 
 import { useState } from 'react'
 import { ChevronRight, ChevronLeft, Users } from 'lucide-react'
-import FormacionLayout from '@/components/formacion/FormacionLayout'
+import RetentionOverview from '@/components/formacion/RetentionOverview'
+import FormacionGraficos from '@/components/formacion/FormacionGraficos'
 import PromoVistaGeneral from '@/components/formacion/PromoVistaGeneral'
 import CandidatosFormacionView from '@/components/formacion/CandidatosFormacionView'
 
 export default function FormacionPage() {
+  const [selectedPromos, setSelectedPromos] = useState<string[]>([])
   const [panel, setPanel] = useState<'main' | 'candidatos'>('main')
 
+  const hasSelection = selectedPromos.length > 0
+  const activeFilter = hasSelection ? selectedPromos : undefined
+
+  function togglePromo(nombre: string) {
+    setSelectedPromos(prev =>
+      prev.includes(nombre) ? prev.filter(n => n !== nombre) : [...prev, nombre]
+    )
+  }
+
   return (
-    <div style={{ overflow: 'hidden' }}>
+    <div
+      style={{
+        background: '#ffffff',
+        border: '1px solid #e7e2d8',
+        borderRadius: '14px',
+        padding: '18px',
+        overflow: 'hidden',
+      }}
+    >
+      {/* ── Header: siempre visible ── */}
+      <RetentionOverview
+        selectedPromos={selectedPromos}
+        onToggle={togglePromo}
+        onSelectAll={() => setSelectedPromos([])}
+      />
+
+      {/* ── Nav strip: aparece solo cuando hay promo seleccionada ── */}
       <div
         style={{
+          marginTop: '16px',
           display: 'flex',
-          width: '200%',
-          transform: panel === 'candidatos' ? 'translateX(-50%)' : 'translateX(0)',
-          transition: 'transform 400ms cubic-bezier(0.4, 0, 0.2, 1)',
+          justifyContent: 'flex-end',
+          height: hasSelection ? '36px' : '0px',
+          overflow: 'hidden',
+          transition: 'height 250ms ease',
         }}
       >
-        {/* ── Panel 1 — Formación ── */}
-        <div style={{ width: '50%', minWidth: 0 }}>
-          <div
-            style={{
-              background: '#ffffff',
-              border: '1px solid #e7e2d8',
-              borderRadius: '14px',
-              padding: '18px',
-            }}
-          >
-            <FormacionLayout />
+        <button
+          onClick={() => setPanel(p => p === 'main' ? 'candidatos' : 'main')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 14px',
+            borderRadius: '8px',
+            border: '1px solid #e7e2d8',
+            background: panel === 'candidatos' ? '#f5f1ea' : '#ffffff',
+            color: '#1e4b9e',
+            fontSize: '13px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            transition: 'background 150ms',
+            whiteSpace: 'nowrap',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#f5f1ea')}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = panel === 'candidatos' ? '#f5f1ea' : '#ffffff'
+          }}
+        >
+          {panel === 'candidatos'
+            ? <><ChevronLeft size={14} />Formación</>
+            : <><Users size={14} />Ver candidatos<ChevronRight size={14} /></>
+          }
+        </button>
+      </div>
+
+      {/* ── Contenido deslizante ── */}
+      <div style={{ marginTop: '20px', overflow: 'hidden' }}>
+        <div
+          style={{
+            display: 'flex',
+            width: '200%',
+            transform: panel === 'candidatos' ? 'translateX(-50%)' : 'translateX(0)',
+            transition: 'transform 400ms cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          {/* Panel principal — Formación */}
+          <div style={{ width: '50%', minWidth: 0 }}>
+            <FormacionGraficos promoNombres={activeFilter} />
+
+            <div style={{ marginTop: '24px' }}>
+              <h2
+                style={{
+                  marginBottom: '16px',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: '#1c1917',
+                }}
+              >
+                Vista General por Promoción
+              </h2>
+              <PromoVistaGeneral />
+            </div>
           </div>
 
-          <div
-            style={{
-              marginTop: '16px',
-              background: '#ffffff',
-              border: '1px solid #e7e2d8',
-              borderRadius: '14px',
-              padding: '18px',
-            }}
-          >
+          {/* Panel candidatos */}
+          <div style={{ width: '50%', minWidth: 0, paddingLeft: '20px' }}>
             <h2
               style={{
-                marginBottom: '16px',
+                marginBottom: '4px',
                 fontSize: '1rem',
                 fontWeight: 600,
                 color: '#1c1917',
               }}
             >
-              Vista General por Promoción
+              Candidatos
             </h2>
-            <PromoVistaGeneral />
-          </div>
-
-          {/* ── Deck handle — bottom of panel ── */}
-          <button
-            onClick={() => setPanel('candidatos')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              width: '100%',
-              marginTop: '16px',
-              padding: '11px',
-              borderRadius: '12px',
-              border: '1px dashed #c8bfb0',
-              background: 'transparent',
-              color: '#78716c',
-              fontSize: '13px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'background 150ms, color 150ms, border-color 150ms',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = '#f5f1ea'
-              e.currentTarget.style.color = '#1e4b9e'
-              e.currentTarget.style.borderColor = '#1e4b9e'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color = '#78716c'
-              e.currentTarget.style.borderColor = '#c8bfb0'
-            }}
-          >
-            <Users size={14} />
-            Ver candidatos
-            <ChevronRight size={14} />
-          </button>
-        </div>
-
-        {/* ── Panel 2 — Candidatos ── */}
-        <div style={{ width: '50%', minWidth: 0 }}>
-          {/* ── Deck handle — back to Formación ── */}
-          <button
-            onClick={() => setPanel('main')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              width: '100%',
-              marginBottom: '16px',
-              padding: '11px',
-              borderRadius: '12px',
-              border: '1px dashed #c8bfb0',
-              background: 'transparent',
-              color: '#78716c',
-              fontSize: '13px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'background 150ms, color 150ms, border-color 150ms',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = '#f5f1ea'
-              e.currentTarget.style.color = '#1e4b9e'
-              e.currentTarget.style.borderColor = '#1e4b9e'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color = '#78716c'
-              e.currentTarget.style.borderColor = '#c8bfb0'
-            }}
-          >
-            <ChevronLeft size={14} />
-            Volver a Formación
-          </button>
-
-          <div
-            style={{
-              background: '#ffffff',
-              border: '1px solid #e7e2d8',
-              borderRadius: '14px',
-              padding: '18px',
-            }}
-          >
-            <div style={{ marginBottom: '16px' }}>
-              <h1 style={{ fontSize: '1rem', fontWeight: 600, color: '#1c1917' }}>Candidatos</h1>
-              <p style={{ marginTop: '4px', fontSize: '13px', color: '#78716c' }}>
-                Estado de colocación y preferencias de los candidatos en formación.
-              </p>
-            </div>
+            <p style={{ marginBottom: '16px', fontSize: '13px', color: '#78716c' }}>
+              Estado de colocación y preferencias de los candidatos en formación.
+            </p>
             {panel === 'candidatos' && <CandidatosFormacionView />}
           </div>
         </div>
