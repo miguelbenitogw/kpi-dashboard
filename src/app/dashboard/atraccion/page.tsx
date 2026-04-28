@@ -9,13 +9,15 @@ import VacancyRecruitmentTable from '@/components/atraccion/VacancyRecruitmentTa
 import VacancyStatusCharts from '@/components/atraccion/VacancyStatusCharts'
 import ReceivedCvsByVacancyView from '@/components/atraccion/ReceivedCvsByVacancyView'
 import CvsResumenCard from '@/components/atraccion/CvsResumenCard'
+import ClosedVacancyCvsView from '@/components/atraccion/ClosedVacancyCvsView'
 
-type Tab = 'resumen' | 'vacantes' | 'cvs'
+type Tab = 'resumen' | 'vacantes' | 'cvs' | 'cerradas'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'resumen',  label: 'Resumen' },
-  { id: 'vacantes', label: 'Vacantes' },
-  { id: 'cvs',      label: 'CVs recibidos' },
+  { id: 'resumen',   label: 'Resumen' },
+  { id: 'vacantes',  label: 'Vacantes' },
+  { id: 'cvs',       label: 'CVs recibidos' },
+  { id: 'cerradas',  label: 'CVs cerradas' },
 ]
 
 export default function AtraccionPage() {
@@ -95,6 +97,11 @@ export default function AtraccionPage() {
       {/* ─── CVS RECIBIDOS ─── */}
       {tab === 'cvs' && (
         <ReceivedCvsByVacancyView />
+      )}
+
+      {/* ─── CVS CERRADAS ─── */}
+      {tab === 'cerradas' && (
+        <ClosedVacancyCvsView />
       )}
     </div>
   )

@@ -1025,6 +1025,230 @@ export async function getClosedVacanciesData(): Promise<ClosedVacanciesData> {
   return { byYear, allYears, allTags, allStatuses }
 }
 
+// ---------------------------------------------------------------------------
+// Closed vacancies — weekly CV history + promo aggregation
+// ---------------------------------------------------------------------------
+
+export interface ClosedVacancyCvsEntry {
+  vacancyId: string
+  title: string
+  promoName: string | null
+  hiredCount: number
+  totalCandidates: number
+  history: VacancyWeeklyCvPoint[]
+}
+
+export interface ClosedVacancyPromoSummary {
+  promoName: string
+  totalCandidates: number
+  hiredCount: number
+  history: VacancyWeeklyCvPoint[]
+}
+
+type PromoLinkRow = {
+  job_opening_id: string | null
+  promocion_nombre: string | null
+}
+
+type ClosedVacancyMetaRow = {
+  id: string
+  title: string | null
+  hired_count: number | null
+  total_candidates: number | null
+}
+
+export async function getClosedVacancyCvsHistory(
+  weeks = 52,
+): Promise<ClosedVacancyCvsEntry[]> {
+  const safeWeeks = Math.min(52, Math.max(1, Math.trunc(weeks)))
+  const weekStarts = getRecentIsoMondays(safeWeeks)
+  const oldestWeek = weekStarts[0]
+  const newestWeek = weekStarts[weekStarts.length - 1]
+
+  // 1. Fetch closed vacancies
+  type ClosedVacancyQueryClient = {
+    from: (table: string) => {
+      select: (columns: string) => {
+        eq: (
+          column: string,
+          value: boolean,
+        ) => Promise<{ data: ClosedVacancyMetaRow[] | null; error: { message: string } | null }>
+      }
+    }
+  }
+
+  const closedVacClient = supabase as unknown as ClosedVacancyQueryClient
+  const { data: vacancies, error: vacError } = await closedVacClient
+    .from('job_openings_kpi')
+    .select('id, title, hired_count, total_candidates')
+    .eq('es_proceso_atraccion_actual', false)
+
+  if (vacError) {
+    console.error('[atraccion] getClosedVacancyCvsHistory vacancies error:', vacError)
+    return []
+  }
+
+  const vacList = vacancies ?? []
+  if (vacList.length === 0) return []
+
+  const vacancyIds = vacList.map((v) => v.id)
+
+  // 2. Fetch weekly CV data
+  type WeeklyRangeQueryClient = {
+    from: (table: string) => {
+      select: (columns: string) => {
+        gte: (column: string, value: string) => {
+          lte: (
+            col: string,
+            val: string,
+          ) => Promise<{
+            data: VacancyCvWeeklyRow[] | null
+            error: { message: string } | null
+          }>
+        }
+      }
+    }
+  }
+
+  const weeklyClient = supabase as unknown as WeeklyRangeQueryClient
+  const { data: rawRows, error: weeklyError } = await weeklyClient
+    .from('vacancy_cv_weekly_kpi')
+    .select('*')
+    .gte('week_start', oldestWeek)
+    .lte('week_start', newestWeek)
+
+  if (weeklyError) {
+    console.error('[atraccion] getClosedVacancyCvsHistory weekly error:', weeklyError)
+  }
+
+  // 3. Fetch promo links
+  type PromoLinkQueryClient = {
+    from: (table: string) => {
+      select: (columns: string) => Promise<{
+        data: PromoLinkRow[] | null
+        error: { message: string } | null
+      }>
+    }
+  }
+
+  const promoClient = supabase as unknown as PromoLinkQueryClient
+  const { data: promoLinks, error: promoError } = await promoClient
+    .from('promo_job_link_kpi')
+    .select('job_opening_id, promocion_nombre')
+
+  if (promoError) {
+    console.error('[atraccion] getClosedVacancyCvsHistory promo links error:', promoError)
+  }
+
+  // Build promo map: vacancyId → promoName
+  const promoMap = new Map<string, string>()
+  for (const link of promoLinks ?? []) {
+    if (link.job_opening_id && link.promocion_nombre) {
+      promoMap.set(link.job_opening_id, link.promocion_nombre)
+    }
+  }
+
+  // Build weekly data by vacancy
+  const byVacancy = new Map<string, Map<string, number>>()
+  for (const row of rawRows ?? []) {
+    const vacancyId = row.vacancy_id ?? row.job_opening_id
+    if (!vacancyId) continue
+    if (!vacancyIds.includes(vacancyId)) continue
+
+    const weekStart = normalizeToIsoMonday(row.week_start ?? row.week)
+    if (!weekStart) continue
+    if (weekStart < oldestWeek || weekStart > newestWeek) continue
+
+    const count = toNumberCount(
+      row.candidate_count ?? row.count ?? row.cv_count ?? row.new_cvs ?? row.total,
+    )
+
+    if (!byVacancy.has(vacancyId)) byVacancy.set(vacancyId, new Map())
+    const weekMap = byVacancy.get(vacancyId)!
+    weekMap.set(weekStart, (weekMap.get(weekStart) ?? 0) + count)
+  }
+
+  // Build result — only include vacancies that have at least some weekly data
+  const result: ClosedVacancyCvsEntry[] = []
+
+  for (const v of vacList) {
+    const weekMap = byVacancy.get(v.id)
+    if (!weekMap || weekMap.size === 0) continue
+
+    const history: VacancyWeeklyCvPoint[] = weekStarts.map((weekStart) => ({
+      weekStart,
+      weekLabel: formatWeekLabel(weekStart),
+      count: weekMap.get(weekStart) ?? 0,
+    }))
+
+    const totalInHistory = history.reduce((s, p) => s + p.count, 0)
+    if (totalInHistory === 0) continue
+
+    result.push({
+      vacancyId: v.id,
+      title: v.title ?? 'Vacante sin título',
+      promoName: promoMap.get(v.id) ?? null,
+      hiredCount: v.hired_count ?? 0,
+      totalCandidates: v.total_candidates ?? 0,
+      history,
+    })
+  }
+
+  return result.sort((a, b) => b.totalCandidates - a.totalCandidates)
+}
+
+export async function getClosedVacancyCvsByPromo(
+  weeks = 52,
+): Promise<ClosedVacancyPromoSummary[]> {
+  const entries = await getClosedVacancyCvsHistory(weeks)
+
+  const promoMap = new Map<
+    string,
+    { totalCandidates: number; hiredCount: number; weekTotals: Map<string, number> }
+  >()
+
+  for (const entry of entries) {
+    const key = entry.promoName ?? '(Sin promo)'
+    if (!promoMap.has(key)) {
+      promoMap.set(key, { totalCandidates: 0, hiredCount: 0, weekTotals: new Map() })
+    }
+    const bucket = promoMap.get(key)!
+    bucket.totalCandidates += entry.totalCandidates
+    bucket.hiredCount += entry.hiredCount
+
+    for (const point of entry.history) {
+      bucket.weekTotals.set(
+        point.weekStart,
+        (bucket.weekTotals.get(point.weekStart) ?? 0) + point.count,
+      )
+    }
+  }
+
+  const allWeekStarts =
+    entries.length > 0 ? entries[0].history.map((p) => p.weekStart) : []
+
+  const result: ClosedVacancyPromoSummary[] = []
+
+  for (const [promoName, bucket] of promoMap.entries()) {
+    const history: VacancyWeeklyCvPoint[] = allWeekStarts.map((weekStart) => ({
+      weekStart,
+      weekLabel: formatWeekLabel(weekStart),
+      count: bucket.weekTotals.get(weekStart) ?? 0,
+    }))
+
+    result.push({
+      promoName,
+      totalCandidates: bucket.totalCandidates,
+      hiredCount: bucket.hiredCount,
+      history,
+    })
+  }
+
+  // Sort by total candidates desc, top 15
+  result.sort((a, b) => b.totalCandidates - a.totalCandidates)
+  return result.slice(0, 15)
+}
+
 export async function getAtraccionVacancies(): Promise<AtraccionVacancy[]> {
   // Only show vacancies tagged "Proceso atracciÃ³n actual" â€” the ~20 active
   // recruitment processes. This is the source of truth for what's actively
