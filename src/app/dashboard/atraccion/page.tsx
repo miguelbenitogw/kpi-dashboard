@@ -7,14 +7,15 @@ import AttractionTrafficLights from '@/components/atraccion/AttractionTrafficLig
 import CharlasSummary from '@/components/atraccion/CharlasSummary'
 import VacancyRecruitmentTable from '@/components/atraccion/VacancyRecruitmentTable'
 import VacancyStatusCharts from '@/components/atraccion/VacancyStatusCharts'
+import ReceivedCvsByVacancyView from '@/components/atraccion/ReceivedCvsByVacancyView'
 import CvsResumenCard from '@/components/atraccion/CvsResumenCard'
 
-type Tab = 'resumen' | 'vacantes' | 'canales'
+type Tab = 'resumen' | 'vacantes' | 'cvs'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'resumen', label: 'Resumen' },
+  { id: 'resumen',  label: 'Resumen' },
   { id: 'vacantes', label: 'Vacantes' },
-  { id: 'canales', label: 'CVs & Canales' },
+  { id: 'cvs',      label: 'CVs recibidos' },
 ]
 
 export default function AtraccionPage() {
@@ -24,15 +25,7 @@ export default function AtraccionPage() {
     <div className="space-y-6">
       {/* Heading */}
       <div>
-        <h1
-          style={{
-            fontSize: 22,
-            fontWeight: 600,
-            color: '#1c1917',
-            letterSpacing: '-0.01em',
-            margin: 0,
-          }}
-        >
+        <h1 style={{ fontSize: 22, fontWeight: 600, color: '#1c1917', letterSpacing: '-0.01em', margin: 0 }}>
           Atracción
         </h1>
         <p style={{ fontSize: 13, color: '#78716c', marginTop: 4 }}>
@@ -41,9 +34,9 @@ export default function AtraccionPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #e7e2d8', gap: 0 }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid #e7e2d8' }}>
         {TABS.map(({ id, label }) => {
-          const isActive = tab === id
+          const active = tab === id
           return (
             <button
               key={id}
@@ -51,14 +44,11 @@ export default function AtraccionPage() {
               style={{
                 padding: '10px 18px',
                 fontSize: 14,
-                fontWeight: isActive ? 600 : 400,
-                color: isActive ? '#1e4b9e' : '#78716c',
-                borderBottom: isActive ? '2px solid #1e4b9e' : '2px solid transparent',
+                fontWeight: active ? 600 : 400,
+                color: active ? '#1e4b9e' : '#78716c',
                 background: 'none',
                 border: 'none',
-                borderBottomWidth: 2,
-                borderBottomStyle: 'solid',
-                borderBottomColor: isActive ? '#1e4b9e' : 'transparent',
+                borderBottom: `2px solid ${active ? '#1e4b9e' : 'transparent'}`,
                 cursor: 'pointer',
                 marginBottom: -1,
                 lineHeight: 1,
@@ -70,27 +60,41 @@ export default function AtraccionPage() {
         })}
       </div>
 
-      {/* Tab content */}
+      {/* ─── RESUMEN ─── */}
       {tab === 'resumen' && (
         <div className="space-y-6">
-          <ConversionRates />
-          <AttractionTrafficLights />
+          {/* CVs recibidos — números grandes arriba */}
           <CvsResumenCard />
-        </div>
-      )}
 
-      {tab === 'vacantes' && (
-        <div className="space-y-6">
-          <VacancyRecruitmentTable />
-          <VacancyStatusCharts />
-        </div>
-      )}
+          {/* Tasas de conversión */}
+          <ConversionRates />
 
-      {tab === 'canales' && (
-        <div className="space-y-6">
-          <WeeklyCVChart />
+          {/* WeeklyCVChart + Semáforos */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <WeeklyCVChart />
+            </div>
+            <div>
+              <AttractionTrafficLights />
+            </div>
+          </div>
+
+          {/* Charlas */}
           <CharlasSummary />
         </div>
+      )}
+
+      {/* ─── VACANTES ─── */}
+      {tab === 'vacantes' && (
+        <div className="space-y-6">
+          <VacancyStatusCharts />
+          <VacancyRecruitmentTable />
+        </div>
+      )}
+
+      {/* ─── CVS RECIBIDOS ─── */}
+      {tab === 'cvs' && (
+        <ReceivedCvsByVacancyView />
       )}
     </div>
   )
