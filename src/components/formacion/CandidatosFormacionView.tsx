@@ -7,12 +7,14 @@ import {
   getFormacionCandidates,
   getFormacionCandidateHistory,
   getFormacionCandidateNotes,
+  getFormacionCandidateStageHistory,
 } from '@/lib/queries/formacion'
 import type {
   FormacionCandidateRow,
   FormacionCandidateHistory,
   FormacionCandidateNote,
   FormacionPromoCount,
+  FormacionCandidateStageHistory,
 } from '@/lib/queries/formacion'
 
 // ---------------------------------------------------------------------------
@@ -44,6 +46,7 @@ function shortPromoName(name: string): string {
 type TimelineItem =
   | { type: 'history'; date: string | null; entry: FormacionCandidateHistory }
   | { type: 'note'; date: string | null; note: FormacionCandidateNote }
+  | { type: 'stage'; date: string | null; stage: FormacionCandidateStageHistory }
 
 function parseDate(value: string | null): number {
   if (!value) return -Infinity
@@ -67,10 +70,12 @@ function formatDateTime(value: string | null): string {
 function mergeTimeline(
   history: FormacionCandidateHistory[],
   notes: FormacionCandidateNote[],
+  stages: FormacionCandidateStageHistory[],
 ): TimelineItem[] {
   const items: TimelineItem[] = [
-    ...history.map((entry) => ({ type: 'history', date: entry.fetched_at ?? null, entry })),
-    ...notes.map((note) => ({ type: 'note', date: note.created_at ?? null, note })),
+    ...history.map((entry) => ({ type: 'history' as const, date: entry.fetched_at ?? null, entry })),
+    ...notes.map((note) => ({ type: 'note' as const, date: note.created_at ?? null, note })),
+    ...stages.map((stage) => ({ type: 'stage' as const, date: stage.changed_at ?? null, stage })),
   ]
 
   items.sort((a, b) => {
@@ -112,6 +117,7 @@ function SkeletonRows() {
 function HistoryRow({ candidateId }: { candidateId: string }) {
   const [history, setHistory] = useState<FormacionCandidateHistory[]>([])
   const [notes, setNotes] = useState<FormacionCandidateNote[]>([])
+  const [stages, setStages] = useState<FormacionCandidateStageHistory[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -119,17 +125,19 @@ function HistoryRow({ candidateId }: { candidateId: string }) {
     Promise.all([
       getFormacionCandidateHistory(candidateId),
       getFormacionCandidateNotes(candidateId),
-    ]).then(([historyData, notesData]) => {
+      getFormacionCandidateStageHistory(candidateId),
+    ]).then(([historyData, notesData, stagesData]) => {
       if (!cancelled) {
         setHistory(historyData)
         setNotes(notesData)
+        setStages(stagesData)
         setLoading(false)
       }
     })
     return () => { cancelled = true }
   }, [candidateId])
 
-  const timeline = mergeTimeline(history, notes)
+  const timeline = mergeTimeline(history, notes, stages)
 
   return (
     <tr>
@@ -148,7 +156,7 @@ function HistoryRow({ candidateId }: { candidateId: string }) {
                 <li key={`history-${idx}`} className="rounded-lg border border-surface-700/60 bg-surface-800/60 px-3 py-2 text-xs">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-gray-200">
-                      {item.entry.job_opening_title ?? '-'}
+                      {item.entry.job_opening_title ?? item.entry.job_opening_id ?? '-'}
                     </span>
                     <span className="shrink-0 text-[10px] text-gray-500">
                       {formatDateTime(item.entry.fetched_at)}
@@ -166,6 +174,30 @@ function HistoryRow({ candidateId }: { candidateId: string }) {
                       </span>
                     )}
                   </div>
+                </li>
+              ) : item.type === 'stage' ? (
+                <li key={`stage-${item.stage.id}`} className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {item.stage.from_status && (
+                        <>
+                          <span className="rounded-full bg-surface-700 px-2 py-0.5 text-[10px] text-gray-400 whitespace-nowrap">
+                            {item.stage.from_status}
+                          </span>
+                          <span className="text-[10px] text-gray-500">→</span>
+                        </>
+                      )}
+                      <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-300 whitespace-nowrap">
+                        {item.stage.to_status}
+                      </span>
+                    </div>
+                    <span className="shrink-0 text-[10px] text-gray-500">
+                      {formatDateTime(item.stage.changed_at)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[10px] text-gray-500 truncate">
+                    {item.stage.job_opening_id}
+                  </p>
                 </li>
               ) : (
                 <li key={`note-${item.note.id}`} className="rounded-lg border border-surface-700/60 bg-surface-800/60 px-3 py-2 text-xs">

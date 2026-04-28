@@ -442,10 +442,19 @@ export interface FormacionCandidateRow {
 }
 
 export interface FormacionCandidateHistory {
+  job_opening_id: string | null
   job_opening_title: string | null
   candidate_status_in_jo: string | null
   association_type: string | null
   fetched_at: string | null
+}
+
+export interface FormacionCandidateStageHistory {
+  id: string
+  job_opening_id: string
+  from_status: string | null
+  to_status: string
+  changed_at: string
 }
 
 export interface FormacionCandidateNote {
@@ -708,16 +717,15 @@ export async function getPromoVistaGeneral(
   })
 }
 
-/** Returns job history for a candidate (association_type = 'formacion'), ordered by fetched_at DESC. */
+/** Returns all job vacancies a candidate has been linked to, ordered by fetched_at DESC. */
 export async function getFormacionCandidateHistory(
   candidateId: string,
 ): Promise<FormacionCandidateHistory[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from('candidate_job_history_kpi')
-    .select('job_opening_title, candidate_status_in_jo, association_type, fetched_at')
+    .select('job_opening_id, job_opening_title, candidate_status_in_jo, association_type, fetched_at')
     .eq('candidate_id', candidateId)
-    .eq('association_type', 'formacion')
     .order('fetched_at', { ascending: false }) as {
       data: FormacionCandidateHistory[] | null
       error: unknown
@@ -725,6 +733,28 @@ export async function getFormacionCandidateHistory(
 
   if (error) {
     console.error('Error fetching candidate history:', error)
+    return []
+  }
+
+  return data ?? []
+}
+
+/** Returns all stage transitions for a candidate across all vacancies, ordered by changed_at DESC. */
+export async function getFormacionCandidateStageHistory(
+  candidateId: string,
+): Promise<FormacionCandidateStageHistory[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
+    .from('stage_history_kpi')
+    .select('id, job_opening_id, from_status, to_status, changed_at')
+    .eq('candidate_id', candidateId)
+    .order('changed_at', { ascending: false }) as {
+      data: FormacionCandidateStageHistory[] | null
+      error: unknown
+    }
+
+  if (error) {
+    console.error('Error fetching candidate stage history:', error)
     return []
   }
 
