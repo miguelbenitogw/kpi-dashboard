@@ -83,13 +83,13 @@ html {
   --color-gray-100: #1c1917;   /* primary text */
   --color-gray-200: #292524;   /* dark text */
   --color-gray-300: #44403c;   /* medium dark */
-  --color-gray-400: #78716c;   /* secondary text */
-  --color-gray-500: #a8a29e;   /* muted / placeholder */
-  --color-gray-600: #c4b9a8;   /* light / disabled */
-  --color-gray-700: #e7e2d8;   /* warm border */
+  --color-gray-400: #6b6762;   /* secondary text — more legible than #78716c */
+  --color-gray-500: #9c9691;   /* muted / placeholder — more legible than #a8a29e */
+  --color-gray-600: #b8b0a4;   /* light / disabled — more defined than #c4b9a8 */
+  --color-gray-700: #d6cfc5;   /* warm border — more visible than #e7e2d8 */
   --color-gray-800: #ffffff;   /* card background (white) */
   --color-gray-850: #f9f6f2;   /* inner section background */
-  --color-gray-900: #f5f1ea;   /* warm cream sections */
+  --color-gray-900: #f7f4ef;   /* warm cream sections — slightly more contrast */
   --color-gray-950: #faf8f5;   /* near-white warm */
 }
 
@@ -97,6 +97,11 @@ body {
   background: #f5f1ea; /* warm cream — Clínico Cálido */
   color: #1c1917;
   font-family: var(--font-sans);
+}
+
+/* Cards — sombra sutil para separar del fondo crema */
+.card-warm {
+  box-shadow: 0 1px 3px rgba(28, 25, 23, 0.06), 0 1px 2px rgba(28, 25, 23, 0.04);
 }
 
 * {
@@ -159,7 +164,7 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #e2e8f0;
+  background: #f5f1ea; /* warm cream — matches body background */
 }
 
 ::-webkit-scrollbar-thumb {

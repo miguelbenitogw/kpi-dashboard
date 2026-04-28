@@ -77,8 +77,11 @@ function tagColor(tag: string): string {
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-4">
-      <p className="mb-3 text-xs font-semibold text-gray-300">{title}</p>
+    <div
+      className="rounded-xl border border-gray-600/70 bg-gray-800/50 p-3"
+      style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }}
+    >
+      <p className="mb-2 text-xs font-semibold text-gray-300">{title}</p>
       {children}
     </div>
   )
@@ -226,18 +229,14 @@ export default function DropoutsCharts({ rows }: Props) {
 
       {/* 2. Nivel de idioma */}
       <ChartCard title="Nivel de idioma al abandonar">
-        <ResponsiveContainer width="100%" height={220}>
+        <ResponsiveContainer width="100%" height={200}>
           <PieChart>
             <Pie
               data={byLevel}
               dataKey="value"
               nameKey="name"
-              outerRadius={80}
-              innerRadius={42}
-              label={({ name, percent }) =>
-                `${name} ${Math.round((percent ?? 0) * 100)}%`
-              }
-              labelLine={false}
+              outerRadius="75%"
+              innerRadius="55%"
             >
               {byLevel.map((_, i) => (
                 <Cell key={i} fill={LEVEL_PALETTE[i % LEVEL_PALETTE.length]} />
@@ -245,6 +244,10 @@ export default function DropoutsCharts({ rows }: Props) {
             </Pie>
             <Tooltip {...TOOLTIP_STYLE} />
             <Legend
+              verticalAlign="bottom"
+              height={36}
+              iconType="circle"
+              iconSize={8}
               formatter={(value) => (
                 <span style={{ color: '#D1D5DB', fontSize: 11 }}>{value}</span>
               )}
@@ -255,16 +258,14 @@ export default function DropoutsCharts({ rows }: Props) {
 
       {/* 3. Interés en proyectos futuros */}
       <ChartCard title="Interés en proyectos futuros">
-        <ResponsiveContainer width="100%" height={220}>
+        <ResponsiveContainer width="100%" height={200}>
           <PieChart>
             <Pie
               data={byInterest}
               dataKey="value"
               nameKey="name"
-              outerRadius={80}
-              innerRadius={42}
-              label={({ name, value }) => `${name}: ${value}`}
-              labelLine={false}
+              outerRadius="75%"
+              innerRadius="55%"
             >
               {byInterest.map((entry, i) => (
                 <Cell
@@ -275,6 +276,10 @@ export default function DropoutsCharts({ rows }: Props) {
             </Pie>
             <Tooltip {...TOOLTIP_STYLE} />
             <Legend
+              verticalAlign="bottom"
+              height={36}
+              iconType="circle"
+              iconSize={8}
               formatter={(value) => (
                 <span style={{ color: '#D1D5DB', fontSize: 11 }}>{value}</span>
               )}
@@ -285,12 +290,12 @@ export default function DropoutsCharts({ rows }: Props) {
 
       {/* 4. Abandonos por promoción */}
       <ChartCard title="Abandonos por promoción">
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={byPromo} margin={{ left: 0, right: 8, bottom: 40 }}>
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={byPromo} margin={{ top: 4, right: 8, left: -10, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
             <XAxis
               dataKey="name"
-              tick={{ fill: '#9CA3AF', fontSize: 9 }}
+              tick={{ fill: '#9CA3AF', fontSize: 10 }}
               angle={-40}
               textAnchor="end"
               interval={0}

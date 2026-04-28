@@ -95,6 +95,7 @@ export default function KpiCard({
         borderLeft: `4px solid ${color}`,
         cursor: onClick ? 'pointer' : 'default',
         transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+        boxShadow: '0 1px 3px rgba(28,25,23,0.06), 0 1px 2px rgba(28,25,23,0.04)',
       }}
       onMouseEnter={e => {
         if (!onClick) return
@@ -116,7 +117,7 @@ export default function KpiCard({
             fontWeight: 600,
             letterSpacing: '0.05em',
             textTransform: 'uppercase',
-            color: '#78716c',
+            color: '#57534e',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -178,7 +179,7 @@ export default function KpiCard({
         </span>
 
         {suffix && (
-          <span style={{ fontSize: 16, color: '#78716c', fontWeight: 400 }}>
+          <span style={{ fontSize: 16, color: '#57534e', fontWeight: 400 }}>
             {suffix}
           </span>
         )}

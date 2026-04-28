@@ -46,22 +46,29 @@ export default function TopVacancies() {
   }))
 
   return (
-    <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-6">
-      <h3 className="text-sm font-semibold text-gray-200">
+    <div
+      className="rounded-xl p-6"
+      style={{
+        border: '1px solid #e7e2d8',
+        background: '#ffffff',
+        boxShadow: '0 1px 3px rgba(28,25,23,0.06), 0 1px 2px rgba(28,25,23,0.04)',
+      }}
+    >
+      <h3 className="text-sm font-semibold" style={{ color: '#1c1917' }}>
         Top 5 Vacantes por Volumen
       </h3>
-      <p className="mt-1 text-xs text-gray-500">
+      <p className="mt-1 text-xs" style={{ color: '#78716c' }}>
         Vacantes activas con mas candidatos
       </p>
 
       {loading ? (
         <div className="mt-4 flex h-64 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: '#1e4b9e', borderTopColor: 'transparent' }} />
         </div>
       ) : data.length === 0 ? (
         <div className="mt-4 flex h-64 flex-col items-center justify-center text-center">
-          <p className="text-sm text-gray-400">Sin datos</p>
-          <p className="text-xs text-gray-500">
+          <p className="text-sm" style={{ color: '#57534e' }}>Sin datos</p>
+          <p className="text-xs" style={{ color: '#78716c' }}>
             Esperando sincronizacion de vacantes
           </p>
         </div>
@@ -76,33 +83,34 @@ export default function TopVacancies() {
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="#374151"
+                  stroke="#e7e2d8"
                   horizontal={false}
                 />
                 <XAxis
                   type="number"
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
-                  axisLine={{ stroke: '#374151' }}
+                  tick={{ fontSize: 11, fill: '#78716c' }}
+                  axisLine={{ stroke: '#e7e2d8' }}
                   tickLine={false}
                   allowDecimals={false}
                 />
                 <YAxis
                   type="category"
                   dataKey="name"
-                  tick={{ fontSize: 11, fill: '#9ca3af' }}
+                  tick={{ fontSize: 11, fill: '#57534e' }}
                   axisLine={false}
                   tickLine={false}
                   width={160}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#1f2937',
-                    border: '1px solid #374151',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e7e2d8',
                     borderRadius: '8px',
                     fontSize: '12px',
-                    color: '#f3f4f6',
+                    color: '#1c1917',
+                    boxShadow: '0 4px 12px rgba(28,25,23,0.08)',
                   }}
-                  labelStyle={{ color: '#d1d5db', fontWeight: 600 }}
+                  labelStyle={{ color: '#1c1917', fontWeight: 600 }}
                   formatter={((value: number, name: string) => [
                     value,
                     name === 'candidatos' ? 'Candidatos' : 'Contratados',
@@ -130,28 +138,29 @@ export default function TopVacancies() {
           </div>
 
           {/* Mini table below chart */}
-          <div className="mt-4 divide-y divide-gray-700/30">
+          <div className="mt-4" style={{ borderTop: '1px solid #e7e2d8' }}>
             {data.map((v) => (
               <div
                 key={v.id}
                 className="flex items-center justify-between py-2 text-xs"
+                style={{ borderBottom: '1px solid #f0ece4' }}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-gray-300 truncate">{v.title}</p>
-                  <p className="text-gray-500">{v.client_name ?? '—'}</p>
+                  <p className="truncate" style={{ color: '#1c1917' }}>{v.title}</p>
+                  <p style={{ color: '#78716c' }}>{v.client_name ?? '—'}</p>
                 </div>
                 <div className="flex items-center gap-4 shrink-0 text-right">
                   <div>
-                    <p className="font-medium text-gray-200 tabular-nums">
+                    <p className="font-medium tabular-nums" style={{ color: '#1c1917' }}>
                       {v.total_candidates ?? 0}
                     </p>
-                    <p className="text-gray-500">candidatos</p>
+                    <p style={{ color: '#78716c' }}>candidatos</p>
                   </div>
                   <div>
-                    <p className="font-medium text-emerald-400 tabular-nums">
+                    <p className="font-medium tabular-nums" style={{ color: '#16a34a' }}>
                       {v.hired_count ?? 0}
                     </p>
-                    <p className="text-gray-500">hired</p>
+                    <p style={{ color: '#78716c' }}>hired</p>
                   </div>
                 </div>
               </div>

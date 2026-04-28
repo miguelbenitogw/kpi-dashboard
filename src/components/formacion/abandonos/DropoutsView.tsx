@@ -144,7 +144,7 @@ export default function DropoutsView() {
   if (loading) return <Skeleton />
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <DropoutsKpiBanner rows={filtered} />
 
       <DropoutsFilters
@@ -168,7 +168,7 @@ export default function DropoutsView() {
           )}
         </button>
         {chartsOpen && (
-          <div className="border-t border-gray-700/50 p-4">
+          <div className="border-t border-gray-700/50 p-3">
             <DropoutsCharts rows={filtered} />
           </div>
         )}

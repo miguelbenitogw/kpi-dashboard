@@ -197,7 +197,7 @@ export default function Sidebar() {
                   >
                     <Icon
                       className="h-4 w-4 shrink-0"
-                      style={{ color: active ? "#e55a2b" : "#a8a29e" }}
+                      style={{ color: active ? "#e55a2b" : "#78716c" }}
                     />
                     <span className="flex-1">{item.label}</span>
                     {item.badge && (

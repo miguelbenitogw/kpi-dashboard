@@ -51,16 +51,22 @@ export default function PromoCard({
     <button
       type="button"
       onClick={() => onSelect(promo.id)}
-      className={`
-        relative w-full rounded-xl border p-5 text-left transition-all duration-200
-        ${
-          isSelected
-            ? 'border-blue-500/60 bg-blue-500/10 ring-1 ring-blue-500/30'
-            : isFavorite
-            ? 'border-amber-500/40 bg-amber-500/5 hover:border-amber-500/60 hover:bg-amber-500/10'
-            : 'border-gray-700/50 bg-gray-800/50 hover:border-gray-600/50 hover:bg-gray-800/80'
-        }
-      `}
+      className="relative w-full rounded-xl border p-5 text-left transition-all duration-200"
+      style={{
+        border: isSelected
+          ? '1px solid #93c5fd'
+          : isFavorite
+          ? '1px solid #fcd34d'
+          : '1px solid #e7e2d8',
+        background: isSelected
+          ? '#eff6ff'
+          : isFavorite
+          ? '#fffbeb'
+          : '#ffffff',
+        boxShadow: isSelected
+          ? '0 0 0 2px rgba(59,130,246,0.15), 0 1px 3px rgba(28,25,23,0.06)'
+          : '0 1px 3px rgba(28,25,23,0.06), 0 1px 2px rgba(28,25,23,0.04)',
+      }}
     >
       {/* Favorite button */}
       <button
@@ -69,21 +75,22 @@ export default function PromoCard({
           e.stopPropagation()
           onToggleFavorite(promo.id)
         }}
-        className="absolute right-3 top-3 rounded-md p-1 transition-colors hover:bg-gray-700/50"
+        className="absolute right-3 top-3 rounded-md p-1 transition-colors"
+        style={{ color: isFavorite ? '#f59e0b' : '#9c9691' }}
         aria-label={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
       >
         <Star
-          className={`h-4 w-4 transition-colors ${
-            isFavorite
-              ? 'fill-amber-400 text-amber-400'
-              : 'fill-transparent text-gray-500 hover:text-amber-400'
-          }`}
+          className="h-4 w-4 transition-colors"
+          style={{
+            fill: isFavorite ? '#f59e0b' : 'transparent',
+            color: isFavorite ? '#f59e0b' : '#9c9691',
+          }}
         />
       </button>
 
       {/* Header */}
       <div className="mb-3 flex items-start justify-between gap-2 pr-6">
-        <h3 className="text-sm font-semibold leading-tight text-gray-100">
+        <h3 className="text-sm font-semibold leading-tight" style={{ color: '#1c1917' }}>
           {promo.title}
         </h3>
         {isRecent && (
@@ -99,21 +106,21 @@ export default function PromoCard({
 
       {/* Total candidates - prominent */}
       <div className="mb-3 flex items-baseline gap-2">
-        <span className="text-3xl font-bold tabular-nums text-gray-100">{total}</span>
-        <span className="text-xs text-gray-500">candidatos</span>
+        <span className="text-3xl font-bold tabular-nums" style={{ color: '#1c1917' }}>{total}</span>
+        <span className="text-xs" style={{ color: '#78716c' }}>candidatos</span>
       </div>
 
       {/* Hired progress bar */}
       {total > 0 && (
         <div className="mb-3">
           <div className="mb-1 flex items-center justify-between text-[10px]">
-            <span className="text-gray-500">Hired {hiredCount}/{total}</span>
-            <span className="tabular-nums text-emerald-400">{hiredPct.toFixed(0)}%</span>
+            <span style={{ color: '#78716c' }}>Hired {hiredCount}/{total}</span>
+            <span className="tabular-nums" style={{ color: '#16a34a' }}>{hiredPct.toFixed(0)}%</span>
           </div>
-          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-700/40">
+          <div className="flex h-1.5 w-full overflow-hidden rounded-full" style={{ background: '#e7e2d8' }}>
             <div
-              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-              style={{ width: `${hiredPct}%` }}
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${hiredPct}%`, background: '#16a34a' }}
             />
           </div>
         </div>
@@ -121,7 +128,7 @@ export default function PromoCard({
 
       {/* Stacked bar for all statuses */}
       {total > 0 && (
-        <div className="mb-3 flex h-2 w-full overflow-hidden rounded-full bg-gray-700/40">
+        <div className="mb-3 flex h-2 w-full overflow-hidden rounded-full" style={{ background: '#e7e2d8' }}>
           {statusBreakdown.map((d) => {
             const pct = (d.count / total) * 100
             if (pct < 0.5) return null
@@ -143,16 +150,16 @@ export default function PromoCard({
       {/* Key numbers */}
       <div className="mb-3 grid grid-cols-3 gap-2 text-center">
         <div>
-          <p className="text-sm font-bold tabular-nums text-blue-400">{activeCount}</p>
-          <p className="text-[10px] uppercase tracking-wider text-gray-500">Activos</p>
+          <p className="text-sm font-bold tabular-nums" style={{ color: '#1e4b9e' }}>{activeCount}</p>
+          <p className="text-[10px] uppercase tracking-wider" style={{ color: '#78716c' }}>Activos</p>
         </div>
         <div>
-          <p className="text-sm font-bold tabular-nums text-emerald-400">{hiredCount}</p>
-          <p className="text-[10px] uppercase tracking-wider text-gray-500">Hired</p>
+          <p className="text-sm font-bold tabular-nums" style={{ color: '#16a34a' }}>{hiredCount}</p>
+          <p className="text-[10px] uppercase tracking-wider" style={{ color: '#78716c' }}>Hired</p>
         </div>
         <div>
-          <p className="text-sm font-bold tabular-nums text-gray-400">{terminalCount}</p>
-          <p className="text-[10px] uppercase tracking-wider text-gray-500">Finalizados</p>
+          <p className="text-sm font-bold tabular-nums" style={{ color: '#57534e' }}>{terminalCount}</p>
+          <p className="text-[10px] uppercase tracking-wider" style={{ color: '#78716c' }}>Finalizados</p>
         </div>
       </div>
 
@@ -162,21 +169,22 @@ export default function PromoCard({
           {topStatuses.map((d) => (
             <span
               key={d.status}
-              className="inline-flex items-center gap-1 rounded-full bg-gray-700/50 px-2 py-0.5 text-[10px] text-gray-300"
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]"
+              style={{ background: '#f0ece4', color: '#44403c' }}
             >
               <span
                 className="h-1.5 w-1.5 rounded-full"
                 style={{ backgroundColor: getStatusColor(d.status) }}
               />
               {d.status}
-              <span className="tabular-nums text-gray-500">{d.count}</span>
+              <span className="tabular-nums" style={{ color: '#78716c' }}>{d.count}</span>
             </span>
           ))}
         </div>
       )}
 
       {/* Last sync & activity */}
-      <div className="space-y-0.5 text-[10px] text-gray-500">
+      <div className="space-y-0.5 text-[10px]" style={{ color: '#78716c' }}>
         {lastActivity && (
           <p>
             Última actividad:{' '}
