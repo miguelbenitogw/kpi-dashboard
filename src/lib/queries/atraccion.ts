@@ -674,6 +674,7 @@ export interface AtraccionVacancy {
   tipo_profesional: string
   total_candidates: number | null
   hired_count: number | null
+  approved_count: number
   es_proceso_atraccion_actual: boolean
   date_opened: string | null
 }
@@ -1331,7 +1332,7 @@ export async function getClosedVacancyCvsHistoryByVacancy(
 }
 
 export async function getAtraccionVacancies(): Promise<AtraccionVacancy[]> {
-  // Only show vacancies tagged "Proceso atracciÃ³n actual" â€” the ~20 active
+  // Only show vacancies tagged “Proceso atracciÃ³n actual” â€” the ~20 active
   // recruitment processes. This is the source of truth for what's actively
   // being recruited right now, regardless of job opening status field.
   const { data, error } = await supabase
@@ -1347,5 +1348,24 @@ export async function getAtraccionVacancies(): Promise<AtraccionVacancy[]> {
     return []
   }
 
-  return data ?? []
+  const vacancies = data ?? []
+  if (vacancies.length === 0) return []
+
+  const vacIds = vacancies.map((v) => v.id)
+
+  const { data: approvedRows } = await supabase
+    .from('vacancy_status_counts_kpi')
+    .select('vacancy_id, count')
+    .in('vacancy_id', vacIds)
+    .eq('status', 'Approved by client')
+
+  const approvedMap = new Map<string, number>()
+  for (const row of approvedRows ?? []) {
+    approvedMap.set(row.vacancy_id, row.count)
+  }
+
+  return vacancies.map((v) => ({
+    ...v,
+    approved_count: approvedMap.get(v.id) ?? 0,
+  }))
 }

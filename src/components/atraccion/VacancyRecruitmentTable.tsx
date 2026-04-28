@@ -431,6 +431,9 @@ export default function VacancyRecruitmentTable({
               <th className="px-3 py-2 text-right font-semibold text-gray-300 whitespace-nowrap">
                 Total
               </th>
+              <th className="px-3 py-2 text-right font-medium text-gray-400 whitespace-nowrap">
+                % Éxito
+              </th>
               <th className="w-8" />
             </tr>
           </thead>
@@ -485,6 +488,19 @@ export default function VacancyRecruitmentTable({
                     <td className="px-3 py-2 text-right font-semibold text-gray-200 tabular-nums">
                       {row.total_candidates}
                     </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {(() => {
+                        if (row.total_candidates === 0) return <span className="text-gray-600">—</span>
+                        const success = row.hired_count + (row.byStatus['Approved by client'] ?? 0)
+                        const rate = Math.round((success / row.total_candidates) * 1000) / 10
+                        const color = rate >= 15 ? '#16a34a' : rate >= 8 ? '#d97706' : '#9ca3af'
+                        return (
+                          <span style={{ color, fontWeight: rate >= 8 ? 600 : 400 }}>
+                            {rate.toLocaleString('es-AR')}%
+                          </span>
+                        )
+                      })()}
+                    </td>
                     <td className="px-2 py-2 text-gray-500">
                       {isExpanded
                         ? <ChevronDown className="h-3.5 w-3.5" />
@@ -495,7 +511,7 @@ export default function VacancyRecruitmentTable({
                     <VacancyTagRow
                       vacancyId={row.id}
                       vacancyTitle={row.title}
-                      colSpan={cols.length + 3}
+                      colSpan={cols.length + 4}
                     />
                   )}
                 </Fragment>
@@ -521,6 +537,19 @@ export default function VacancyRecruitmentTable({
                 })}
                 <td className="px-3 py-2 text-right font-semibold text-white tabular-nums">
                   {filtered.reduce((s, r) => s + r.total_candidates, 0).toLocaleString()}
+                </td>
+                <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                  {(() => {
+                    const totalCands = filtered.reduce((s, r) => s + r.total_candidates, 0)
+                    if (totalCands === 0) return <span className="text-gray-600">—</span>
+                    const totalSuccess = filtered.reduce(
+                      (s, r) => s + r.hired_count + (r.byStatus['Approved by client'] ?? 0),
+                      0,
+                    )
+                    const rate = Math.round((totalSuccess / totalCands) * 1000) / 10
+                    const color = rate >= 15 ? '#16a34a' : rate >= 8 ? '#d97706' : '#9ca3af'
+                    return <span style={{ color }}>{rate.toLocaleString('es-AR')}%</span>
+                  })()}
                 </td>
               </tr>
             </tfoot>

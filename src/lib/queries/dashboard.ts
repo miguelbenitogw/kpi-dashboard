@@ -176,5 +176,23 @@ export async function getTopVacancies(limit = 5) {
     return []
   }
 
-  return data ?? []
+  const vacancies = data ?? []
+  if (vacancies.length === 0) return []
+
+  const vacIds = vacancies.map((v) => v.id)
+  const { data: approvedRows } = await supabase
+    .from('vacancy_status_counts_kpi')
+    .select('vacancy_id, count')
+    .in('vacancy_id', vacIds)
+    .eq('status', 'Approved by client')
+
+  const approvedMap = new Map<string, number>()
+  for (const row of approvedRows ?? []) {
+    approvedMap.set(row.vacancy_id, row.count)
+  }
+
+  return vacancies.map((v) => ({
+    ...v,
+    approved_count: approvedMap.get(v.id) ?? 0,
+  }))
 }

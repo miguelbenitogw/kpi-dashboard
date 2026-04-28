@@ -113,6 +113,21 @@ export default function AtraccionVacanciesList() {
                   </span>{' '}
                   contratados
                 </span>
+                {(() => {
+                  const total = v.total_candidates ?? 0
+                  if (total === 0) return null
+                  const success = (v.hired_count ?? 0) + v.approved_count
+                  const rate = Math.round((success / total) * 1000) / 10
+                  const color = rate >= 15 ? '#16a34a' : rate >= 8 ? '#d97706' : '#9ca3af'
+                  return (
+                    <span>
+                      <span className="text-base font-bold tabular-nums" style={{ color }}>
+                        {rate.toLocaleString('es-AR')}%
+                      </span>{' '}
+                      éxito
+                    </span>
+                  )
+                })()}
               </div>
 
               {/* Footer: owner + date */}

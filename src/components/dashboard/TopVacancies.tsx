@@ -18,6 +18,7 @@ interface Vacancy {
   title: string
   total_candidates: number | null
   hired_count: number | null
+  approved_count: number
   client_name: string | null
   status: string | null
 }
@@ -162,6 +163,21 @@ export default function TopVacancies() {
                     </p>
                     <p style={{ color: '#78716c' }}>hired</p>
                   </div>
+                  {(() => {
+                    const total = v.total_candidates ?? 0
+                    if (total === 0) return null
+                    const success = (v.hired_count ?? 0) + v.approved_count
+                    const rate = Math.round((success / total) * 1000) / 10
+                    const color = rate >= 15 ? '#16a34a' : rate >= 8 ? '#d97706' : '#9ca3af'
+                    return (
+                      <div>
+                        <p className="font-medium tabular-nums" style={{ color }}>
+                          {rate.toLocaleString('es-AR')}%
+                        </p>
+                        <p style={{ color: '#78716c' }}>éxito</p>
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             ))}

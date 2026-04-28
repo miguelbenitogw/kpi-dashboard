@@ -712,7 +712,7 @@ export default function ClosedVacanciesView() {
                   <th className="px-3 py-1.5 text-left font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>Estado</th>
                   <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>Candidatos</th>
                   <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>Contratados</th>
-                  <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>% Conv.</th>
+                  <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>% Éxito</th>
                   {activeStatusCols.map((col) => (
                     <th
                       key={col.key}
@@ -790,11 +790,11 @@ export default function ClosedVacanciesView() {
                       </td>
                       <td className="px-3 py-1.5 text-right tabular-nums" style={{ fontSize: 13 }}>
                         {(() => {
-                          const approved = v.byStatus['Approved by client'] ?? 0
                           if (!hasStatusData || v.total_candidates === 0) {
                             return <span className="text-gray-600 text-[10px]">n/d</span>
                           }
-                          const rate = Math.round((approved / v.total_candidates) * 1000) / 10
+                          const success = v.hired_count + (v.byStatus['Approved by client'] ?? 0)
+                          const rate = Math.round((success / v.total_candidates) * 1000) / 10
                           const color =
                             rate >= 15 ? '#16a34a' :
                             rate >= 8  ? '#d97706' : '#9ca3af'
