@@ -2,6 +2,7 @@ import KpiCards from '@/components/dashboard/KpiCards'
 import AlertsSummary from '@/components/dashboard/AlertsSummary'
 import WeeklyTrendChart from '@/components/dashboard/WeeklyTrendChart'
 import TopVacancies from '@/components/dashboard/TopVacancies'
+import CvsPerVacancyChart from '@/components/dashboard/CvsPerVacancyChart'
 
 export default function DashboardPage() {
   return (
@@ -32,6 +33,19 @@ export default function DashboardPage() {
         </div>
         <KpiCards />
       </section>
+
+      {/* CVs por vacante activa */}
+      <div
+        style={{
+          borderRadius: 14,
+          border: '1px solid #e7e2d8',
+          background: '#ffffff',
+          overflow: 'hidden',
+          boxShadow: '0 1px 3px rgba(28,25,23,0.06)',
+        }}
+      >
+        <CvsPerVacancyChart />
+      </div>
 
       {/* Charts + Alerts Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

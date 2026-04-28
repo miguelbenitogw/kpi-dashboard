@@ -321,7 +321,15 @@ export async function getReceivedCvsByVacancy(
   const safeWeeks = Math.min(52, Math.max(1, Math.trunc(weeks)))
   const weekStarts = getRecentIsoMondays(safeWeeks)
   const oldestWeek = weekStarts[0]
-  const currentWeek = weekStarts[weekStarts.length - 1]
+
+  // The actual current (in-progress) ISO week
+  const thisWeek = getCurrentIsoWeekMonday()
+
+  // Append current week to the list if it isn't already the last entry
+  const allWeekStarts =
+    thisWeek > (weekStarts[weekStarts.length - 1] ?? '')
+      ? [...weekStarts, thisWeek]
+      : weekStarts
 
   type VacancyCvWeeklyQueryClient = {
     from: (table: string) => {
@@ -341,7 +349,7 @@ export async function getReceivedCvsByVacancy(
     .from('vacancy_cv_weekly_kpi')
     .select('*')
     .gte('week_start', oldestWeek)
-    .lte('week_start', currentWeek)
+    .lte('week_start', thisWeek)
 
   if (weeklyError) {
     console.error('Error fetching received CVs by vacancy:', weeklyError)
@@ -366,7 +374,7 @@ export async function getReceivedCvsByVacancy(
 
     const weekStart = normalizeToIsoMonday(row.week_start ?? row.week)
     if (!weekStart) continue
-    if (weekStart < oldestWeek || weekStart > currentWeek) continue
+    if (weekStart < oldestWeek || weekStart > thisWeek) continue
 
     const count = toNumberCount(
       row.candidate_count ?? row.count ?? row.cv_count ?? row.new_cvs ?? row.total,
@@ -415,14 +423,14 @@ export async function getReceivedCvsByVacancy(
 
   const summaries: VacancyWeeklyCvSummary[] = vacancyIds.map((vacancyId) => {
     const weekMap = byVacancy.get(vacancyId) ?? new Map<string, number>()
-    const history: VacancyWeeklyCvPoint[] = weekStarts.map((weekStart) => ({
+    const history: VacancyWeeklyCvPoint[] = allWeekStarts.map((weekStart) => ({
       weekStart,
       weekLabel: formatWeekLabel(weekStart),
       count: weekMap.get(weekStart) ?? 0,
     }))
 
     const meta = metaMap.get(vacancyId)
-    const newThisWeek = weekMap.get(currentWeek) ?? 0
+    const newThisWeek = weekMap.get(thisWeek) ?? 0
     const weeklyTarget =
       typeof meta?.weeklyTarget === 'number' && Number.isFinite(meta.weeklyTarget)
         ? Math.max(0, Math.trunc(meta.weeklyTarget))
@@ -446,6 +454,10 @@ export async function getReceivedCvsByVacancy(
     ),
     latestSyncedAt,
   }
+}
+
+export function getCurrentIsoWeekLabel(): string {
+  return formatWeekLabel(getCurrentIsoWeekMonday())
 }
 
 

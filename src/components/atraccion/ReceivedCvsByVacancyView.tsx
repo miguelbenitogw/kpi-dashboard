@@ -191,17 +191,27 @@ export default function ReceivedCvsByVacancyView() {
     }))
   }, [data])
 
+  // weekColumns[0] = current (in-progress) week, weekColumns[1..] = historical (most-recent-first)
   const weekColumns = useMemo(() => {
     if (!data || data.weeklySeries.length === 0) return []
     const base = data.weeklySeries[0]?.points ?? []
     return [...base].reverse()
   }, [data])
 
+  // The current-week column is weekColumns[0]; historical starts at index 1
+  const historicalColumns = weekColumns.slice(1)
+
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-16 animate-pulse rounded-xl border border-surface-700/60 bg-surface-850/60" />
-        <div className="h-96 animate-pulse rounded-xl border border-surface-700/60 bg-surface-850/60" />
+        <div
+          style={{ background: '#f7f4ef', border: '1px solid #e7e2d8', borderRadius: 12 }}
+          className="h-16 animate-pulse"
+        />
+        <div
+          style={{ background: '#faf8f5', border: '1px solid #e7e2d8', borderRadius: 14 }}
+          className="h-96 animate-pulse"
+        />
       </div>
     )
   }
@@ -209,16 +219,37 @@ export default function ReceivedCvsByVacancyView() {
   if (!data || data.ranking.length === 0) {
     return (
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-700/40 bg-gray-800/30 px-4 py-3">
+        <div
+          style={{
+            background: '#f7f4ef',
+            border: '1px solid #e7e2d8',
+            borderRadius: 12,
+            padding: '12px 16px',
+          }}
+          className="flex flex-wrap items-center justify-between gap-3"
+        >
           <div>
-            <p className="text-base font-semibold text-gray-200">Sincronización manual de CVs</p>
-            <p className="text-sm text-gray-500">Actualizá Zoho ahora y refrescá esta vista al instante.</p>
+            <p style={{ color: '#1c1917', fontWeight: 600 }}>Sincronización manual de CVs</p>
+            <p style={{ color: '#78716c', fontSize: 13 }}>Actualizá Zoho ahora y refrescá esta vista al instante.</p>
           </div>
           <button
             type="button"
             onClick={handleSyncNow}
             disabled={syncing}
-            className="inline-flex items-center gap-2 rounded-lg border border-brand-500/40 bg-brand-500/15 px-4 py-2.5 text-sm font-semibold text-brand-200 transition hover:bg-brand-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+            style={{
+              background: '#1e4b9e',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: 8,
+              padding: '8px 16px',
+              fontSize: 13,
+              fontWeight: 600,
+              opacity: syncing ? 0.6 : 1,
+              cursor: syncing ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
           >
             {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             {syncing ? 'Actualizando...' : 'Actualizar info'}
@@ -226,12 +257,33 @@ export default function ReceivedCvsByVacancyView() {
         </div>
 
         {syncMessage ? (
-          <div className="rounded-lg border border-gray-700/40 bg-gray-800/40 px-4 py-2.5 text-sm text-gray-300">{syncMessage}</div>
+          <div
+            style={{
+              background: '#faf8f5',
+              border: '1px solid #e7e2d8',
+              borderRadius: 8,
+              padding: '10px 16px',
+              fontSize: 13,
+              color: '#78716c',
+            }}
+          >
+            {syncMessage}
+          </div>
         ) : null}
 
-        <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-8 text-center">
-          <p className="text-base text-gray-300">Todavía no hay CVs recibidos para mostrar.</p>
-          <p className="mt-1 text-sm text-gray-500">Cuando haya actividad semanal, vas a ver el ranking por vacante acá.</p>
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e7e2d8',
+            borderRadius: 14,
+            padding: 32,
+            textAlign: 'center',
+          }}
+        >
+          <p style={{ color: '#1c1917', fontSize: 15 }}>Todavía no hay CVs recibidos para mostrar.</p>
+          <p style={{ color: '#78716c', fontSize: 13, marginTop: 4 }}>
+            Cuando haya actividad semanal, vas a ver el ranking por vacante acá.
+          </p>
         </div>
       </div>
     )
@@ -239,17 +291,39 @@ export default function ReceivedCvsByVacancyView() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-700/40 bg-gray-800/30 px-4 py-3">
+      {/* Header / sync area */}
+      <div
+        style={{
+          background: '#f7f4ef',
+          border: '1px solid #e7e2d8',
+          borderRadius: 12,
+          padding: '12px 16px',
+        }}
+        className="flex flex-wrap items-center justify-between gap-3"
+      >
         <div>
-          <p className="text-base font-semibold text-gray-200">Sincronización manual de CVs</p>
-          <p className="text-sm text-gray-500">Semana KPI: lunes a domingo. Se muestra la última semana cerrada.</p>
-          <p className="mt-1 text-xs text-gray-500">{formatDateTime(data.generatedAt)}</p>
+          <p style={{ color: '#1c1917', fontWeight: 600 }}>Sincronización manual de CVs</p>
+          <p style={{ color: '#78716c', fontSize: 13 }}>Semana KPI: lunes a domingo. "Esta sem." muestra la semana en curso.</p>
+          <p style={{ color: '#a8a29e', fontSize: 12, marginTop: 2 }}>{formatDateTime(data.generatedAt)}</p>
         </div>
         <button
           type="button"
           onClick={handleSyncNow}
           disabled={syncing}
-          className="inline-flex items-center gap-2 rounded-lg border border-brand-500/40 bg-brand-500/15 px-4 py-2.5 text-sm font-semibold text-brand-200 transition hover:bg-brand-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+          style={{
+            background: '#1e4b9e',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: 8,
+            padding: '8px 16px',
+            fontSize: 13,
+            fontWeight: 600,
+            opacity: syncing ? 0.6 : 1,
+            cursor: syncing ? 'not-allowed' : 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
         >
           {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           {syncing ? 'Actualizando...' : 'Actualizar info'}
@@ -257,45 +331,135 @@ export default function ReceivedCvsByVacancyView() {
       </div>
 
       {syncMessage ? (
-        <div className="rounded-lg border border-gray-700/40 bg-gray-800/40 px-4 py-2.5 text-sm text-gray-300">{syncMessage}</div>
+        <div
+          style={{
+            background: '#faf8f5',
+            border: '1px solid #e7e2d8',
+            borderRadius: 8,
+            padding: '10px 16px',
+            fontSize: 13,
+            color: '#78716c',
+          }}
+        >
+          {syncMessage}
+        </div>
       ) : null}
 
-      <div className="rounded-xl border border-gray-700/50 bg-gray-800/50">
+      {/* Table */}
+      <div
+        style={{
+          background: '#ffffff',
+          border: '1px solid #e7e2d8',
+          borderRadius: 14,
+        }}
+      >
         <div className="overflow-x-auto min-h-[62vh]">
-          <table className="w-full text-[15px]">
+          <table className="w-full" style={{ fontSize: 14 }}>
             <thead>
-              <tr className="border-b border-gray-700/30">
-                <th className="px-4 py-3 text-left font-medium text-gray-500">#</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500 min-w-[320px]">Vacante</th>
-                <th className="px-3 py-3 text-center font-medium text-gray-500">Objetivo/sem</th>
-                <th className="px-3 py-3 text-right font-medium text-gray-500">Semana cerrada</th>
-                {weekColumns.map((week) => (
-                  <th key={week.weekLabel} className="px-3 py-3 text-right font-medium text-gray-500 whitespace-nowrap">
+              <tr style={{ background: '#f7f4ef', borderBottom: '1px solid #e7e2d8' }}>
+                <th
+                  style={{
+                    padding: '10px 16px',
+                    textAlign: 'left',
+                    color: '#78716c',
+                    fontWeight: 500,
+                    fontSize: 12,
+                    minWidth: 320,
+                  }}
+                >
+                  Vacante
+                </th>
+                <th
+                  style={{
+                    padding: '10px 12px',
+                    textAlign: 'center',
+                    color: '#78716c',
+                    fontWeight: 500,
+                    fontSize: 12,
+                  }}
+                >
+                  Objetivo/sem
+                </th>
+                {/* Current week — highlighted */}
+                <th
+                  style={{
+                    padding: '10px 12px',
+                    textAlign: 'right',
+                    color: '#1e4b9e',
+                    fontWeight: 600,
+                    fontSize: 12,
+                    background: '#eaf0fb',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Esta sem.
+                </th>
+                {/* Historical weeks */}
+                {historicalColumns.map((week) => (
+                  <th
+                    key={week.weekLabel}
+                    style={{
+                      padding: '10px 12px',
+                      textAlign: 'right',
+                      color: '#78716c',
+                      fontWeight: 500,
+                      fontSize: 12,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
                     {week.weekLabel}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-700/20">
+            <tbody>
               {unifiedRows.map((row, index) => {
+                // pointsDesc[0] = current week, pointsDesc[1..] = historical (newest first)
                 const pointsDesc = [...row.points].reverse()
                 const traffic = getTrafficLight(row.weeklyTarget, row.newThisWeek)
+
+                const rowBg =
+                  traffic === 'green'
+                    ? 'rgba(22,163,74,0.05)'
+                    : traffic === 'yellow'
+                      ? 'rgba(202,138,4,0.05)'
+                      : traffic === 'red'
+                        ? 'rgba(220,38,38,0.05)'
+                        : index % 2 === 0
+                          ? '#ffffff'
+                          : '#faf8f5'
 
                 return (
                   <tr
                     key={row.vacancyId}
-                    className={[
-                      'transition-colors',
-                      traffic === 'green' ? 'bg-emerald-500/5 hover:bg-emerald-500/10' : '',
-                      traffic === 'yellow' ? 'bg-amber-500/5 hover:bg-amber-500/10' : '',
-                      traffic === 'red' ? 'bg-red-500/5 hover:bg-red-500/10' : '',
-                      traffic === 'none' ? 'hover:bg-gray-700/20' : '',
-                    ].join(' ')}
+                    style={{
+                      background: rowBg,
+                      borderBottom: '1px solid #f0ece4',
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      const hoverColor =
+                        traffic === 'green'
+                          ? 'rgba(22,163,74,0.10)'
+                          : traffic === 'yellow'
+                            ? 'rgba(202,138,4,0.10)'
+                            : traffic === 'red'
+                              ? 'rgba(220,38,38,0.10)'
+                              : 'rgba(30,75,158,0.03)'
+                      ;(e.currentTarget as HTMLTableRowElement).style.background = hoverColor
+                    }}
+                    onMouseLeave={(e) => {
+                      ;(e.currentTarget as HTMLTableRowElement).style.background = rowBg
+                    }}
                   >
-                    <td className="px-4 py-3 text-gray-500 tabular-nums">{index + 1}</td>
-                    <td className="px-4 py-3 text-gray-100 font-medium">{row.vacancyTitle}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center justify-center gap-2">
+                    {/* Vacancy title */}
+                    <td style={{ padding: '10px 16px', color: '#1c1917', fontWeight: 500 }}>
+                      {row.vacancyTitle}
+                    </td>
+
+                    {/* Objetivo/sem — compact input with inline spinner */}
+                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         <input
                           type="number"
                           min={0}
@@ -309,17 +473,58 @@ export default function ReceivedCvsByVacancyView() {
                             }))
                             scheduleAutoSave(row.vacancyId, nextValue)
                           }}
-                          className="w-24 rounded-md border border-gray-600/60 bg-gray-900/70 px-2.5 py-1.5 text-right text-sm text-gray-100 outline-none focus:border-blue-500/60"
                           placeholder="-"
+                          style={{
+                            width: 64,
+                            border: '1px solid #e7e2d8',
+                            borderRadius: 6,
+                            padding: '4px 8px',
+                            fontSize: 13,
+                            textAlign: 'center',
+                            color: '#1c1917',
+                            background: '#faf8f5',
+                            outline: 'none',
+                            opacity: savingTargetIds[row.vacancyId] ? 0.6 : 1,
+                            transition: 'opacity 0.15s',
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = '#1e4b9e'
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = '#e7e2d8'
+                          }}
                         />
-                        <span className="text-xs text-gray-500 min-w-[90px] text-center">
-                          {savingTargetIds[row.vacancyId] ? 'Guardando…' : ''}
-                        </span>
+                        {savingTargetIds[row.vacancyId] ? (
+                          <Loader2
+                            style={{ width: 12, height: 12, color: '#a8a29e', flexShrink: 0 }}
+                            className="animate-spin"
+                          />
+                        ) : null}
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-right text-base text-gray-100 tabular-nums font-semibold">{row.newThisWeek}</td>
-                    {pointsDesc.map((point) => (
-                      <td key={`${row.vacancyId}-${point.weekLabel}`} className="px-3 py-3 text-right tabular-nums text-gray-300">
+
+                    {/* Esta sem. — current in-progress week */}
+                    <td
+                      style={{
+                        padding: '10px 12px',
+                        textAlign: 'right',
+                        color: '#1e4b9e',
+                        fontWeight: 700,
+                        background: '#eaf0fb',
+                        tabularNums: true,
+                      } as React.CSSProperties}
+                      className="tabular-nums"
+                    >
+                      {row.newThisWeek}
+                    </td>
+
+                    {/* Historical weeks — skip index 0 (current week, already shown) */}
+                    {pointsDesc.slice(1).map((point) => (
+                      <td
+                        key={`${row.vacancyId}-${point.weekLabel}`}
+                        style={{ padding: '10px 12px', textAlign: 'right', color: '#78716c' }}
+                        className="tabular-nums"
+                      >
                         {point.count}
                       </td>
                     ))}
