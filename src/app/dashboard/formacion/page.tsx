@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronUp, ChevronDown, Users } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Users } from 'lucide-react'
 import FormacionLayout from '@/components/formacion/FormacionLayout'
 import PromoVistaGeneral from '@/components/formacion/PromoVistaGeneral'
 import CandidatosFormacionView from '@/components/formacion/CandidatosFormacionView'
@@ -10,33 +10,17 @@ export default function FormacionPage() {
   const [panel, setPanel] = useState<'main' | 'candidatos'>('main')
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        overflow: 'hidden',
-        height: 'calc(100dvh - 96px)',
-      }}
-    >
+    <div style={{ overflow: 'hidden' }}>
       <div
         style={{
           display: 'flex',
-          flexDirection: 'column',
-          height: '200%',
-          transform: panel === 'candidatos' ? 'translateY(-50%)' : 'translateY(0)',
-          transition: 'transform 420ms cubic-bezier(0.4, 0, 0.2, 1)',
+          width: '200%',
+          transform: panel === 'candidatos' ? 'translateX(-50%)' : 'translateX(0)',
+          transition: 'transform 400ms cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         {/* ── Panel 1 — Formación ── */}
-        <div
-          style={{
-            height: '50%',
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            paddingBottom: '8px',
-          }}
-        >
+        <div style={{ width: '50%', minWidth: 0 }}>
           <div
             style={{
               background: '#ffffff',
@@ -50,6 +34,7 @@ export default function FormacionPage() {
 
           <div
             style={{
+              marginTop: '16px',
               background: '#ffffff',
               border: '1px solid #e7e2d8',
               borderRadius: '14px',
@@ -69,7 +54,7 @@ export default function FormacionPage() {
             <PromoVistaGeneral />
           </div>
 
-          {/* ── Handle to open Candidatos ── */}
+          {/* ── Deck handle — bottom of panel ── */}
           <button
             onClick={() => setPanel('candidatos')}
             style={{
@@ -78,7 +63,8 @@ export default function FormacionPage() {
               justifyContent: 'center',
               gap: '8px',
               width: '100%',
-              padding: '10px',
+              marginTop: '16px',
+              padding: '11px',
               borderRadius: '12px',
               border: '1px dashed #c8bfb0',
               background: 'transparent',
@@ -87,7 +73,6 @@ export default function FormacionPage() {
               fontWeight: 500,
               cursor: 'pointer',
               transition: 'background 150ms, color 150ms, border-color 150ms',
-              marginTop: 'auto',
             }}
             onMouseEnter={e => {
               e.currentTarget.style.background = '#f5f1ea'
@@ -102,22 +87,13 @@ export default function FormacionPage() {
           >
             <Users size={14} />
             Ver candidatos
-            <ChevronDown size={14} />
+            <ChevronRight size={14} />
           </button>
         </div>
 
         {/* ── Panel 2 — Candidatos ── */}
-        <div
-          style={{
-            height: '50%',
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            paddingBottom: '16px',
-          }}
-        >
-          {/* Handle to go back */}
+        <div style={{ width: '50%', minWidth: 0 }}>
+          {/* ── Deck handle — back to Formación ── */}
           <button
             onClick={() => setPanel('main')}
             style={{
@@ -126,7 +102,8 @@ export default function FormacionPage() {
               justifyContent: 'center',
               gap: '8px',
               width: '100%',
-              padding: '10px',
+              marginBottom: '16px',
+              padding: '11px',
               borderRadius: '12px',
               border: '1px dashed #c8bfb0',
               background: 'transparent',
@@ -147,7 +124,7 @@ export default function FormacionPage() {
               e.currentTarget.style.borderColor = '#c8bfb0'
             }}
           >
-            <ChevronUp size={14} />
+            <ChevronLeft size={14} />
             Volver a Formación
           </button>
 
@@ -157,7 +134,6 @@ export default function FormacionPage() {
               border: '1px solid #e7e2d8',
               borderRadius: '14px',
               padding: '18px',
-              flex: 1,
             }}
           >
             <div style={{ marginBottom: '16px' }}>
