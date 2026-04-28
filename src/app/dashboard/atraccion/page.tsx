@@ -7,6 +7,7 @@ import AttractionTrafficLights from '@/components/atraccion/AttractionTrafficLig
 import CharlasSummary from '@/components/atraccion/CharlasSummary'
 import VacancyRecruitmentTable from '@/components/atraccion/VacancyRecruitmentTable'
 import VacancyStatusCharts from '@/components/atraccion/VacancyStatusCharts'
+import VacanteCard, { MOCK_VACANTES, DEFAULT_FUNNEL_COLORS } from '@/components/atraccion/VacanteCard'
 
 type Tab = 'resumen' | 'vacantes' | 'canales'
 
@@ -78,9 +79,53 @@ export default function AtraccionPage() {
       )}
 
       {tab === 'vacantes' && (
-        <div className="space-y-6">
-          <VacancyRecruitmentTable />
-          <VacancyStatusCharts />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Leyenda del funnel */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 16,
+              padding: '8px 0',
+              fontSize: 11.5,
+              color: '#78716c',
+              borderBottom: '1px solid #e7e2d8',
+            }}
+          >
+            {[
+              { key: 'cv',         label: 'CV' },
+              { key: 'entrevista', label: 'Entrevista' },
+              { key: 'aceptado',   label: 'Aceptado' },
+              { key: 'hired',      label: 'Hired' },
+            ].map(({ key, label }) => (
+              <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: DEFAULT_FUNNEL_COLORS[key],
+                    display: 'inline-block',
+                  }}
+                />
+                {label}
+              </span>
+            ))}
+          </div>
+
+          {/* Grid de VacanteCards */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: 16,
+            }}
+            className="vacantes-grid"
+          >
+            {MOCK_VACANTES.map((v) => (
+              <VacanteCard key={v.id} {...v} />
+            ))}
+          </div>
         </div>
       )}
 

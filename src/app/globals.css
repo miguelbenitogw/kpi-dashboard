@@ -176,3 +176,10 @@ body {
   background: var(--color-brand-600);
   color: #fff;
 }
+
+/* Vacantes grid — 1 column on mobile, 2 on desktop */
+@media (max-width: 640px) {
+  .vacantes-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
