@@ -26,14 +26,14 @@ export default function WeeklyTrendChart() {
   }, [])
 
   return (
-    <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-6">
+    <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-4">
       <h3 className="text-sm font-semibold text-gray-200">
         Candidatos por Semana
       </h3>
       <p className="mt-1 text-xs text-gray-500">Ultimas 12 semanas</p>
 
       {loading ? (
-        <div className="mt-4 flex h-64 items-center justify-center">
+        <div className="mt-3 flex h-64 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
         </div>
       ) : data.length === 0 ? (
@@ -44,7 +44,7 @@ export default function WeeklyTrendChart() {
           </p>
         </div>
       ) : (
-        <div className="mt-4 h-64">
+        <div className="mt-3 h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={data}

@@ -122,11 +122,11 @@ export default function VacancyStatusCharts() {
   const chartBHeight = Math.max(300, data.rows.length * 50)
 
   return (
-    <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
+    <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-4">
       <h2 className="mb-1 text-sm font-semibold text-gray-200">Distribución de estados</h2>
-      <p className="mb-4 text-xs text-gray-500">Candidatos activos en procesos de atracción</p>
+      <p className="mb-3 text-xs text-gray-500">Candidatos activos en procesos de atracción</p>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Chart A: Global distribution */}
         <div>
           <h3 className="mb-3 text-[11px] font-medium uppercase tracking-wider text-gray-500">Global</h3>
@@ -169,7 +169,7 @@ export default function VacancyStatusCharts() {
 
       {/* Chart C: Tag distribution for active vacancies */}
       {tagData.length > 0 && (
-        <div className="mt-8 border-t border-gray-700/50 pt-6">
+        <div className="mt-5 border-t border-gray-700/50 pt-4">
           <h3 className="mb-1 text-[11px] font-medium uppercase tracking-wider text-gray-500">
             Etiquetas de candidatos
           </h3>

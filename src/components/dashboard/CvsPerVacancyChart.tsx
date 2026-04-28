@@ -161,7 +161,7 @@ export default function CvsPerVacancyChart() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '16px 20px 12px',
+          padding: '12px 16px 10px',
           borderBottom: '1px solid #f5f1ea',
         }}
       >
@@ -198,7 +198,7 @@ export default function CvsPerVacancyChart() {
       </div>
 
       {/* Body */}
-      <div style={{ padding: '16px 20px 8px' }}>
+      <div style={{ padding: '12px 16px 6px' }}>
         {loading ? (
           <LoadingSkeleton />
         ) : items.length === 0 ? (
@@ -282,7 +282,7 @@ export default function CvsPerVacancyChart() {
       {!loading && (
         <div
           style={{
-            padding: '8px 20px 14px',
+            padding: '6px 16px 10px',
             fontSize: 11,
             color: '#a8a29e',
             borderTop: items.length > 0 ? '1px solid #f5f1ea' : 'none',

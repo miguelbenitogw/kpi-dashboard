@@ -47,7 +47,7 @@ export default function TopVacancies() {
 
   return (
     <div
-      className="rounded-xl p-6"
+      className="rounded-xl p-4"
       style={{
         border: '1px solid #e7e2d8',
         background: '#ffffff',
@@ -62,7 +62,7 @@ export default function TopVacancies() {
       </p>
 
       {loading ? (
-        <div className="mt-4 flex h-64 items-center justify-center">
+        <div className="mt-3 flex h-64 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: '#1e4b9e', borderTopColor: 'transparent' }} />
         </div>
       ) : data.length === 0 ? (
@@ -74,7 +74,7 @@ export default function TopVacancies() {
         </div>
       ) : (
         <>
-          <div className="mt-4 h-64">
+          <div className="mt-3 h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={chartData}
@@ -138,7 +138,7 @@ export default function TopVacancies() {
           </div>
 
           {/* Mini table below chart */}
-          <div className="mt-4" style={{ borderTop: '1px solid #e7e2d8' }}>
+          <div className="mt-3" style={{ borderTop: '1px solid #e7e2d8' }}>
             {data.map((v) => (
               <div
                 key={v.id}

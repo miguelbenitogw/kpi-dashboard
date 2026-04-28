@@ -89,7 +89,7 @@ export default function KpiCard({
       onClick={onClick}
       style={{
         borderRadius: 12,
-        padding: '14px 16px',
+        padding: '12px 14px',
         border: '1px solid #e7e2d8',
         background: '#ffffff',
         borderLeft: `4px solid ${color}`,

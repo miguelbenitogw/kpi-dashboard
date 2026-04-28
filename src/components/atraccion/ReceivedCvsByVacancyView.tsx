@@ -292,7 +292,7 @@ export default function ReceivedCvsByVacancyView() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Header / sync area */}
       <div
         style={{
@@ -363,7 +363,7 @@ export default function ReceivedCvsByVacancyView() {
               <tr style={{ background: '#f7f4ef', borderBottom: '1px solid #e7e2d8' }}>
                 <th
                   style={{
-                    padding: '10px 16px',
+                    padding: '7px 14px',
                     textAlign: 'left',
                     color: '#78716c',
                     fontWeight: 500,
@@ -375,7 +375,7 @@ export default function ReceivedCvsByVacancyView() {
                 </th>
                 <th
                   style={{
-                    padding: '10px 12px',
+                    padding: '7px 10px',
                     textAlign: 'center',
                     color: '#78716c',
                     fontWeight: 500,
@@ -387,7 +387,7 @@ export default function ReceivedCvsByVacancyView() {
                 {/* Current week — highlighted */}
                 <th
                   style={{
-                    padding: '10px 12px',
+                    padding: '7px 10px',
                     textAlign: 'right',
                     color: '#1e4b9e',
                     fontWeight: 600,
@@ -403,7 +403,7 @@ export default function ReceivedCvsByVacancyView() {
                   <th
                     key={week.weekLabel}
                     style={{
-                      padding: '10px 12px',
+                      padding: '7px 10px',
                       textAlign: 'right',
                       color: '#78716c',
                       fontWeight: 500,
@@ -457,12 +457,12 @@ export default function ReceivedCvsByVacancyView() {
                     }}
                   >
                     {/* Vacancy title */}
-                    <td style={{ padding: '10px 16px', color: '#1c1917', fontWeight: 500 }}>
+                    <td style={{ padding: '7px 14px', color: '#1c1917', fontWeight: 500, fontSize: 13 }}>
                       {row.vacancyTitle}
                     </td>
 
                     {/* Objetivo/sem — compact input with inline spinner */}
-                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    <td style={{ padding: '7px 10px', textAlign: 'center' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         <input
                           type="number"
@@ -510,12 +510,13 @@ export default function ReceivedCvsByVacancyView() {
                     {/* Esta sem. — current in-progress week */}
                     <td
                       style={{
-                        padding: '10px 12px',
+                        padding: '7px 10px',
                         textAlign: 'right',
                         color: '#1e4b9e',
                         fontWeight: 700,
                         background: '#eaf0fb',
                         tabularNums: true,
+                        fontSize: 13,
                       } as React.CSSProperties}
                       className="tabular-nums"
                     >
@@ -526,7 +527,7 @@ export default function ReceivedCvsByVacancyView() {
                     {pointsDesc.slice(1).map((point) => (
                       <td
                         key={`${row.vacancyId}-${point.weekLabel}`}
-                        style={{ padding: '10px 12px', textAlign: 'right', color: '#78716c' }}
+                        style={{ padding: '7px 10px', textAlign: 'right', color: '#78716c', fontSize: 13 }}
                         className="tabular-nums"
                       >
                         {point.count}

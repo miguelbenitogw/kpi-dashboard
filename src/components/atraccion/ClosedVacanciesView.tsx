@@ -159,7 +159,7 @@ export default function ClosedVacanciesView() {
 
   if (loading) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="space-y-3 p-4">
         <div className="h-4 w-48 animate-pulse rounded bg-gray-700" />
         <div className="h-40 animate-pulse rounded-xl bg-gray-700/50" />
         <div className="space-y-2">
@@ -238,7 +238,7 @@ export default function ClosedVacanciesView() {
     .map((status) => ({ key: status, label: status, colorClass: statusColorClass(status) }))
 
   return (
-    <div className="space-y-5 p-5">
+    <div className="space-y-3 p-4">
       {/* Year selector */}
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -279,7 +279,7 @@ export default function ClosedVacanciesView() {
         const prefixTagList = Object.entries(tagsInView).map(([tag, count]) => ({ tag, count }))
         return (
           <div>
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-2 flex items-center gap-2">
               <h4 className="text-xs font-semibold text-gray-300">
                 Análisis de canales de captación — {chartLabel}
               </h4>
@@ -290,8 +290,8 @@ export default function ClosedVacanciesView() {
       })()}
 
       {/* Tag distribution — clickable bar list with filter */}
-      <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
-        <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-4">
+        <div className="mb-2 flex items-start justify-between gap-3">
           <div>
             <h4 className="text-xs font-semibold text-gray-300">
               Distribución de etiquetas — {chartLabel}
@@ -466,7 +466,7 @@ export default function ClosedVacanciesView() {
 
       {/* Vacancies table */}
       <div className="rounded-xl border border-gray-700/50 bg-gray-800/50">
-        <div className="border-b border-gray-700/50 px-5 py-3 flex flex-col gap-2.5">
+        <div className="border-b border-gray-700/50 px-4 py-2 flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3">
             <h4 className="text-xs font-semibold text-gray-300">
               Vacantes cerradas
@@ -541,7 +541,7 @@ export default function ClosedVacanciesView() {
         </div>
 
         {filteredVacancies.length === 0 ? (
-          <div className="p-6 text-center">
+          <div className="p-4 text-center">
             <p className="text-xs text-gray-500">
               {searchQuery || selectedTags.size > 0
                 ? 'Sin resultados para los filtros aplicados'
@@ -553,20 +553,21 @@ export default function ClosedVacanciesView() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-700/30">
-                  <th className="w-8 px-3 py-2.5" />
-                  <th className="px-4 py-2.5 text-left font-medium text-gray-400">Título</th>
-                  <th className="px-3 py-2.5 text-left font-medium text-gray-400 whitespace-nowrap">Estado</th>
-                  <th className="px-3 py-2.5 text-right font-medium text-gray-400 whitespace-nowrap">Candidatos</th>
-                  <th className="px-3 py-2.5 text-right font-medium text-gray-400 whitespace-nowrap">Contratados</th>
+                  <th className="w-8 px-2 py-1.5" />
+                  <th className="px-3 py-1.5 text-left font-medium text-gray-400" style={{ fontSize: 13 }}>Título</th>
+                  <th className="px-3 py-1.5 text-left font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>Estado</th>
+                  <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>Candidatos</th>
+                  <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>Contratados</th>
                   {activeStatusCols.map((col) => (
                     <th
                       key={col.key}
-                      className="px-3 py-2.5 text-right font-medium text-gray-400 whitespace-nowrap"
+                      className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap"
+                      style={{ fontSize: 13 }}
                     >
                       {col.label}
                     </th>
                   ))}
-                  <th className="px-4 py-2.5 text-right font-medium text-gray-400 whitespace-nowrap">Apertura</th>
+                  <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>Apertura</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700/20">
@@ -584,7 +585,7 @@ export default function ClosedVacanciesView() {
                           : 'hover:bg-gray-700/20',
                       ].join(' ')}
                     >
-                      <td className="px-3 py-2.5 text-center">
+                      <td className="px-2 py-1.5 text-center">
                         <input
                           type="checkbox"
                           readOnly
@@ -594,26 +595,26 @@ export default function ClosedVacanciesView() {
                           onChange={() => toggleVacancy(v.id)}
                         />
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="px-3 py-1.5" style={{ fontSize: 13 }}>
                         <span className={['font-medium leading-snug', isSelected ? 'text-indigo-200' : 'text-gray-200'].join(' ')}>
                           {v.title}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">
+                      <td className="px-3 py-1.5 whitespace-nowrap" style={{ fontSize: 13 }}>
                         <span className={vacancyStatusColor(v.status)}>
                           {v.status ?? '—'}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-gray-300">
+                      <td className="px-3 py-1.5 text-right tabular-nums text-gray-300" style={{ fontSize: 13 }}>
                         {v.total_candidates}
                       </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-gray-300">
+                      <td className="px-3 py-1.5 text-right tabular-nums text-gray-300" style={{ fontSize: 13 }}>
                         {v.hired_count}
                       </td>
                       {activeStatusCols.map((col) => {
                         const count = v.byStatus[col.key] ?? 0
                         return (
-                          <td key={col.key} className="px-3 py-2.5 text-right tabular-nums">
+                          <td key={col.key} className="px-3 py-1.5 text-right tabular-nums" style={{ fontSize: 13 }}>
                             {hasStatusData ? (
                               <span className={count > 0 ? col.colorClass : 'text-gray-600'}>
                                 {count > 0 ? count : '—'}
@@ -624,7 +625,7 @@ export default function ClosedVacanciesView() {
                           </td>
                         )
                       })}
-                      <td className="px-4 py-2.5 text-right tabular-nums text-gray-400">
+                      <td className="px-3 py-1.5 text-right tabular-nums text-gray-400" style={{ fontSize: 13 }}>
                         {formatDate(v.date_opened)}
                       </td>
                     </tr>
@@ -637,7 +638,7 @@ export default function ClosedVacanciesView() {
 
         {/* Tag breakdown for selected vacancies */}
         {selectedIds.size > 0 && (
-          <div className="px-5 pb-5">
+          <div className="px-4 pb-4">
             <TagBreakdown
               tags={aggregateTags(selectedVacancies)}
               label={selectedLabel}

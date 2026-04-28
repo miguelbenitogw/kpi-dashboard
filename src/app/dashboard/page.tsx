@@ -6,7 +6,7 @@ import CvsPerVacancyChart from '@/components/dashboard/CvsPerVacancyChart'
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6 p-7">
+    <div className="space-y-4 px-5 py-4">
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight" style={{ color: '#1c1917' }}>
@@ -48,7 +48,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts + Alerts Grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Weekly Trend — 2 columns */}
         <div
           className="lg:col-span-2 rounded-xl p-0 overflow-hidden"

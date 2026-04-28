@@ -22,7 +22,7 @@ export default function AtraccionPage() {
   const [tab, setTab] = useState<Tab>('resumen')
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Heading */}
       <div>
         <h1 style={{ fontSize: 22, fontWeight: 600, color: '#1c1917', letterSpacing: '-0.01em', margin: 0 }}>
@@ -42,7 +42,7 @@ export default function AtraccionPage() {
               key={id}
               onClick={() => setTab(id)}
               style={{
-                padding: '10px 18px',
+                padding: '8px 16px',
                 fontSize: 14,
                 fontWeight: active ? 600 : 400,
                 color: active ? '#1e4b9e' : '#78716c',
@@ -62,7 +62,7 @@ export default function AtraccionPage() {
 
       {/* ─── RESUMEN ─── */}
       {tab === 'resumen' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* CVs recibidos — números grandes arriba */}
           <CvsResumenCard />
 
@@ -70,7 +70,7 @@ export default function AtraccionPage() {
           <ConversionRates />
 
           {/* WeeklyCVChart + Semáforos */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <WeeklyCVChart />
             </div>
@@ -86,7 +86,7 @@ export default function AtraccionPage() {
 
       {/* ─── VACANTES ─── */}
       {tab === 'vacantes' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <VacancyStatusCharts />
           <VacancyRecruitmentTable />
         </div>

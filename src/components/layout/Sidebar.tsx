@@ -77,7 +77,7 @@ function SyncDot() {
   }, []);
 
   return (
-    <div className="flex items-center gap-2 px-4 py-3 text-xs" style={{ color: "#78716c" }}>
+    <div className="flex items-center gap-2 px-3 py-2 text-xs" style={{ color: "#78716c" }}>
       <span
         className="inline-block h-2 w-2 rounded-full"
         style={{ background: "#16a34a" }}
@@ -158,7 +158,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {navSections.map((section, idx) => (
           <div key={idx}>
             {section.title && (

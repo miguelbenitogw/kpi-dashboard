@@ -26,7 +26,7 @@ export default function AlertsSummary() {
   if (loading) {
     return (
       <div
-        className="rounded-xl p-6 animate-pulse"
+        className="rounded-xl p-4 animate-pulse"
         style={{
           border: '1px solid #e7e2d8',
           background: '#ffffff',
@@ -48,7 +48,7 @@ export default function AlertsSummary() {
 
   return (
     <div
-      className="rounded-xl p-6"
+      className="rounded-xl p-4"
       style={{
         border: '1px solid #e7e2d8',
         background: '#ffffff',
@@ -80,7 +80,7 @@ export default function AlertsSummary() {
       </div>
 
       {!hasAlerts ? (
-        <div className="mt-6 flex flex-col items-center justify-center py-6 text-center">
+        <div className="mt-4 flex flex-col items-center justify-center py-4 text-center">
           <div className="rounded-full p-3" style={{ background: '#dcfce7' }}>
             <AlertTriangle className="h-6 w-6" style={{ color: '#16a34a' }} />
           </div>
@@ -88,7 +88,7 @@ export default function AlertsSummary() {
           <p className="text-xs" style={{ color: '#78716c' }}>Todos los SLA dentro de rango</p>
         </div>
       ) : (
-        <div className="mt-4 space-y-2">
+        <div className="mt-3 space-y-1.5">
           {alerts.map((alert) => (
             <div
               key={alert.id}

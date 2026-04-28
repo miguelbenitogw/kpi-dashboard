@@ -83,7 +83,7 @@ function VacancyTagRow({
     <tr>
       <td
         colSpan={colSpan}
-        className="bg-surface-800/40 px-5 py-3 border-b border-surface-700/40"
+        className="bg-surface-800/40 px-4 py-2 border-b border-surface-700/40"
       >
         {loading ? (
           <div className="flex gap-2">
@@ -199,8 +199,8 @@ export default function VacancyRecruitmentTable() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-6">
-        <div className="h-4 w-64 animate-pulse rounded bg-gray-700 mb-4" />
+      <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-4">
+        <div className="h-4 w-64 animate-pulse rounded bg-gray-700 mb-3" />
         <div className="space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-10 animate-pulse rounded bg-gray-700/50" />
@@ -212,7 +212,7 @@ export default function VacancyRecruitmentTable() {
 
   if (!data || data.rows.length === 0) {
     return (
-      <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-8 text-center">
+      <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-6 text-center">
         <p className="text-sm text-gray-400">Sin vacantes activas con etiqueta "Proceso atracción actual"</p>
         <p className="mt-1 text-xs text-gray-500">
           Ejecutá el sync de Zoho para actualizar las etiquetas
@@ -230,7 +230,7 @@ export default function VacancyRecruitmentTable() {
   return (
     <div className="rounded-xl border border-gray-700/50 bg-gray-800/50">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-700/50">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-gray-700/50">
         <div>
           <h3 className="text-sm font-semibold text-gray-200">
             Vacantes activas — candidatos por estado
@@ -366,15 +366,15 @@ export default function VacancyRecruitmentTable() {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-gray-700/50">
-              <th className="sticky left-0 z-10 bg-gray-800/95 px-4 py-3 text-left font-medium text-gray-400 whitespace-nowrap min-w-[200px]">
+              <th className="sticky left-0 z-10 bg-gray-800/95 px-3 py-2 text-left font-medium text-gray-400 whitespace-nowrap min-w-[200px]">
                 Vacante
               </th>
               {cols.map((s) => (
-                <th key={s} className="px-3 py-3 text-right font-medium text-gray-400 whitespace-nowrap">
+                <th key={s} className="px-3 py-2 text-right font-medium text-gray-400 whitespace-nowrap">
                   {s}
                 </th>
               ))}
-              <th className="px-4 py-3 text-right font-semibold text-gray-300 whitespace-nowrap">
+              <th className="px-3 py-2 text-right font-semibold text-gray-300 whitespace-nowrap">
                 Total
               </th>
               <th className="w-8" />
@@ -389,14 +389,14 @@ export default function VacancyRecruitmentTable() {
                     onClick={() => setExpandedId(isExpanded ? null : row.id)}
                     className="cursor-pointer hover:bg-gray-700/20 transition-colors"
                   >
-                    <td className="sticky left-0 z-10 bg-gray-800/95 px-4 py-3">
+                    <td className="sticky left-0 z-10 bg-gray-800/95 px-3 py-2">
                       <div className="font-medium text-gray-200 leading-snug">{row.title}</div>
                     </td>
 
                     {cols.map((s) => {
                       const count = row.byStatus[s] ?? 0
                       return (
-                        <td key={s} className="px-3 py-3 text-right tabular-nums">
+                        <td key={s} className="px-3 py-2 text-right tabular-nums">
                           <span className={count > 0 ? statusColor(s) : 'text-gray-600'}>
                             {count > 0 ? count : '—'}
                           </span>
@@ -404,10 +404,10 @@ export default function VacancyRecruitmentTable() {
                       )
                     })}
 
-                    <td className="px-4 py-3 text-right font-semibold text-gray-200 tabular-nums">
+                    <td className="px-3 py-2 text-right font-semibold text-gray-200 tabular-nums">
                       {row.total_candidates}
                     </td>
-                    <td className="px-2 py-3 text-gray-500">
+                    <td className="px-2 py-2 text-gray-500">
                       {isExpanded
                         ? <ChevronDown className="h-3.5 w-3.5" />
                         : <ChevronRight className="h-3.5 w-3.5" />}
@@ -427,20 +427,20 @@ export default function VacancyRecruitmentTable() {
           {filtered.length > 1 && (
             <tfoot>
               <tr className="border-t border-gray-600/50 bg-gray-700/20">
-                <td className="sticky left-0 bg-gray-700/30 px-4 py-3 font-semibold text-gray-300">
+                <td className="sticky left-0 bg-gray-700/30 px-3 py-2 font-semibold text-gray-300">
                   TOTAL
                 </td>
                 {cols.map((s) => {
                   const total = filtered.reduce((sum, r) => sum + (r.byStatus[s] ?? 0), 0)
                   return (
-                    <td key={s} className="px-3 py-3 text-right font-semibold tabular-nums">
+                    <td key={s} className="px-3 py-2 text-right font-semibold tabular-nums">
                       <span className={total > 0 ? statusColor(s) : 'text-gray-600'}>
                         {total > 0 ? total : '—'}
                       </span>
                     </td>
                   )
                 })}
-                <td className="px-4 py-3 text-right font-semibold text-white tabular-nums">
+                <td className="px-3 py-2 text-right font-semibold text-white tabular-nums">
                   {filtered.reduce((s, r) => s + r.total_candidates, 0).toLocaleString()}
                 </td>
               </tr>

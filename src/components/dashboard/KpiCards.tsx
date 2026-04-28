@@ -33,7 +33,7 @@ export default function KpiCards() {
 
   if (!stats) {
     return (
-      <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-6 text-center">
+      <div className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-4 text-center">
         <p className="text-sm text-gray-400">Sin datos disponibles</p>
         <p className="text-xs text-gray-500">Esperando sincronizacion</p>
       </div>
