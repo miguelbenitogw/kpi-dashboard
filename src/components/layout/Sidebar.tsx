@@ -15,7 +15,6 @@ import {
   Archive,
   Settings2,
   Briefcase,
-  Calendar,
 } from "lucide-react";
 
 type NavItem = {
@@ -45,7 +44,6 @@ const navSections: NavSection[] = [
       { href: "/dashboard/formacion", label: "Formación", icon: GraduationCap },
       { href: "/dashboard/formacion/abandonos", label: "Abandonos", icon: TrendingDown },
       { href: "/dashboard/colocacion", label: "Colocación", icon: Briefcase },
-      { href: "/dashboard/promos", label: "Promociones", icon: Calendar },
     ],
   },
   {

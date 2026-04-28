@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronRight, ChevronLeft, Users } from 'lucide-react'
+import { ChevronUp, ChevronDown, Users } from 'lucide-react'
 import FormacionLayout from '@/components/formacion/FormacionLayout'
 import PromoVistaGeneral from '@/components/formacion/PromoVistaGeneral'
 import CandidatosFormacionView from '@/components/formacion/CandidatosFormacionView'
@@ -10,44 +10,33 @@ export default function FormacionPage() {
   const [panel, setPanel] = useState<'main' | 'candidatos'>('main')
 
   return (
-    <div style={{ overflow: 'hidden' }}>
+    <div
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+        height: 'calc(100dvh - 96px)',
+      }}
+    >
       <div
         style={{
           display: 'flex',
-          width: '200%',
-          transform: panel === 'candidatos' ? 'translateX(-50%)' : 'translateX(0)',
-          transition: 'transform 380ms cubic-bezier(0.4, 0, 0.2, 1)',
+          flexDirection: 'column',
+          height: '200%',
+          transform: panel === 'candidatos' ? 'translateY(-50%)' : 'translateY(0)',
+          transition: 'transform 420ms cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
-        {/* ── Panel principal — Formación ── */}
-        <div style={{ width: '50%', minWidth: 0 }}>
-          {/* Header row with "Ver candidatos" arrow */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '12px' }}>
-            <button
-              onClick={() => setPanel('candidatos')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                borderRadius: '8px',
-                border: '1px solid #e7e2d8',
-                background: '#ffffff',
-                color: '#1e4b9e',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'background 150ms',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#f5f1ea')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#ffffff')}
-            >
-              <Users size={14} />
-              Ver candidatos
-              <ChevronRight size={14} />
-            </button>
-          </div>
-
+        {/* ── Panel 1 — Formación ── */}
+        <div
+          style={{
+            height: '50%',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            paddingBottom: '8px',
+          }}
+        >
           <div
             style={{
               background: '#ffffff',
@@ -61,7 +50,6 @@ export default function FormacionPage() {
 
           <div
             style={{
-              marginTop: '16px',
               background: '#ffffff',
               border: '1px solid #e7e2d8',
               borderRadius: '14px',
@@ -80,35 +68,88 @@ export default function FormacionPage() {
             </h2>
             <PromoVistaGeneral />
           </div>
+
+          {/* ── Handle to open Candidatos ── */}
+          <button
+            onClick={() => setPanel('candidatos')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              width: '100%',
+              padding: '10px',
+              borderRadius: '12px',
+              border: '1px dashed #c8bfb0',
+              background: 'transparent',
+              color: '#78716c',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'background 150ms, color 150ms, border-color 150ms',
+              marginTop: 'auto',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = '#f5f1ea'
+              e.currentTarget.style.color = '#1e4b9e'
+              e.currentTarget.style.borderColor = '#1e4b9e'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = '#78716c'
+              e.currentTarget.style.borderColor = '#c8bfb0'
+            }}
+          >
+            <Users size={14} />
+            Ver candidatos
+            <ChevronDown size={14} />
+          </button>
         </div>
 
-        {/* ── Panel secundario — Candidatos ── */}
-        <div style={{ width: '50%', minWidth: 0 }}>
-          {/* Back button */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
-            <button
-              onClick={() => setPanel('main')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 14px',
-                borderRadius: '8px',
-                border: '1px solid #e7e2d8',
-                background: '#ffffff',
-                color: '#57534e',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'background 150ms',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#f5f1ea')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#ffffff')}
-            >
-              <ChevronLeft size={14} />
-              Volver a Formación
-            </button>
-          </div>
+        {/* ── Panel 2 — Candidatos ── */}
+        <div
+          style={{
+            height: '50%',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            paddingBottom: '16px',
+          }}
+        >
+          {/* Handle to go back */}
+          <button
+            onClick={() => setPanel('main')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              width: '100%',
+              padding: '10px',
+              borderRadius: '12px',
+              border: '1px dashed #c8bfb0',
+              background: 'transparent',
+              color: '#78716c',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'background 150ms, color 150ms, border-color 150ms',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = '#f5f1ea'
+              e.currentTarget.style.color = '#1e4b9e'
+              e.currentTarget.style.borderColor = '#1e4b9e'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = '#78716c'
+              e.currentTarget.style.borderColor = '#c8bfb0'
+            }}
+          >
+            <ChevronUp size={14} />
+            Volver a Formación
+          </button>
 
           <div
             style={{
@@ -116,6 +157,7 @@ export default function FormacionPage() {
               border: '1px solid #e7e2d8',
               borderRadius: '14px',
               padding: '18px',
+              flex: 1,
             }}
           >
             <div style={{ marginBottom: '16px' }}>
