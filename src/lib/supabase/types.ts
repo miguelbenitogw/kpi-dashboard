@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -96,6 +96,7 @@ export type Database = {
       }
       candidate_job_history_kpi: {
         Row: {
+          associated_at: string | null
           association_type: string | null
           candidate_id: string
           candidate_name: string | null
@@ -107,6 +108,7 @@ export type Database = {
           zoho_record_id: string | null
         }
         Insert: {
+          associated_at?: string | null
           association_type?: string | null
           candidate_id: string
           candidate_name?: string | null
@@ -118,6 +120,7 @@ export type Database = {
           zoho_record_id?: string | null
         }
         Update: {
+          associated_at?: string | null
           association_type?: string | null
           candidate_id?: string
           candidate_name?: string | null
@@ -127,6 +130,42 @@ export type Database = {
           job_opening_id?: string | null
           job_opening_title?: string | null
           zoho_record_id?: string | null
+        }
+        Relationships: []
+      }
+      candidate_notes_kpi: {
+        Row: {
+          author: string | null
+          candidate_id: string
+          created_at: string | null
+          fetched_at: string
+          id: string
+          is_system: boolean
+          modified_at: string | null
+          note_content: string | null
+          note_title: string | null
+        }
+        Insert: {
+          author?: string | null
+          candidate_id: string
+          created_at?: string | null
+          fetched_at?: string
+          id: string
+          is_system?: boolean
+          modified_at?: string | null
+          note_content?: string | null
+          note_title?: string | null
+        }
+        Update: {
+          author?: string | null
+          candidate_id?: string
+          created_at?: string | null
+          fetched_at?: string
+          id?: string
+          is_system?: boolean
+          modified_at?: string | null
+          note_content?: string | null
+          note_title?: string | null
         }
         Relationships: []
       }
@@ -156,17 +195,29 @@ export type Database = {
           english_level: string | null
           fecha_fin_formacion: string | null
           fecha_inicio_trabajo: string | null
+          flight_date: string | null
           full_name: string | null
           german_level: string | null
           global_status: string | null
+          gp_arrival_date: string | null
           gp_assignment: string | null
           gp_availability: string | null
+          gp_blind_cv_norsk: boolean | null
+          gp_comments: string | null
+          gp_criminal_record: boolean | null
+          gp_cv_norsk: boolean | null
           gp_has_profile: boolean | null
           gp_kontaktperson: string | null
+          gp_last_update_placement: string | null
+          gp_mantux: boolean | null
           gp_open_to: string | null
+          gp_pk: string | null
           gp_priority: string | null
+          gp_sarm: boolean | null
           gp_shots: string | null
           gp_training_status: string | null
+          hospitering_dates: string | null
+          hpr_number: string | null
           id: string
           job_opening_id: string | null
           job_opening_title: string | null
@@ -178,8 +229,14 @@ export type Database = {
           native_language: string | null
           notas_excel: string | null
           owner: string | null
+          pais_destino: string | null
           phone: string | null
+          placement_client: string | null
+          placement_date: string | null
+          placement_location: string | null
+          placement_status: string | null
           promocion_nombre: string | null
+          promotion_id: string | null
           quincena: string | null
           sla_status: string | null
           source: string | null
@@ -215,17 +272,29 @@ export type Database = {
           english_level?: string | null
           fecha_fin_formacion?: string | null
           fecha_inicio_trabajo?: string | null
+          flight_date?: string | null
           full_name?: string | null
           german_level?: string | null
           global_status?: string | null
+          gp_arrival_date?: string | null
           gp_assignment?: string | null
           gp_availability?: string | null
+          gp_blind_cv_norsk?: boolean | null
+          gp_comments?: string | null
+          gp_criminal_record?: boolean | null
+          gp_cv_norsk?: boolean | null
           gp_has_profile?: boolean | null
           gp_kontaktperson?: string | null
+          gp_last_update_placement?: string | null
+          gp_mantux?: boolean | null
           gp_open_to?: string | null
+          gp_pk?: string | null
           gp_priority?: string | null
+          gp_sarm?: boolean | null
           gp_shots?: string | null
           gp_training_status?: string | null
+          hospitering_dates?: string | null
+          hpr_number?: string | null
           id: string
           job_opening_id?: string | null
           job_opening_title?: string | null
@@ -237,8 +306,14 @@ export type Database = {
           native_language?: string | null
           notas_excel?: string | null
           owner?: string | null
+          pais_destino?: string | null
           phone?: string | null
+          placement_client?: string | null
+          placement_date?: string | null
+          placement_location?: string | null
+          placement_status?: string | null
           promocion_nombre?: string | null
+          promotion_id?: string | null
           quincena?: string | null
           sla_status?: string | null
           source?: string | null
@@ -274,17 +349,29 @@ export type Database = {
           english_level?: string | null
           fecha_fin_formacion?: string | null
           fecha_inicio_trabajo?: string | null
+          flight_date?: string | null
           full_name?: string | null
           german_level?: string | null
           global_status?: string | null
+          gp_arrival_date?: string | null
           gp_assignment?: string | null
           gp_availability?: string | null
+          gp_blind_cv_norsk?: boolean | null
+          gp_comments?: string | null
+          gp_criminal_record?: boolean | null
+          gp_cv_norsk?: boolean | null
           gp_has_profile?: boolean | null
           gp_kontaktperson?: string | null
+          gp_last_update_placement?: string | null
+          gp_mantux?: boolean | null
           gp_open_to?: string | null
+          gp_pk?: string | null
           gp_priority?: string | null
+          gp_sarm?: boolean | null
           gp_shots?: string | null
           gp_training_status?: string | null
+          hospitering_dates?: string | null
+          hpr_number?: string | null
           id?: string
           job_opening_id?: string | null
           job_opening_title?: string | null
@@ -296,8 +383,14 @@ export type Database = {
           native_language?: string | null
           notas_excel?: string | null
           owner?: string | null
+          pais_destino?: string | null
           phone?: string | null
+          placement_client?: string | null
+          placement_date?: string | null
+          placement_location?: string | null
+          placement_status?: string | null
           promocion_nombre?: string | null
+          promotion_id?: string | null
           quincena?: string | null
           sla_status?: string | null
           source?: string | null
@@ -321,6 +414,13 @@ export type Database = {
             columns: ["job_opening_id"]
             isOneToOne: false
             referencedRelation: "v_pipeline_by_opening"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidates_kpi_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions_kpi"
             referencedColumns: ["id"]
           },
         ]
@@ -462,6 +562,66 @@ export type Database = {
           title?: string | null
           updated_at?: string | null
           user_email?: string
+        }
+        Relationships: []
+      }
+      curso_desarrollo_kpi: {
+        Row: {
+          attendance_pct: number | null
+          attendees_count: number | null
+          coordinador: string | null
+          created_at: string | null
+          duration_hours: number | null
+          id: string
+          instructor: string | null
+          promo_total_people: number | null
+          promocion_nombre: string | null
+          session_date: string | null
+          session_language: string | null
+          session_link: string | null
+          session_name: string
+          session_time: string | null
+          survey_sent: boolean | null
+          total_attendees: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          attendance_pct?: number | null
+          attendees_count?: number | null
+          coordinador?: string | null
+          created_at?: string | null
+          duration_hours?: number | null
+          id?: string
+          instructor?: string | null
+          promo_total_people?: number | null
+          promocion_nombre?: string | null
+          session_date?: string | null
+          session_language?: string | null
+          session_link?: string | null
+          session_name: string
+          session_time?: string | null
+          survey_sent?: boolean | null
+          total_attendees?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          attendance_pct?: number | null
+          attendees_count?: number | null
+          coordinador?: string | null
+          created_at?: string | null
+          duration_hours?: number | null
+          id?: string
+          instructor?: string | null
+          promo_total_people?: number | null
+          promocion_nombre?: string | null
+          session_date?: string | null
+          session_language?: string | null
+          session_link?: string | null
+          session_name?: string
+          session_time?: string | null
+          survey_sent?: boolean | null
+          total_attendees?: number | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -617,12 +777,14 @@ export type Database = {
           job_description: string | null
           last_synced_at: string | null
           owner: string | null
+          pais_destino: string | null
           status: string | null
           tags: string[]
           tipo_profesional: string
           title: string
           total_candidates: number | null
           updated_at: string | null
+          weekly_cv_target: number | null
         }
         Insert: {
           category?: string
@@ -637,12 +799,14 @@ export type Database = {
           job_description?: string | null
           last_synced_at?: string | null
           owner?: string | null
+          pais_destino?: string | null
           status?: string | null
           tags?: string[]
           tipo_profesional?: string
           title: string
           total_candidates?: number | null
           updated_at?: string | null
+          weekly_cv_target?: number | null
         }
         Update: {
           category?: string
@@ -657,91 +821,174 @@ export type Database = {
           job_description?: string | null
           last_synced_at?: string | null
           owner?: string | null
+          pais_destino?: string | null
           status?: string | null
           tags?: string[]
           tipo_profesional?: string
           title?: string
           total_candidates?: number | null
           updated_at?: string | null
+          weekly_cv_target?: number | null
+        }
+        Relationships: []
+      }
+      madre_sheets_kpi: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          sheet_id: string
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          sheet_id: string
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          sheet_id?: string
+          year?: number | null
         }
         Relationships: []
       }
       pagos_candidato_kpi: {
         Row: {
           anexo_firmado: boolean | null
+          autorizacion_tramitada: boolean | null
           candidate_id: string | null
+          comentarios_contabilidad: string | null
+          comentarios_coordinadores: string | null
           condiciones_fase: string | null
+          condiciones_pago: string | null
           coordinador: string | null
           created_at: string | null
           email: string | null
           estado: string | null
           fase_abandono: string | null
           fecha_abandono: string | null
+          fecha_cobro: string | null
           fecha_inicio_formacion: string | null
+          fecha_notificacion: string | null
           fecha_respuesta_mail: string | null
           fecha_viaje_noruega: string | null
           full_name: string
           horas_cursadas: number | null
           id: string
+          importe_autorizacion: number | null
+          importe_devolucion_ayuda: number | null
+          importe_formacion_actual: number | null
+          importe_formaciones_previas: number | null
+          importe_pagado_2024: number | null
+          importe_pagado_2025: number | null
+          importe_pagado_2026: number | null
+          importe_pendiente: number | null
+          importe_piso_gw: number | null
+          importe_total: number | null
           modalidad: string | null
           perfil: string | null
+          precio_autorizacion: number | null
           precio_formacion: number | null
           precio_hora: number | null
           precio_total: number | null
           promocion_anterior: string | null
           promocion_nombre: string | null
+          promociones_anteriores: Json | null
           telefono: string | null
           updated_at: string | null
         }
         Insert: {
           anexo_firmado?: boolean | null
+          autorizacion_tramitada?: boolean | null
           candidate_id?: string | null
+          comentarios_contabilidad?: string | null
+          comentarios_coordinadores?: string | null
           condiciones_fase?: string | null
+          condiciones_pago?: string | null
           coordinador?: string | null
           created_at?: string | null
           email?: string | null
           estado?: string | null
           fase_abandono?: string | null
           fecha_abandono?: string | null
+          fecha_cobro?: string | null
           fecha_inicio_formacion?: string | null
+          fecha_notificacion?: string | null
           fecha_respuesta_mail?: string | null
           fecha_viaje_noruega?: string | null
           full_name: string
           horas_cursadas?: number | null
           id?: string
+          importe_autorizacion?: number | null
+          importe_devolucion_ayuda?: number | null
+          importe_formacion_actual?: number | null
+          importe_formaciones_previas?: number | null
+          importe_pagado_2024?: number | null
+          importe_pagado_2025?: number | null
+          importe_pagado_2026?: number | null
+          importe_pendiente?: number | null
+          importe_piso_gw?: number | null
+          importe_total?: number | null
           modalidad?: string | null
           perfil?: string | null
+          precio_autorizacion?: number | null
           precio_formacion?: number | null
           precio_hora?: number | null
           precio_total?: number | null
           promocion_anterior?: string | null
           promocion_nombre?: string | null
+          promociones_anteriores?: Json | null
           telefono?: string | null
           updated_at?: string | null
         }
         Update: {
           anexo_firmado?: boolean | null
+          autorizacion_tramitada?: boolean | null
           candidate_id?: string | null
+          comentarios_contabilidad?: string | null
+          comentarios_coordinadores?: string | null
           condiciones_fase?: string | null
+          condiciones_pago?: string | null
           coordinador?: string | null
           created_at?: string | null
           email?: string | null
           estado?: string | null
           fase_abandono?: string | null
           fecha_abandono?: string | null
+          fecha_cobro?: string | null
           fecha_inicio_formacion?: string | null
+          fecha_notificacion?: string | null
           fecha_respuesta_mail?: string | null
           fecha_viaje_noruega?: string | null
           full_name?: string
           horas_cursadas?: number | null
           id?: string
+          importe_autorizacion?: number | null
+          importe_devolucion_ayuda?: number | null
+          importe_formacion_actual?: number | null
+          importe_formaciones_previas?: number | null
+          importe_pagado_2024?: number | null
+          importe_pagado_2025?: number | null
+          importe_pagado_2026?: number | null
+          importe_pendiente?: number | null
+          importe_piso_gw?: number | null
+          importe_total?: number | null
           modalidad?: string | null
           perfil?: string | null
+          precio_autorizacion?: number | null
           precio_formacion?: number | null
           precio_hora?: number | null
           precio_total?: number | null
           promocion_anterior?: string | null
           promocion_nombre?: string | null
+          promociones_anteriores?: Json | null
           telefono?: string | null
           updated_at?: string | null
         }
@@ -765,19 +1012,19 @@ export type Database = {
       promo_job_link_kpi: {
         Row: {
           created_at: string | null
-          job_opening_id: string | null
+          job_opening_id: string
           promocion_nombre: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
-          job_opening_id?: string | null
+          job_opening_id: string
           promocion_nombre: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
-          job_opening_id?: string | null
+          job_opening_id?: string
           promocion_nombre?: string
           updated_at?: string | null
         }
@@ -796,14 +1043,22 @@ export type Database = {
             referencedRelation: "v_pipeline_by_opening"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "promo_job_link_promocion_nombre_fkey"
+            columns: ["promocion_nombre"]
+            isOneToOne: false
+            referencedRelation: "promotions_kpi"
+            referencedColumns: ["nombre"]
+          },
         ]
       }
       promo_sheets_kpi: {
         Row: {
           created_at: string | null
+          group_filter: string
           id: string
-          job_opening_id: string | null
           last_synced_at: string | null
+          promocion_nombre: string
           sheet_id: string | null
           sheet_name: string | null
           sheet_url: string
@@ -813,9 +1068,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          group_filter?: string
           id?: string
-          job_opening_id?: string | null
           last_synced_at?: string | null
+          promocion_nombre: string
           sheet_id?: string | null
           sheet_name?: string | null
           sheet_url: string
@@ -825,9 +1081,10 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          group_filter?: string
           id?: string
-          job_opening_id?: string | null
           last_synced_at?: string | null
+          promocion_nombre?: string
           sheet_id?: string | null
           sheet_name?: string | null
           sheet_url?: string
@@ -837,18 +1094,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "promo_sheets_job_opening_id_fkey"
-            columns: ["job_opening_id"]
+            foreignKeyName: "promo_sheets_promocion_nombre_fkey"
+            columns: ["promocion_nombre"]
             isOneToOne: false
-            referencedRelation: "job_openings_kpi"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "promo_sheets_job_opening_id_fkey"
-            columns: ["job_opening_id"]
-            isOneToOne: false
-            referencedRelation: "v_pipeline_by_opening"
-            referencedColumns: ["id"]
+            referencedRelation: "promotions_kpi"
+            referencedColumns: ["nombre"]
           },
         ]
       }
@@ -858,6 +1108,7 @@ export type Database = {
           created_at: string | null
           dropout_date: string | null
           dropout_days_of_training: number | null
+          dropout_interest_future: string | null
           dropout_language_level: string | null
           dropout_modality: string | null
           dropout_notes: string | null
@@ -876,6 +1127,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           promo_sheet_id: string
+          promocion_nombre: string | null
           raw_data: Json | null
           row_number: number | null
           sheet_stage: string | null
@@ -893,6 +1145,7 @@ export type Database = {
           created_at?: string | null
           dropout_date?: string | null
           dropout_days_of_training?: number | null
+          dropout_interest_future?: string | null
           dropout_language_level?: string | null
           dropout_modality?: string | null
           dropout_notes?: string | null
@@ -911,6 +1164,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           promo_sheet_id: string
+          promocion_nombre?: string | null
           raw_data?: Json | null
           row_number?: number | null
           sheet_stage?: string | null
@@ -928,6 +1182,7 @@ export type Database = {
           created_at?: string | null
           dropout_date?: string | null
           dropout_days_of_training?: number | null
+          dropout_interest_future?: string | null
           dropout_language_level?: string | null
           dropout_modality?: string | null
           dropout_notes?: string | null
@@ -946,6 +1201,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           promo_sheet_id?: string
+          promocion_nombre?: string | null
           raw_data?: Json | null
           row_number?: number | null
           sheet_stage?: string | null
@@ -966,79 +1222,14 @@ export type Database = {
             referencedRelation: "promo_sheets_kpi"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "promo_students_promocion_nombre_fkey"
+            columns: ["promocion_nombre"]
+            isOneToOne: false
+            referencedRelation: "promotions_kpi"
+            referencedColumns: ["nombre"]
+          },
         ]
-      }
-      promo_targets_kpi: {
-        Row: {
-          cliente: string | null
-          contratos_firmados: number | null
-          coordinador: string | null
-          created_at: string | null
-          expectativa_finalizan: number | null
-          fecha_fin: string | null
-          fecha_inicio: string | null
-          id: string
-          last_synced_at: string | null
-          modalidad: string | null
-          objetivo_atraccion: number | null
-          objetivo_programa: number | null
-          pais: string | null
-          pct_consecucion_atraccion: number | null
-          pct_consecucion_programa: number | null
-          pct_exito_estimado: number | null
-          promocion: string
-          raw_data: Json | null
-          total_aceptados: number | null
-          total_programa: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          cliente?: string | null
-          contratos_firmados?: number | null
-          coordinador?: string | null
-          created_at?: string | null
-          expectativa_finalizan?: number | null
-          fecha_fin?: string | null
-          fecha_inicio?: string | null
-          id?: string
-          last_synced_at?: string | null
-          modalidad?: string | null
-          objetivo_atraccion?: number | null
-          objetivo_programa?: number | null
-          pais?: string | null
-          pct_consecucion_atraccion?: number | null
-          pct_consecucion_programa?: number | null
-          pct_exito_estimado?: number | null
-          promocion: string
-          raw_data?: Json | null
-          total_aceptados?: number | null
-          total_programa?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          cliente?: string | null
-          contratos_firmados?: number | null
-          coordinador?: string | null
-          created_at?: string | null
-          expectativa_finalizan?: number | null
-          fecha_fin?: string | null
-          fecha_inicio?: string | null
-          id?: string
-          last_synced_at?: string | null
-          modalidad?: string | null
-          objetivo_atraccion?: number | null
-          objetivo_programa?: number | null
-          pais?: string | null
-          pct_consecucion_atraccion?: number | null
-          pct_consecucion_programa?: number | null
-          pct_exito_estimado?: number | null
-          promocion?: string
-          raw_data?: Json | null
-          total_aceptados?: number | null
-          total_programa?: number | null
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       promotion_templates: {
         Row: {
@@ -1102,6 +1293,7 @@ export type Database = {
       promotions_kpi: {
         Row: {
           cliente: string | null
+          contratos_firmados: number | null
           coordinador: string | null
           created_at: string | null
           expectativa_finalizan: number | null
@@ -1115,20 +1307,33 @@ export type Database = {
           objetivo_atraccion: number | null
           objetivo_programa: number | null
           pais: string | null
+          pais_destino: string | null
+          pct_consecucion_atraccion: number | null
+          pct_consecucion_programa: number | null
+          pct_exito_estimado: number | null
           phase: string | null
           raw_data: Json | null
-          sheet_madre_row: number | null
-          sheet_url: string | null
           total_aceptados: number | null
+          total_approved_by_client: number | null
+          total_assigned: number | null
           total_candidates: number | null
           total_dropouts: number | null
+          total_expelled: number | null
           total_hired: number | null
+          total_next_project: number | null
+          total_offer_declined: number | null
+          total_offer_withdrawn: number | null
           total_programa: number | null
+          total_rejected_by_client: number | null
+          total_stand_by: number | null
+          total_to_place: number | null
+          total_training_finished: number | null
+          total_transferred: number | null
           updated_at: string | null
-          zoho_job_opening_id: string | null
         }
         Insert: {
           cliente?: string | null
+          contratos_firmados?: number | null
           coordinador?: string | null
           created_at?: string | null
           expectativa_finalizan?: number | null
@@ -1142,20 +1347,33 @@ export type Database = {
           objetivo_atraccion?: number | null
           objetivo_programa?: number | null
           pais?: string | null
+          pais_destino?: string | null
+          pct_consecucion_atraccion?: number | null
+          pct_consecucion_programa?: number | null
+          pct_exito_estimado?: number | null
           phase?: string | null
           raw_data?: Json | null
-          sheet_madre_row?: number | null
-          sheet_url?: string | null
           total_aceptados?: number | null
+          total_approved_by_client?: number | null
+          total_assigned?: number | null
           total_candidates?: number | null
           total_dropouts?: number | null
+          total_expelled?: number | null
           total_hired?: number | null
+          total_next_project?: number | null
+          total_offer_declined?: number | null
+          total_offer_withdrawn?: number | null
           total_programa?: number | null
+          total_rejected_by_client?: number | null
+          total_stand_by?: number | null
+          total_to_place?: number | null
+          total_training_finished?: number | null
+          total_transferred?: number | null
           updated_at?: string | null
-          zoho_job_opening_id?: string | null
         }
         Update: {
           cliente?: string | null
+          contratos_firmados?: number | null
           coordinador?: string | null
           created_at?: string | null
           expectativa_finalizan?: number | null
@@ -1169,17 +1387,29 @@ export type Database = {
           objetivo_atraccion?: number | null
           objetivo_programa?: number | null
           pais?: string | null
+          pais_destino?: string | null
+          pct_consecucion_atraccion?: number | null
+          pct_consecucion_programa?: number | null
+          pct_exito_estimado?: number | null
           phase?: string | null
           raw_data?: Json | null
-          sheet_madre_row?: number | null
-          sheet_url?: string | null
           total_aceptados?: number | null
+          total_approved_by_client?: number | null
+          total_assigned?: number | null
           total_candidates?: number | null
           total_dropouts?: number | null
+          total_expelled?: number | null
           total_hired?: number | null
+          total_next_project?: number | null
+          total_offer_declined?: number | null
+          total_offer_withdrawn?: number | null
           total_programa?: number | null
+          total_rejected_by_client?: number | null
+          total_stand_by?: number | null
+          total_to_place?: number | null
+          total_training_finished?: number | null
+          total_transferred?: number | null
           updated_at?: string | null
-          zoho_job_opening_id?: string | null
         }
         Relationships: []
       }
@@ -1536,6 +1766,72 @@ export type Database = {
         }
         Relationships: []
       }
+      vacancy_cv_sync_state_kpi: {
+        Row: {
+          last_duration_ms: number
+          last_error: string | null
+          last_sync_at: string
+          last_total_candidates: number
+          status: string
+          updated_at: string
+          vacancy_id: string
+        }
+        Insert: {
+          last_duration_ms?: number
+          last_error?: string | null
+          last_sync_at?: string
+          last_total_candidates?: number
+          status?: string
+          updated_at?: string
+          vacancy_id: string
+        }
+        Update: {
+          last_duration_ms?: number
+          last_error?: string | null
+          last_sync_at?: string
+          last_total_candidates?: number
+          status?: string
+          updated_at?: string
+          vacancy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vacancy_cv_sync_state_kpi_vacancy_id_fkey"
+            columns: ["vacancy_id"]
+            isOneToOne: true
+            referencedRelation: "job_openings_kpi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vacancy_cv_sync_state_kpi_vacancy_id_fkey"
+            columns: ["vacancy_id"]
+            isOneToOne: true
+            referencedRelation: "v_pipeline_by_opening"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vacancy_cv_weekly_kpi: {
+        Row: {
+          candidate_count: number
+          synced_at: string
+          vacancy_id: string
+          week_start: string
+        }
+        Insert: {
+          candidate_count?: number
+          synced_at?: string
+          vacancy_id: string
+          week_start: string
+        }
+        Update: {
+          candidate_count?: number
+          synced_at?: string
+          vacancy_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       vacancy_status_counts_kpi: {
         Row: {
           count: number
@@ -1574,6 +1870,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vacancy_tag_counts_kpi: {
+        Row: {
+          count: number
+          synced_at: string
+          tag: string
+          vacancy_id: string
+        }
+        Insert: {
+          count?: number
+          synced_at?: string
+          tag: string
+          vacancy_id: string
+        }
+        Update: {
+          count?: number
+          synced_at?: string
+          tag?: string
+          vacancy_id?: string
+        }
+        Relationships: []
       }
       webhook_events: {
         Row: {
@@ -1683,7 +2000,8 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      derive_pais_destino: { Args: { title: string }; Returns: string }
+      derive_profesion_tipo: { Args: { title: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
@@ -1816,22 +2134,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
-// ---------------------------------------------------------------------------
-// Convenience type aliases (re-exported for backwards compatibility)
-// ---------------------------------------------------------------------------
-export type JobOpening = Tables<'job_openings_kpi'>
-export type JobOpeningInsert = TablesInsert<'job_openings_kpi'>
-export type Candidate = Tables<'candidates_kpi'>
-export type CandidateInsert = TablesInsert<'candidates_kpi'>
-export type SlaAlert = Tables<'sla_alerts_kpi'>
-export type SyncLog = Tables<'sync_log_kpi'>
-export type StageHistory = Tables<'stage_history_kpi'>
-export type VacancyStatusCount = Tables<'vacancy_status_counts_kpi'>
-
-export type CandidateJobHistory = Tables<'candidate_job_history_kpi'>
-export type PromoSheet = Tables<'promo_sheets_kpi'>
-export type DashboardConfig = Tables<'dashboard_config_kpi'>
-export type Promotion = Tables<'promotions_kpi'>
-export type PromotionInsert = TablesInsert<'promotions_kpi'>
-export type PromotionUpdate = TablesUpdate<'promotions_kpi'>

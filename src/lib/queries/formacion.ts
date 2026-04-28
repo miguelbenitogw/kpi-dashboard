@@ -450,11 +450,11 @@ export interface FormacionCandidateHistory {
 }
 
 export interface FormacionCandidateStageHistory {
-  id: string
-  job_opening_id: string
+  id: number
+  job_opening_id: string | null
   from_status: string | null
-  to_status: string
-  changed_at: string
+  to_status: string | null
+  changed_at: string | null
 }
 
 export interface FormacionCandidateNote {

@@ -187,17 +187,21 @@ function HistoryRow({ candidateId }: { candidateId: string }) {
                           <span className="text-[10px] text-gray-500">→</span>
                         </>
                       )}
-                      <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-300 whitespace-nowrap">
-                        {item.stage.to_status}
-                      </span>
+                      {item.stage.to_status && (
+                        <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-300 whitespace-nowrap">
+                          {item.stage.to_status}
+                        </span>
+                      )}
                     </div>
                     <span className="shrink-0 text-[10px] text-gray-500">
                       {formatDateTime(item.stage.changed_at)}
                     </span>
                   </div>
-                  <p className="mt-1 text-[10px] text-gray-500 truncate">
-                    {item.stage.job_opening_id}
-                  </p>
+                  {item.stage.job_opening_id && (
+                    <p className="mt-1 text-[10px] text-gray-500 truncate">
+                      {item.stage.job_opening_id}
+                    </p>
+                  )}
                 </li>
               ) : (
                 <li key={`note-${item.note.id}`} className="rounded-lg border border-surface-700/60 bg-surface-800/60 px-3 py-2 text-xs">

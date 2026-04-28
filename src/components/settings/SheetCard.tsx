@@ -106,9 +106,9 @@ export default function SheetCard({ sheet, onSync, onDelete }: SheetCardProps) {
           <h3 className="truncate text-sm font-semibold text-gray-100">
             {sheet.sheet_name ?? 'Sin nombre'}
           </h3>
-          {sheet.job_opening_title && (
+          {sheet.promocion_nombre && (
             <p className="mt-0.5 truncate text-xs text-gray-400">
-              Promo: {sheet.job_opening_title}
+              Promo: {sheet.promocion_nombre}
             </p>
           )}
         </div>
