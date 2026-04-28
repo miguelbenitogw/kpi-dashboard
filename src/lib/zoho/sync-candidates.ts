@@ -27,15 +27,17 @@ export interface SyncCandidatesResult {
 }
 
 /**
- * For each active vacancy (es_proceso_atraccion_actual = true) fetch all
- * associated candidates from Zoho Recruit via the /Job_Openings/{id}/associate
- * endpoint and upsert them into candidate_job_history_kpi.
+ * Syncs Zoho candidate data for active vacancies. Does exactly two things:
  *
- * Also:
- *  - Captures candidate tags (Associated_Tags) if present in the response
- *  - Detects status changes and logs them into stage_history_kpi
+ *  1. STATUS CHANGE DETECTION — if a candidate's status in a vacancy changed
+ *     since the last run, logs a row to stage_history_kpi (from_status → to_status).
  *
- * The upsert key is (candidate_id, job_opening_id) so re-running is safe.
+ *  2. CANDIDATE DATA UPDATE — upserts candidate_job_history_kpi for candidates
+ *     that already exist in candidates_kpi (the Madre). Never creates rows for
+ *     candidates outside the Madre.
+ *
+ * Safe to re-run: upsert key is (candidate_id, job_opening_id).
+ * Never overwrites association_type on existing rows.
  */
 export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidatesResult> {
   const errors: string[] = []
@@ -151,13 +153,13 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
       //    New rows get association_type = 'atraccion'.
       //    Existing rows: only update status, name, title and fetched_at — never overwrite association_type.
       const newRows = rows.filter((r) => !prevStatus.has(r.candidate_id))
-      const existingRows = rows
+      const updatedRows = rows
         .filter((r) => prevStatus.has(r.candidate_id))
         .map(({ association_type: _at, ...rest }) => rest)
 
       const allBatches: Array<typeof rows[number] | Omit<typeof rows[number], 'association_type'>>[] = []
       for (let j = 0; j < newRows.length; j += UPSERT_BATCH_SIZE) allBatches.push(newRows.slice(j, j + UPSERT_BATCH_SIZE) as any)
-      for (let j = 0; j < existingRows.length; j += UPSERT_BATCH_SIZE) allBatches.push(existingRows.slice(j, j + UPSERT_BATCH_SIZE) as any)
+      for (let j = 0; j < updatedRows.length; j += UPSERT_BATCH_SIZE) allBatches.push(updatedRows.slice(j, j + UPSERT_BATCH_SIZE) as any)
 
       for (let b = 0; b < allBatches.length; b++) {
         const batch = allBatches[b]
