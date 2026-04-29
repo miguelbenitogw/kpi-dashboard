@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { fetchAssociatedJobOpeningsForCandidate } from '@/lib/zoho/client'
+import { fetchAllCandidatesByJobOpening } from '@/lib/zoho/client'
 import { deriveTipoVacante } from '@/lib/utils/vacancy-type'
 
 export const maxDuration = 300 // 5 minutes — call in chunks, not all at once
 
-const INTER_CANDIDATE_DELAY_MS = 100
-const PREVIEW_MAX = 20
+const INTER_VACANCY_DELAY_MS = 250
+const PREVIEW_MAX = 30
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -15,23 +15,30 @@ function sleep(ms: number): Promise<void> {
 /**
  * GET /api/admin/backfill-atraccion-history
  *
- * One-shot backfill endpoint that fetches each promo candidate's full Zoho
- * job history and classifies associations using tipo_vacante (or deriveTipoVacante
- * as fallback). Supports limit/offset pagination and dryRun mode.
+ * Backfill: for every atracción vacancy, fetches its candidates from Zoho
+ * (using the confirmed-working /Job_Openings/{id}/associate endpoint),
+ * cross-references with promo candidates in Supabase, and upserts matches
+ * into candidate_job_history_kpi with association_type = 'atraccion'.
+ *
+ * Strategy (vacancy-first, not candidate-first):
+ *   - "candidate → their job openings"  endpoint is broken in Zoho Recruit v2
+ *   - "job opening → its candidates"    endpoint (/associate) WORKS
+ *   → iterate atracción vacancies, intersect with promo candidate set
  *
  * Query params:
- *   limit   — candidates to process per call (default 50, max 200)
- *   offset  — pagination cursor (default 0)
+ *   limit   — atracción vacancies to process per call (default 20, max 100)
+ *   offset  — vacancy pagination cursor (default 0)
  *   dryRun  — "true" (default) logs what WOULD be inserted; "false" writes to DB
  *
  * Example:
- *   GET /api/admin/backfill-atraccion-history?limit=50&offset=0&dryRun=true
- *   GET /api/admin/backfill-atraccion-history?limit=50&offset=0&dryRun=false
+ *   GET /api/admin/backfill-atraccion-history?limit=20&offset=0&dryRun=true
+ *   GET /api/admin/backfill-atraccion-history?limit=20&offset=0&dryRun=false
+ *   GET /api/admin/backfill-atraccion-history?limit=20&offset=20&dryRun=false
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
 
-  const limit = Math.min(parseInt(searchParams.get('limit') ?? '50', 10), 200)
+  const limit = Math.min(parseInt(searchParams.get('limit') ?? '20', 10), 100)
   const offset = parseInt(searchParams.get('offset') ?? '0', 10)
   const dryRun = searchParams.get('dryRun') !== 'false' // default true
 
@@ -43,111 +50,113 @@ export async function GET(req: NextRequest) {
     promo: string
     vacancy: string
     tipo: string
+    status: string | null
   }> = []
 
-  // ── 1. Count total promo candidates ─────────────────────────────────────────
-  const { count: totalCandidates, error: countErr } = await supabaseAdmin
-    .from('candidates_kpi')
-    .select('id', { count: 'exact', head: true })
-    .not('promocion_nombre', 'is', null)
-
-  if (countErr) {
-    return NextResponse.json(
-      { error: `Failed to count promo candidates: ${countErr.message}` },
-      { status: 500 }
-    )
-  }
-
-  // ── 2. Fetch candidate batch ─────────────────────────────────────────────────
-  const { data: candidates, error: candidatesErr } = await supabaseAdmin
+  // ── 1. Load all promo candidates into a fast lookup map ─────────────────────
+  // We need this to cross-reference Zoho candidate IDs with our promo list.
+  const { data: promoCandidatesRaw, error: promoCandidatesErr } = await supabaseAdmin
     .from('candidates_kpi')
     .select('id, full_name, promocion_nombre')
     .not('promocion_nombre', 'is', null)
-    .order('id')
-    .range(offset, offset + limit - 1)
 
-  if (candidatesErr) {
+  if (promoCandidatesErr) {
     return NextResponse.json(
-      { error: `Failed to fetch candidates: ${candidatesErr.message}` },
+      { error: `Failed to load promo candidates: ${promoCandidatesErr.message}` },
       { status: 500 }
     )
   }
 
-  const batch = candidates ?? []
-
-  // ── 3. Pre-load all job_openings_kpi for tipo_vacante lookup ─────────────────
-  // Load title + tipo_vacante (if column exists) for all known vacancies.
-  // We cast to any because tipo_vacante was added after the types were generated.
-  const { data: knownVacancies } = await supabaseAdmin
-    .from('job_openings_kpi')
-    .select('id, title')
-
-  // Build a fast lookup map: vacancy id → { title, tipo_vacante }
-  const vacancyMap = new Map<string, { title: string; tipoVacante: string }>(
-    (knownVacancies ?? []).map((v) => {
-      const raw = v as unknown as { id: string; title: string; tipo_vacante?: string | null }
-      return [
-        raw.id,
-        {
-          title: raw.title,
-          tipoVacante: raw.tipo_vacante ?? deriveTipoVacante(raw.title),
-        },
-      ]
-    })
+  const promoCandidates = promoCandidatesRaw ?? []
+  // Map: zoho candidate id → { full_name, promocion_nombre }
+  const promoCandidateMap = new Map<string, { full_name: string | null; promocion_nombre: string }>(
+    promoCandidates
+      .filter((c): c is typeof c & { promocion_nombre: string } => !!c.promocion_nombre)
+      .map((c) => [c.id, { full_name: c.full_name, promocion_nombre: c.promocion_nombre }])
   )
+
+  // ── 2. Fetch atracción vacancies batch ──────────────────────────────────────
+  // Cast to any because tipo_vacante was added after types were generated.
+  const { data: vacanciesRaw, count: totalAtraccionVacancies, error: vacanciesErr } =
+    await (supabaseAdmin as any)
+      .from('job_openings_kpi')
+      .select('id, title, tipo_vacante', { count: 'exact' })
+      .eq('tipo_vacante', 'atraccion')
+      .order('id')
+      .range(offset, offset + limit - 1)
+
+  if (vacanciesErr) {
+    return NextResponse.json(
+      { error: `Failed to fetch atracción vacancies: ${vacanciesErr.message}` },
+      { status: 500 }
+    )
+  }
+
+  const vacancyBatch = (vacanciesRaw ?? []) as Array<{
+    id: string
+    title: string
+    tipo_vacante: string
+  }>
 
   const fetchedAt = new Date().toISOString()
 
-  // ── 4. For each candidate, fetch Zoho job associations ──────────────────────
-  for (let i = 0; i < batch.length; i++) {
-    const candidate = batch[i]
+  // ── 3. For each vacancy, fetch its candidates from Zoho ────────────────────
+  for (let i = 0; i < vacancyBatch.length; i++) {
+    const vacancy = vacancyBatch[i]
 
-    let zohoJobOpenings: Array<{
-      id: string
-      title: string
-      status: string | null
-    }>
+    let zohoCandiates: Record<string, unknown>[]
 
     try {
-      zohoJobOpenings = await fetchAssociatedJobOpeningsForCandidate(candidate.id)
+      // fetchAllCandidatesByJobOpening uses /Job_Openings/{id}/associate — CONFIRMED WORKING
+      zohoCandiates = await fetchAllCandidatesByJobOpening(vacancy.id)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      errors.push(`Candidate ${candidate.id} (${candidate.full_name ?? ''}): ${msg}`)
-      if (i < batch.length - 1) await sleep(INTER_CANDIDATE_DELAY_MS)
+      errors.push(`Vacancy ${vacancy.id} (${vacancy.title}): ${msg}`)
+      if (i < vacancyBatch.length - 1) await sleep(INTER_VACANCY_DELAY_MS)
       continue
     }
 
-    if (zohoJobOpenings.length === 0) {
+    if (zohoCandiates.length === 0) {
       skipped++
-      if (i < batch.length - 1) await sleep(INTER_CANDIDATE_DELAY_MS)
+      if (i < vacancyBatch.length - 1) await sleep(INTER_VACANCY_DELAY_MS)
       continue
     }
 
-    // ── 5. For each job opening, resolve tipo_vacante ────────────────────────
-    for (const jo of zohoJobOpenings) {
-      const knownVacancy = vacancyMap.get(jo.id)
-      const jobOpeningTitle = knownVacancy?.title ?? jo.title
-      const tipoVacante = knownVacancy?.tipoVacante ?? deriveTipoVacante(jo.title)
+    // ── 4. Cross-reference: only process promo candidates ──────────────────
+    for (const zohoCandidate of zohoCandiates) {
+      const candidateId = String(zohoCandidate.id ?? zohoCandidate.Candidate_ID ?? '')
+      if (!candidateId) continue
+
+      const promoCandidate = promoCandidateMap.get(candidateId)
+      if (!promoCandidate) continue // not a promo candidate — skip
+
+      const candidateStatusInJo =
+        (zohoCandidate.Candidate_Status as string) ??
+        (zohoCandidate.Candidate_Stage as string) ??
+        null
+
+      const tipoVacante = vacancy.tipo_vacante ?? deriveTipoVacante(vacancy.title)
 
       if (preview.length < PREVIEW_MAX) {
         preview.push({
-          candidate: candidate.full_name ?? candidate.id,
-          promo: candidate.promocion_nombre ?? '',
-          vacancy: jobOpeningTitle,
+          candidate: promoCandidate.full_name ?? candidateId,
+          promo: promoCandidate.promocion_nombre,
+          vacancy: vacancy.title,
           tipo: tipoVacante,
+          status: candidateStatusInJo,
         })
       }
 
-      // ── 6. Upsert (only when dryRun = false) ─────────────────────────────
+      // ── 5. Upsert (only when dryRun = false) ───────────────────────────
       if (!dryRun) {
         const row = {
-          candidate_id: candidate.id,
-          candidate_name: candidate.full_name ?? null,
-          zoho_record_id: candidate.id,
-          job_opening_id: jo.id,
-          job_opening_title: jobOpeningTitle,
-          association_type: tipoVacante,
-          candidate_status_in_jo: jo.status ?? null,
+          candidate_id: candidateId,
+          candidate_name: promoCandidate.full_name ?? null,
+          zoho_record_id: candidateId,
+          job_opening_id: vacancy.id,
+          job_opening_title: vacancy.title,
+          association_type: tipoVacante, // 'atraccion' for all these vacancies
+          candidate_status_in_jo: candidateStatusInJo,
           fetched_at: fetchedAt,
         }
 
@@ -160,7 +169,7 @@ export async function GET(req: NextRequest) {
 
         if (upsertErr) {
           errors.push(
-            `Upsert failed for candidate ${candidate.id} / vacancy ${jo.id}: ${upsertErr.message}`
+            `Upsert failed for candidate ${candidateId} / vacancy ${vacancy.id}: ${upsertErr.message}`
           )
         } else {
           inserted++
@@ -171,18 +180,19 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    if (i < batch.length - 1) await sleep(INTER_CANDIDATE_DELAY_MS)
+    if (i < vacancyBatch.length - 1) await sleep(INTER_VACANCY_DELAY_MS)
   }
 
-  const processed = batch.length
+  const processed = vacancyBatch.length
   const nextOffset = offset + processed
-  const hasMore = nextOffset < (totalCandidates ?? 0)
+  const hasMore = nextOffset < (totalAtraccionVacancies ?? 0)
 
   return NextResponse.json({
     processed,
     offset,
     nextOffset,
-    totalCandidates: totalCandidates ?? 0,
+    totalAtraccionVacancies: totalAtraccionVacancies ?? 0,
+    totalPromoCandidates: promoCandidateMap.size,
     hasMore,
     inserted,
     skipped,
