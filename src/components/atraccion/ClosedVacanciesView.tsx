@@ -252,14 +252,14 @@ export default function ClosedVacanciesView() {
 
   // Tags to display in chart:
   // - if any selected → aggregate of those vacancies only
-  // - otherwise → aggregate of all in view
-  const selectedVacancies = vacanciesInView.filter((v) => selectedIds.has(v.id))
+  // - otherwise → aggregate of filtered vacancies (respects country + tag + search filters)
+  const selectedVacancies = filteredVacancies.filter((v) => selectedIds.has(v.id))
   const tagsInView =
     selectedIds.size > 0
       ? aggregateTags(selectedVacancies)
-      : selectedYear === 'all'
+      : selectedYear === 'all' && selectedCountry === 'Todos' && selectedTags.size === 0 && !searchLower
         ? data.allTags
-        : aggregateTags(vacanciesInView)
+        : aggregateTags(filteredVacancies)
 
   // Top 30 tags sorted descending
   const topTags = Object.entries(tagsInView)
