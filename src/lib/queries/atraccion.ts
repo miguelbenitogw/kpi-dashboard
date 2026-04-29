@@ -1331,6 +1331,132 @@ export async function getClosedVacancyCvsHistoryByVacancy(
   })
 }
 
+// ---------------------------------------------------------------------------
+// Promo ↔ Vacancy classification links
+// ---------------------------------------------------------------------------
+
+export interface PromoVacancyLink {
+  id: string
+  promo_nombre: string
+  vacancy_id: string
+  vacancy_title: string | null
+  tipo: 'atraccion' | 'formacion'
+  created_at: string
+}
+
+/** Get all links for a given promo, enriched with vacancy title from job_openings_kpi */
+export async function getPromoVacancyLinks(promoNombre: string): Promise<PromoVacancyLink[]> {
+  const { data: links, error } = await (supabase as any)
+    .from('promo_vacancy_links')
+    .select('id, promo_nombre, vacancy_id, tipo, created_at')
+    .eq('promo_nombre', promoNombre)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('[atraccion] getPromoVacancyLinks error:', error)
+    return []
+  }
+
+  const rows = (links ?? []) as { id: string; promo_nombre: string; vacancy_id: string; tipo: string; created_at: string }[]
+  if (rows.length === 0) return []
+
+  const vacancyIds = rows.map((r) => r.vacancy_id)
+  const { data: vacancies, error: vacError } = await (supabase as any)
+    .from('job_openings_kpi')
+    .select('id, title')
+    .in('id', vacancyIds)
+
+  if (vacError) {
+    console.error('[atraccion] getPromoVacancyLinks vacancy titles error:', vacError)
+  }
+
+  const titleMap = new Map<string, string>()
+  for (const v of (vacancies ?? []) as { id: string; title: string | null }[]) {
+    titleMap.set(v.id, v.title ?? '')
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    promo_nombre: r.promo_nombre,
+    vacancy_id: r.vacancy_id,
+    vacancy_title: titleMap.get(r.vacancy_id) ?? null,
+    tipo: r.tipo as 'atraccion' | 'formacion',
+    created_at: r.created_at,
+  }))
+}
+
+/** Add a link between a promo and a vacancy */
+export async function addPromoVacancyLink(
+  promoNombre: string,
+  vacancyId: string,
+  tipo: 'atraccion' | 'formacion',
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await (supabase as any)
+    .from('promo_vacancy_links')
+    .insert({ promo_nombre: promoNombre, vacancy_id: vacancyId, tipo })
+
+  if (error) {
+    console.error('[atraccion] addPromoVacancyLink error:', error)
+    return { success: false, error: error.message }
+  }
+  return { success: true }
+}
+
+/** Remove a link by its id */
+export async function removePromoVacancyLink(linkId: string): Promise<{ success: boolean }> {
+  const { error } = await (supabase as any)
+    .from('promo_vacancy_links')
+    .delete()
+    .eq('id', linkId)
+
+  if (error) {
+    console.error('[atraccion] removePromoVacancyLink error:', error)
+    return { success: false }
+  }
+  return { success: true }
+}
+
+/**
+ * Get all active atracción vacancies not yet linked to the given promo.
+ * Used to populate the vacancy picker when adding a new link.
+ */
+export async function getUnlinkedAtraccionVacancies(
+  promoNombre: string,
+): Promise<{ id: string; title: string }[]> {
+  // Fetch all active atracción vacancies
+  const { data: vacancies, error: vacError } = await (supabase as any)
+    .from('job_openings_kpi')
+    .select('id, title')
+    .eq('es_proceso_atraccion_actual', true)
+    .order('title', { ascending: true })
+
+  if (vacError) {
+    console.error('[atraccion] getUnlinkedAtraccionVacancies vacancies error:', vacError)
+    return []
+  }
+
+  const allVacancies = (vacancies ?? []) as { id: string; title: string | null }[]
+  if (allVacancies.length === 0) return []
+
+  // Fetch already-linked vacancy ids for this promo
+  const { data: linked, error: linkedError } = await (supabase as any)
+    .from('promo_vacancy_links')
+    .select('vacancy_id')
+    .eq('promo_nombre', promoNombre)
+
+  if (linkedError) {
+    console.error('[atraccion] getUnlinkedAtraccionVacancies linked error:', linkedError)
+  }
+
+  const linkedIds = new Set(
+    ((linked ?? []) as { vacancy_id: string }[]).map((r) => r.vacancy_id),
+  )
+
+  return allVacancies
+    .filter((v) => !linkedIds.has(v.id))
+    .map((v) => ({ id: v.id, title: v.title ?? 'Sin título' }))
+}
+
 export async function getAtraccionVacancies(): Promise<AtraccionVacancy[]> {
   // Only show vacancies tagged “Proceso atracciÃ³n actual” â€” the ~20 active
   // recruitment processes. This is the source of truth for what's actively

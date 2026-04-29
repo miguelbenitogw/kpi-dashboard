@@ -6,6 +6,8 @@ import RetentionOverview from '@/components/formacion/RetentionOverview'
 import FormacionGraficos from '@/components/formacion/FormacionGraficos'
 import PromoVistaGeneral from '@/components/formacion/PromoVistaGeneral'
 import CandidatosFormacionView from '@/components/formacion/CandidatosFormacionView'
+import PromoVacancyDistributionChart from '@/components/formacion/PromoVacancyDistributionChart'
+import PromoVacancyLinksManager from '@/components/formacion/PromoVacancyLinksManager'
 
 export default function FormacionPage() {
   const [selectedPromos, setSelectedPromos] = useState<string[]>([])
@@ -90,6 +92,19 @@ export default function FormacionPage() {
           {/* Panel principal — Formación */}
           <div style={{ width: '50%', minWidth: 0 }}>
             <FormacionGraficos promoNombres={activeFilter} />
+
+            {hasSelection && (
+              <div style={{ marginTop: '24px' }}>
+                <PromoVacancyDistributionChart promoNombre={selectedPromos[0]} />
+              </div>
+            )}
+
+            {/* Vacancy classification: wire formación/atracción links per promo */}
+            {hasSelection && (
+              <div style={{ marginTop: '24px' }}>
+                <PromoVacancyLinksManager promoNombre={selectedPromos[0]} />
+              </div>
+            )}
 
             <div style={{ marginTop: '24px' }}>
               <h2
