@@ -102,10 +102,13 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
       )
 
       // 5. Transform records — skip any candidate not in the Madre
+      // candidates_kpi.id = Candidate_ID (short sequential, e.g. "88082"),
+      // NOT the internal Zoho record id (long, e.g. "179458000031006174").
+      // Use Candidate_ID for matching; keep internal id in zoho_record_id.
       const rows = zohoRecords
-        .filter((record) => madreCandidateIds.has(String(record.id)))
+        .filter((record) => madreCandidateIds.has(String(record.Candidate_ID ?? record.id)))
         .map((record) => ({
-        candidate_id: String(record.id),
+        candidate_id: String(record.Candidate_ID ?? record.id),
         candidate_name: (record.Full_Name as string) || null,
         zoho_record_id: String(record.id),
         job_opening_id: vacancy.id,

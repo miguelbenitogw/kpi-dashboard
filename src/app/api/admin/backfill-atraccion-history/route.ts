@@ -124,7 +124,10 @@ export async function GET(req: NextRequest) {
 
     // ── 4. Cross-reference: only process promo candidates ──────────────────
     for (const zohoCandidate of zohoCandiates) {
-      const candidateId = String(zohoCandidate.id ?? zohoCandidate.Candidate_ID ?? '')
+      // candidates_kpi.id stores Candidate_ID (short sequential, e.g. "88082"),
+      // NOT the internal Zoho record id (long 18-digit, e.g. "179458000031006174").
+      // Always prefer Candidate_ID for matching against candidates_kpi.id.
+      const candidateId = String(zohoCandidate.Candidate_ID ?? zohoCandidate.id ?? '')
       if (!candidateId) continue
 
       const promoCandidate = promoCandidateMap.get(candidateId)
@@ -150,12 +153,12 @@ export async function GET(req: NextRequest) {
       // ── 5. Upsert (only when dryRun = false) ───────────────────────────
       if (!dryRun) {
         const row = {
-          candidate_id: candidateId,
+          candidate_id: candidateId,                                    // Candidate_ID (short)
           candidate_name: promoCandidate.full_name ?? null,
-          zoho_record_id: candidateId,
+          zoho_record_id: String(zohoCandidate.id ?? candidateId),      // internal id (long)
           job_opening_id: vacancy.id,
           job_opening_title: vacancy.title,
-          association_type: tipoVacante, // 'atraccion' for all these vacancies
+          association_type: tipoVacante,
           candidate_status_in_jo: candidateStatusInJo,
           fetched_at: fetchedAt,
         }
