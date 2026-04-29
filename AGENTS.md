@@ -17,3 +17,27 @@ This version has breaking changes — APIs, conventions, and file structure may 
 The main agent coordinates. Sub-agents do the work and return concise summaries.
 Never read large files inline when a sub-agent can do it and report back.
 <!-- END:context-management -->
+
+## Ideas clave pendientes de implementar
+
+### 1. Sistema de clasificación de vacantes: formación vs atracción
+Cada vacante de Zoho se clasifica como `atraccion` o `formacion`. Para una promoción se asocian:
+- **Vacantes de atracción** — procesos reales de reclutamiento, cuentan en KPIs de atracción
+- **Vacantes de formación** — entradas de Zoho que representan la formación interna; se excluyen de los conteos de reclutamiento y se tracean por separado
+
+**Insight clave**: Las vacantes de formación de Zoho son el mismo concepto que las promociones (`promotions_kpi`), pero guardadas en sistemas distintos. El puente es una capa de clasificación — no duplicar lógica.
+
+Implementación prevista:
+- Nueva tabla en Supabase: `promo_vacancy_links` (promo_id, vacancy_id, type: 'atraccion' | 'formacion')
+- UI en el dashboard para asociar vacantes a promos y marcar su tipo
+- Queries de atracción filtran `type = 'atraccion'` para excluir formación de métricas
+- Las tasas de éxito de formación se calculan y muestran por separado
+
+### 2. Gráfico de vacantes de atracción por promoción
+Cuando el usuario selecciona una promoción, mostrar un gráfico con el total de alumnos de esa promo por vacante de atracción en la que estuvieron.
+
+Fuente de datos: cruce de `candidates_kpi.promocion_nombre` × `candidate_job_history_kpi.job_opening_id`
+
+Resultado: gráfico de barras/torta — "Promo 113 → 30 en Infirmiers pour la Norvège, 10 en Enfermeros Bélgica, 5 en Auxiliares Holanda"
+
+**Por qué empezar por esto**: Los datos ya existen, no requiere schema nuevo. Es una query + componente. Además sirve como mapa para saber qué vacantes clasificar en la Idea 1.
