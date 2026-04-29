@@ -76,12 +76,15 @@ export async function GET(req: NextRequest) {
   )
 
   // ── 2. Fetch atracción vacancies batch ──────────────────────────────────────
-  // Cast to any because tipo_vacante was added after types were generated.
+  // Exclude BBDD (talent pools) — they have 1000s of candidates but promo
+  // candidates are never associated through talent pools. Including them
+  // causes timeouts without any benefit.
   const { data: vacanciesRaw, count: totalAtraccionVacancies, error: vacanciesErr } =
     await (supabaseAdmin as any)
       .from('job_openings_kpi')
       .select('id, title, tipo_vacante', { count: 'exact' })
       .eq('tipo_vacante', 'atraccion')
+      .not('title', 'ilike', 'BBDD%')
       .order('id')
       .range(offset, offset + limit - 1)
 

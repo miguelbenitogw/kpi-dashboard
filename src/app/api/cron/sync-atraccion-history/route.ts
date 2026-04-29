@@ -75,10 +75,13 @@ export async function GET(request: NextRequest) {
     // Active vacancies + those opened in the last 90 days (recently closed)
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
+    // Exclude BBDD talent pools — they have 1000s of candidates, cause timeouts,
+    // and promo candidates are never associated through talent pools.
     const { data: vacanciesRaw, error: vacanciesErr } = await (supabaseAdmin as any)
       .from('job_openings_kpi')
       .select('id, title, tipo_vacante, is_active, date_opened')
       .eq('tipo_vacante', 'atraccion')
+      .not('title', 'ilike', 'BBDD%')
       .or(`is_active.eq.true,date_opened.gte.${ninetyDaysAgo}`)
       .order('date_opened', { ascending: false })
 
