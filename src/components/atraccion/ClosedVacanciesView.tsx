@@ -377,6 +377,45 @@ export default function ClosedVacanciesView() {
         </div>
       )}
 
+      {/* % Éxito summary stat for filtered vacancies */}
+      {(() => {
+        const withCandidates = filteredVacancies.filter((v) => v.total_candidates > 0)
+        if (withCandidates.length === 0) return null
+        const totalSuccess = withCandidates.reduce(
+          (sum, v) => sum + v.hired_count + (v.byStatus['Approved by client'] ?? 0),
+          0,
+        )
+        const totalCandidates = withCandidates.reduce((sum, v) => sum + v.total_candidates, 0)
+        const rate = Math.round((totalSuccess / totalCandidates) * 1000) / 10
+        const color = rate >= 15 ? '#16a34a' : rate >= 8 ? '#d97706' : '#9ca3af'
+        const bgColor = rate >= 15 ? '#f0fdf4' : rate >= 8 ? '#fffbeb' : '#f9fafb'
+        const borderColor = rate >= 15 ? '#bbf7d0' : rate >= 8 ? '#fde68a' : '#e5e7eb'
+        return (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 10,
+              background: bgColor,
+              border: `1px solid ${borderColor}`,
+              borderRadius: 8,
+              padding: '6px 12px',
+              fontSize: 12,
+            }}
+          >
+            <span style={{ color: '#6b7280', fontWeight: 500 }}>% Éxito selección:</span>
+            <span style={{ color, fontWeight: 700, fontSize: 15 }}>
+              {rate.toLocaleString('es-AR')}%
+            </span>
+            <span style={{ color: '#9ca3af', fontSize: 11 }}>
+              →{' '}
+              {totalSuccess.toLocaleString('es-AR')} éxitos de{' '}
+              {totalCandidates.toLocaleString('es-AR')} CVs
+            </span>
+          </div>
+        )
+      })()}
+
       {/* FR / CP / GW breakdown charts */}
       {hasTagData && (() => {
         const prefixTagList = Object.entries(tagsInView).map(([tag, count]) => ({ tag, count }))

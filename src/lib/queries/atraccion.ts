@@ -541,7 +541,7 @@ export async function getConversionRates(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any)
     .from('job_openings_kpi')
-    .select('id, total_candidates')
+    .select('id, total_candidates, hired_count')
     .eq('es_proceso_atraccion_actual', active)
 
   if (tipoProfesional) {
@@ -562,11 +562,14 @@ export async function getConversionRates(
     return EMPTY
   }
 
-  const vacList = (vacancies ?? []) as { id: string; total_candidates: number }[]
+  const vacList = (vacancies ?? []) as { id: string; total_candidates: number; hired_count: number }[]
   if (vacList.length === 0) return EMPTY
 
   const totalCVs = vacList.reduce((sum, row) => sum + (row.total_candidates ?? 0), 0)
   if (totalCVs === 0) return EMPTY
+
+  // hired_count from job_openings_kpi is always accurate (synced from Zoho)
+  const totalHired = vacList.reduce((sum, row) => sum + (row.hired_count ?? 0), 0)
 
   const ids = vacList.map((v) => v.id)
 
@@ -581,14 +584,17 @@ export async function getConversionRates(
     return EMPTY
   }
 
-  let approved = 0
+  let approvedByClient = 0
   let contacted = 0
 
   for (const row of (statusRows ?? []) as { status: string; count: number }[]) {
     const cnt = row.count ?? 0
-    if (row.status === 'Approved by client') approved += cnt
+    if (row.status === 'Approved by client') approvedByClient += cnt
     if (!NOT_CONTACTED_STATUSES.includes(row.status)) contacted += cnt
   }
+
+  // Success = approved by client + hired (consistent with % Éxito in tables)
+  const approved = approvedByClient + totalHired
 
   const cvToApproved =
     totalCVs > 0 ? Math.round((approved / totalCVs) * 10000) / 100 : 0

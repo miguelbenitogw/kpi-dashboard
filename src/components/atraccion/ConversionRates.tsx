@@ -188,12 +188,12 @@ export default function ConversionRates() {
             {
               title: '% Conversión vs CVs',
               rate: rates.cvToApproved,
-              detail: `${rates.approved.toLocaleString('es-AR')} aprobados de ${rates.totalCVs.toLocaleString('es-AR')} CVs`,
+              detail: `${rates.approved.toLocaleString('es-AR')} aprobados/contratados de ${rates.totalCVs.toLocaleString('es-AR')} CVs`,
             },
             {
               title: '% Conversión vs Contactados',
               rate: rates.contactedToApproved,
-              detail: `${rates.approved.toLocaleString('es-AR')} aprobados de ${rates.contacted.toLocaleString('es-AR')} contactados`,
+              detail: `${rates.approved.toLocaleString('es-AR')} aprobados/contratados de ${rates.contacted.toLocaleString('es-AR')} contactados`,
             },
           ].map(({ title, rate, detail }) => {
             const { color, label } = rateStatus(rate)
