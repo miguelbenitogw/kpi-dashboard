@@ -761,6 +761,132 @@ export async function getFormacionCandidateStageHistory(
   return data ?? []
 }
 
+// ---------------------------------------------------------------------------
+// Atracción vacancy distribution per promo
+// ---------------------------------------------------------------------------
+
+export interface VacancyDistributionRow {
+  vacancyId: string
+  vacancyTitle: string
+  studentCount: number
+  pais_destino: string | null
+  tipo_profesional: string | null
+}
+
+/**
+ * Returns how many students from a given promo were associated with each
+ * atracción vacancy, sorted by student count descending.
+ *
+ * Query logic:
+ *   candidates_kpi WHERE promocion_nombre = promoNombre
+ *   JOIN candidate_job_history_kpi ON candidate_id
+ *   WHERE association_type = 'atraccion'
+ *   GROUP BY job_opening_id, job_opening_title
+ *   ORDER BY count DESC
+ */
+export async function getVacancyDistributionByPromo(
+  promoNombre: string,
+): Promise<VacancyDistributionRow[]> {
+  // Step 1 — get all candidate IDs in this promo
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: candidateRows, error: candidateError } = await (supabase as any)
+    .from('candidates_kpi')
+    .select('id')
+    .eq('promocion_nombre', promoNombre) as {
+      data: Array<{ id: string }> | null
+      error: unknown
+    }
+
+  if (candidateError) {
+    console.error('Error fetching candidates for promo:', candidateError)
+    return []
+  }
+
+  const candidateIds = (candidateRows ?? []).map((r) => r.id)
+  if (candidateIds.length === 0) return []
+
+  // Step 2 — get atracción job history for those candidates
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: historyRows, error: historyError } = await (supabase as any)
+    .from('candidate_job_history_kpi')
+    .select('candidate_id, job_opening_id, job_opening_title')
+    .in('candidate_id', candidateIds)
+    .eq('association_type', 'atraccion') as {
+      data: Array<{
+        candidate_id: string
+        job_opening_id: string | null
+        job_opening_title: string | null
+      }> | null
+      error: unknown
+    }
+
+  if (historyError) {
+    console.error('Error fetching job history:', historyError)
+    return []
+  }
+
+  // Step 3 — aggregate: one row per (job_opening_id, job_opening_title),
+  //           count unique candidate_ids to avoid double-counting if the same
+  //           candidate appears more than once in a vacancy.
+  const vacancyMap = new Map<
+    string,
+    { title: string; candidateIds: Set<string> }
+  >()
+
+  for (const row of historyRows ?? []) {
+    if (!row.job_opening_id) continue
+    const key = row.job_opening_id
+    if (!vacancyMap.has(key)) {
+      vacancyMap.set(key, {
+        title: row.job_opening_title ?? row.job_opening_id,
+        candidateIds: new Set(),
+      })
+    }
+    vacancyMap.get(key)!.candidateIds.add(row.candidate_id)
+  }
+
+  // Step 4 — build result rows, sorted by count desc
+  const rows: VacancyDistributionRow[] = Array.from(vacancyMap.entries()).map(
+    ([vacancyId, { title, candidateIds: ids }]) => ({
+      vacancyId,
+      vacancyTitle: title,
+      studentCount: ids.size,
+      pais_destino: null,   // enriched from job_openings_kpi below if available
+      tipo_profesional: null,
+    }),
+  )
+
+  // Step 5 — optional enrichment from job_openings_kpi (pais_destino, tipo_profesional)
+  const vacancyIds = rows.map((r) => r.vacancyId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: joRows } = await (supabase as any)
+    .from('job_openings_kpi')
+    .select('id, pais_destino, tipo_profesional')
+    .in('id', vacancyIds) as {
+      data: Array<{
+        id: string
+        pais_destino: string | null
+        tipo_profesional: string | null
+      }> | null
+      error: unknown
+    }
+
+  const joMap = new Map<string, { pais_destino: string | null; tipo_profesional: string | null }>()
+  for (const jo of joRows ?? []) {
+    joMap.set(jo.id, { pais_destino: jo.pais_destino, tipo_profesional: jo.tipo_profesional })
+  }
+
+  for (const row of rows) {
+    const jo = joMap.get(row.vacancyId)
+    if (jo) {
+      row.pais_destino = jo.pais_destino
+      row.tipo_profesional = jo.tipo_profesional
+    }
+  }
+
+  return rows.sort((a, b) => b.studentCount - a.studentCount)
+}
+
 /** Returns notes timeline for a candidate, ordered by created_at DESC. */
 export async function getFormacionCandidateNotes(
   candidateId: string,
