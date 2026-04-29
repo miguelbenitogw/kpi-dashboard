@@ -379,7 +379,7 @@ export default function ClosedVacanciesView() {
 
       {/* % Éxito summary stat for filtered vacancies */}
       {(() => {
-        const withCandidates = filteredVacancies.filter((v) => v.total_candidates > 0)
+        const withCandidates = filteredVacancies.filter((v) => v.total_candidates > 0 || v.hired_count > 0)
         if (withCandidates.length === 0) return null
         const totalSuccess = withCandidates.reduce(
           (sum, v) => sum + v.hired_count + (v.byStatus['Approved by client'] ?? 0),
