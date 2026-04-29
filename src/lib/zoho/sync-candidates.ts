@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../supabase/server'
-import { fetchAllCandidatesByJobOpening } from './client'
+import { fetchAllCandidatesByJobOpening, fetchAssociatedJobOpeningsForCandidate } from './client'
+import { deriveTipoVacante } from '../utils/vacancy-type'
 
 const UPSERT_BATCH_SIZE = 100
 /** Milliseconds to wait between per-vacancy Zoho API calls to stay well under rate limits */
@@ -193,4 +194,104 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
     api_calls: apiCalls,
     errors,
   }
+}
+
+export interface SyncAtraccionHistoryResult {
+  candidate_id: string
+  inserted: number
+  errors: string[]
+}
+
+/**
+ * Fetches the full Zoho job history for a single promo candidate and upserts
+ * their atraccion associations into candidate_job_history_kpi.
+ *
+ * Call this when a candidate is added to a promotion so their pre-formacion
+ * atraccion history is captured immediately, without waiting for the backfill.
+ *
+ * This function is intentionally NOT called automatically — wire it in explicitly
+ * from whatever flow assigns a candidate to a promo.
+ *
+ * @param candidateId — the candidate's ID in candidates_kpi (same as Zoho record ID)
+ */
+export async function syncAtraccionHistoryForPromoCandidate(
+  candidateId: string
+): Promise<SyncAtraccionHistoryResult> {
+  const errors: string[] = []
+  let inserted = 0
+
+  // Fetch candidate details for name
+  const { data: candidate } = await supabaseAdmin
+    .from('candidates_kpi')
+    .select('id, full_name')
+    .eq('id', candidateId)
+    .single()
+
+  // Fetch job openings from Zoho for this candidate
+  let zohoJobOpenings: Awaited<ReturnType<typeof fetchAssociatedJobOpeningsForCandidate>>
+  try {
+    zohoJobOpenings = await fetchAssociatedJobOpeningsForCandidate(candidateId)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    errors.push(`Zoho fetch failed: ${msg}`)
+    return { candidate_id: candidateId, inserted, errors }
+  }
+
+  if (zohoJobOpenings.length === 0) {
+    return { candidate_id: candidateId, inserted, errors }
+  }
+
+  // Pre-load known vacancies for tipo_vacante resolution
+  const vacancyIds = zohoJobOpenings.map((jo) => jo.id)
+  const { data: knownVacancies } = await supabaseAdmin
+    .from('job_openings_kpi')
+    .select('id, title')
+    .in('id', vacancyIds)
+
+  const vacancyMap = new Map(
+    (knownVacancies ?? []).map((v) => {
+      const raw = v as unknown as { id: string; title: string; tipo_vacante?: string | null }
+      return [
+        raw.id,
+        {
+          title: raw.title,
+          tipoVacante: raw.tipo_vacante ?? deriveTipoVacante(raw.title),
+        },
+      ]
+    })
+  )
+
+  const fetchedAt = new Date().toISOString()
+
+  for (const jo of zohoJobOpenings) {
+    const knownVacancy = vacancyMap.get(jo.id)
+    const jobOpeningTitle = knownVacancy?.title ?? jo.title
+    const tipoVacante = knownVacancy?.tipoVacante ?? deriveTipoVacante(jo.title)
+
+    const row = {
+      candidate_id: candidateId,
+      candidate_name: candidate?.full_name ?? null,
+      zoho_record_id: candidateId,
+      job_opening_id: jo.id,
+      job_opening_title: jobOpeningTitle,
+      association_type: tipoVacante,
+      candidate_status_in_jo: jo.status ?? null,
+      fetched_at: fetchedAt,
+    }
+
+    const { error: upsertErr } = await supabaseAdmin
+      .from('candidate_job_history_kpi')
+      .upsert(row, {
+        onConflict: 'candidate_id,job_opening_id',
+        ignoreDuplicates: false,
+      })
+
+    if (upsertErr) {
+      errors.push(`Upsert failed for vacancy ${jo.id}: ${upsertErr.message}`)
+    } else {
+      inserted++
+    }
+  }
+
+  return { candidate_id: candidateId, inserted, errors }
 }

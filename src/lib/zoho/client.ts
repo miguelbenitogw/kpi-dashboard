@@ -350,3 +350,78 @@ export async function fetchCandidateNotes(
     )
   }
 }
+
+export interface AssociatedJobOpening {
+  id: string
+  title: string
+  status: string | null
+}
+
+/**
+ * Fetches all job openings associated to a specific candidate from Zoho Recruit.
+ *
+ * Zoho Recruit v2 endpoint:
+ *   GET /Candidates/{candidateId}/Associate_Job_Openings
+ *
+ * Returns the list of job openings the candidate has been associated with,
+ * including closed/historical ones — not just active vacancies.
+ *
+ * Used by the backfill endpoint to recover atraccion history for promo candidates.
+ */
+export async function fetchAssociatedJobOpeningsForCandidate(
+  candidateId: string
+): Promise<AssociatedJobOpening[]> {
+  const allJobOpenings: AssociatedJobOpening[] = []
+  let page = 1
+  let hasMore = true
+
+  while (hasMore) {
+    let response: ZohoListResponse<Record<string, unknown>>
+
+    try {
+      response = await zohoFetch<ZohoListResponse<Record<string, unknown>>>(
+        `/Candidates/${candidateId}/Associate_Job_Openings`,
+        {
+          per_page: String(MAX_PER_PAGE),
+          page: String(page),
+        }
+      )
+    } catch (error) {
+      // 204 / empty body means no associations — return what we have
+      if (
+        error instanceof Error &&
+        (error.message.includes('204') ||
+          error.message.includes('No Content') ||
+          error.message.includes('no data'))
+      ) {
+        break
+      }
+      throw new Error(
+        `Failed to fetch job openings for candidate ${candidateId}: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+
+    const records = response.data ?? []
+    for (const record of records) {
+      // The associated record shape: { id, Job_Opening_Name, Job_Opening_Status, ... }
+      const id = String(record.id ?? record.Job_Opening_ID ?? '')
+      const title = String(
+        record.Job_Opening_Name ?? record.Posting_Title ?? record.id ?? ''
+      )
+      const status = (record.Job_Opening_Status as string) ?? null
+
+      if (id) {
+        allJobOpenings.push({ id, title, status })
+      }
+    }
+
+    hasMore = response.info?.more_records ?? false
+    page++
+
+    if (hasMore) {
+      await sleep(RATE_LIMIT_DELAY_MS)
+    }
+  }
+
+  return allJobOpenings
+}
