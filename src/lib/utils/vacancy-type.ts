@@ -18,6 +18,13 @@ export function deriveTipoVacante(title: string | null | undefined): TipoVacante
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
 
+  // BBDD (talent databases) are always atraccion, even if the title contains
+  // formacion-related words (e.g. "BBDD Formación Asíncrona")
+  if (/^bbdd/.test(t)) return 'atraccion'
+
+  // "Curso Académico" = university talk events to attract candidates → atraccion
+  if (/curso\s+academi/.test(t)) return 'atraccion'
+
   if (
     /formaci/.test(t) ||
     /programa/.test(t) ||
