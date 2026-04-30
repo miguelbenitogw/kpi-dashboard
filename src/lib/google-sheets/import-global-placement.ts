@@ -84,6 +84,7 @@ const PLACEMENT_COLUMN_MAP: Record<string, string[]> = {
   gp_mantux:                ['mantux'],
   gp_last_update_placement: ['last update (placement)', 'last update placement', 'last update'],
   gp_arrival_date:          ['arrival date', 'arrival'],
+  tipo_perfil:              ['tipo de perfil', 'tipo perfil', 'profile type', 'tipo_perfil'],
 }
 
 function mapPlacementHeader(header: string): string | null {
@@ -314,6 +315,9 @@ export async function importGlobalPlacement(sheetId: string): Promise<GlobalPlac
     }
     if (mapped['gp_last_update_placement']) {
       updateData.gp_last_update_placement = mapped['gp_last_update_placement']
+    }
+    if (mapped['tipo_perfil']) {
+      updateData.tipo_perfil = mapped['tipo_perfil']
     }
     if (mapped['gp_arrival_date']) {
       updateData.gp_arrival_date = parseDate(mapped['gp_arrival_date'])

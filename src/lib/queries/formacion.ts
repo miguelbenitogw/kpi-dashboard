@@ -912,27 +912,43 @@ export interface CandidatoIntentosRow {
 export async function getCandidatosConIntentos(
   promoNombre: string,
 ): Promise<CandidatoIntentosRow[]> {
-  // We query in JS because the Supabase client doesn't support CTEs directly.
-  // Two-step: fetch the raw data, then classify in-memory using the same logic
-  // the test SQL proved correct.
+  // Two-step query: PostgREST does not reliably filter parent rows via
+  // .eq('embedded_table.column', value) — use explicit candidate ID lookup instead.
 
-  // Step 1 — all formación links for candidates in this promo
+  // Step 1 — get all candidate IDs + names for this promo
+  const { data: candidateRows, error: candidatesError } = await (supabase as any)
+    .from('candidates_kpi')
+    .select('id, full_name')
+    .eq('promocion_nombre', promoNombre) as {
+      data: Array<{ id: string; full_name: string | null }> | null
+      error: unknown
+    }
+
+  if (candidatesError) {
+    console.error('Error fetching candidates for promo:', candidatesError)
+    return []
+  }
+
+  const candidateIds = (candidateRows ?? []).map((r) => r.id)
+  if (candidateIds.length === 0) return []
+
+  const nameMap = new Map((candidateRows ?? []).map((r) => [r.id, r.full_name]))
+
+  // Step 2 — all formación links for those candidates (across all promos they've been in)
   const { data: links, error } = await (supabase as any)
     .from('candidate_job_history_kpi')
     .select(`
       candidate_id,
       job_opening_id,
       job_opening_title,
-      candidates_kpi!inner(full_name, promocion_nombre),
       job_openings_kpi(date_opened, title)
     `)
     .eq('association_type', 'formacion')
-    .eq('candidates_kpi.promocion_nombre', promoNombre) as {
+    .in('candidate_id', candidateIds) as {
       data: Array<{
         candidate_id: string
         job_opening_id: string | null
         job_opening_title: string | null
-        candidates_kpi: { full_name: string | null; promocion_nombre: string }
         job_openings_kpi: { date_opened: string | null; title: string | null } | null
       }> | null
       error: unknown
@@ -943,10 +959,9 @@ export async function getCandidatosConIntentos(
     return []
   }
 
-  // Step 2 — aggregate per candidate
+  // Step 3 — aggregate per candidate
   type Agg = {
     full_name: string | null
-    promocion_nombre: string
     vacancies: Map<string, { date: number | null; title: string | null }>
   }
   const agg = new Map<string, Agg>()
@@ -956,8 +971,7 @@ export async function getCandidatosConIntentos(
     const candidateId = row.candidate_id
     if (!agg.has(candidateId)) {
       agg.set(candidateId, {
-        full_name: row.candidates_kpi.full_name,
-        promocion_nombre: row.candidates_kpi.promocion_nombre,
+        full_name: nameMap.get(candidateId) ?? null,
         vacancies: new Map(),
       })
     }
@@ -972,10 +986,10 @@ export async function getCandidatosConIntentos(
     }
   }
 
-  // Step 3 — classify
+  // Step 4 — classify
   const result: CandidatoIntentosRow[] = []
 
-  for (const [candidateId, { full_name, promocion_nombre, vacancies }] of agg) {
+  for (const [candidateId, { full_name, vacancies }] of agg) {
     const num_intentos = vacancies.size
 
     const datesWithTitle = Array.from(vacancies.values()).sort((a, b) => {
@@ -1013,7 +1027,7 @@ export async function getCandidatosConIntentos(
     result.push({
       candidate_id: candidateId,
       full_name,
-      promocion_nombre,
+      promocion_nombre: promoNombre,
       num_intentos,
       tipo,
       primera_formacion_title,
