@@ -22,14 +22,14 @@ interface Props {
 
 const TOOLTIP_STYLE = {
   contentStyle: {
-    backgroundColor: '#1F2937',
-    border: '1px solid #374151',
-    borderRadius: '0.5rem',
-    fontSize: '12px',
-    color: '#F3F4F6',
+    backgroundColor: '#ffffff',
+    border: '1px solid #e7e2d8',
+    borderRadius: 6,
+    fontSize: 11,
+    color: '#1c1917',
   },
-  labelStyle: { color: '#F3F4F6' },
-  itemStyle: { color: '#D1D5DB' },
+  itemStyle: { color: '#1c1917' },
+  labelStyle: { color: '#78716c', fontWeight: 600 },
 }
 
 const INTEREST_COLORS: Record<string, string> = {
@@ -249,7 +249,7 @@ export default function DropoutsCharts({ rows }: Props) {
               iconType="circle"
               iconSize={8}
               formatter={(value) => (
-                <span style={{ color: '#D1D5DB', fontSize: 11 }}>{value}</span>
+                <span style={{ color: '#78716c', fontSize: 11 }}>{value}</span>
               )}
             />
           </PieChart>
@@ -281,7 +281,7 @@ export default function DropoutsCharts({ rows }: Props) {
               iconType="circle"
               iconSize={8}
               formatter={(value) => (
-                <span style={{ color: '#D1D5DB', fontSize: 11 }}>{value}</span>
+                <span style={{ color: '#78716c', fontSize: 11 }}>{value}</span>
               )}
             />
           </PieChart>
@@ -336,7 +336,7 @@ export default function DropoutsCharts({ rows }: Props) {
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
             <XAxis
               dataKey="level"
-              tick={{ fill: '#9CA3AF', fontSize: 9 }}
+              tick={{ fill: '#9CA3AF', fontSize: 11 }}
               angle={-30}
               textAnchor="end"
               interval={0}
@@ -345,7 +345,7 @@ export default function DropoutsCharts({ rows }: Props) {
             <Tooltip {...TOOLTIP_STYLE} />
             <Legend
               formatter={(value) => (
-                <span style={{ color: '#D1D5DB', fontSize: 10 }}>{value}</span>
+                <span style={{ color: '#78716c', fontSize: 11 }}>{value}</span>
               )}
             />
             {top5Reasons.map((reason) => (

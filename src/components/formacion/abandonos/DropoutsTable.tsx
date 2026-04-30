@@ -125,7 +125,7 @@ export default function DropoutsTable({ rows }: Props) {
           <tbody className="divide-y divide-gray-700/20">
             {pageRows.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-gray-500">
+                <td colSpan={9} className="px-3 py-8 text-center text-stone-500">
                   Sin resultados
                 </td>
               </tr>
@@ -163,7 +163,7 @@ export default function DropoutsTable({ rows }: Props) {
                       </span>
                     ))}
                     {row.tags.length > 3 && (
-                      <span className="rounded-full bg-gray-700/40 px-1.5 py-0.5 text-[10px] text-gray-500">
+                      <span className="rounded-full bg-gray-700/40 px-1.5 py-0.5 text-[10px] text-stone-500">
                         +{row.tags.length - 3} más
                       </span>
                     )}
@@ -173,7 +173,7 @@ export default function DropoutsTable({ rows }: Props) {
                 <td className="px-3 py-2">
                   {row.dropout_notes ? (
                     <span
-                      className="cursor-default text-gray-500"
+                      className="cursor-default text-stone-500"
                       title={row.dropout_notes}
                     >
                       {row.dropout_notes.length > 40
@@ -181,7 +181,7 @@ export default function DropoutsTable({ rows }: Props) {
                         : row.dropout_notes}
                     </span>
                   ) : (
-                    <span className="text-gray-700">—</span>
+                    <span className="text-stone-400">—</span>
                   )}
                 </td>
               </tr>
@@ -192,7 +192,7 @@ export default function DropoutsTable({ rows }: Props) {
 
       {/* Pagination */}
       <div className="flex items-center justify-between border-t border-gray-700/50 px-4 py-2.5">
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-stone-500">
           {sorted.length > 0 ? `Mostrando ${from}–${to} de ${sorted.length}` : 'Sin resultados'}
         </span>
         <div className="flex gap-2">

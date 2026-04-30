@@ -61,7 +61,7 @@ function MultiSelect({
       </summary>
       <div className="absolute z-20 mt-1 w-56 rounded-xl border border-gray-700/50 bg-gray-800 p-2 shadow-xl max-h-60 overflow-y-auto space-y-0.5">
         {opts.length === 0 ? (
-          <p className="px-2 py-1 text-xs text-gray-600">Sin opciones</p>
+          <p className="px-2 py-1 text-xs text-stone-500">Sin opciones</p>
         ) : (
           opts.map((opt) => (
             <label
@@ -75,7 +75,7 @@ function MultiSelect({
                 className="accent-indigo-500"
               />
               <span className="flex-1 text-gray-300">{opt.label}</span>
-              <span className="text-gray-600 tabular-nums">{opt.count}</span>
+              <span className="text-stone-500 tabular-nums">{opt.count}</span>
             </label>
           ))
         )}
