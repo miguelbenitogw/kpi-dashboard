@@ -451,25 +451,26 @@ export default function VacancyRecruitmentTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-[560px]">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-gray-700/50">
-              <th className="sticky left-0 z-10 bg-gray-800/95 px-3 py-2 text-left font-medium text-gray-400 whitespace-nowrap min-w-[200px]">
+              {/* Top-left corner — sticky both axes, highest z-index */}
+              <th className="sticky top-0 left-0 z-30 bg-gray-800 px-3 py-2 text-left font-medium text-gray-400 whitespace-nowrap min-w-[200px]">
                 Vacante
               </th>
               {cols.map((s) => (
-                <th key={s} className="px-3 py-2 text-right font-medium text-gray-400 whitespace-nowrap">
+                <th key={s} className="sticky top-0 z-20 bg-gray-800 px-3 py-2 text-right font-medium text-gray-400 whitespace-nowrap">
                   {s}
                 </th>
               ))}
-              <th className="px-3 py-2 text-right font-semibold text-gray-300 whitespace-nowrap">
+              <th className="sticky top-0 z-20 bg-gray-800 px-3 py-2 text-right font-semibold text-gray-300 whitespace-nowrap">
                 Total
               </th>
-              <th className="px-3 py-2 text-right font-medium text-gray-400 whitespace-nowrap">
+              <th className="sticky top-0 z-20 bg-gray-800 px-3 py-2 text-right font-medium text-gray-400 whitespace-nowrap">
                 % Éxito
               </th>
-              <th className="w-8" />
+              <th className="sticky top-0 z-20 bg-gray-800 w-8" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-700/30">
