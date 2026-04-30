@@ -1,3 +1,19 @@
+<!-- BEGIN:system-reference -->
+# PRIMERA REGLA — leer SYSTEM.md antes de cualquier cosa
+
+**Ante cualquier duda sobre el sistema, antes de implementar cualquier funcionalidad nueva, y al abrir cualquier conversación sobre este proyecto: leer `SYSTEM.md` en la raíz del repositorio.**
+
+`SYSTEM.md` es la fuente de verdad del sistema. Contiene:
+- Arquitectura de datos completa (tablas, relaciones, campos clave)
+- Clasificación de vacantes (atracción vs formación)
+- Pipeline de datos y crons
+- APIs y endpoints disponibles
+- Problemas conocidos y limitaciones
+- Ideas pendientes de implementar
+
+No implementes nada sin haberlo consultado primero. Si algo no está documentado en SYSTEM.md, documentalo ahí antes de continuar.
+<!-- END:system-reference -->
+
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 
