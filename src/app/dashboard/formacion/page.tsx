@@ -8,7 +8,7 @@ import PromoVistaGeneral from '@/components/formacion/PromoVistaGeneral'
 import CandidatosFormacionView from '@/components/formacion/CandidatosFormacionView'
 import PromoVacancyDistributionChart from '@/components/formacion/PromoVacancyDistributionChart'
 import PromoVacancyLinksManager from '@/components/formacion/PromoVacancyLinksManager'
-import { getIntentosStats } from '@/lib/queries/formacion'
+import { getIntentosStats, getContinuidadStats, ContinuidadStats } from '@/lib/queries/formacion'
 
 type IntentosStats = {
   total: number
@@ -24,17 +24,21 @@ export default function FormacionPage() {
   const [selectedPromos, setSelectedPromos] = useState<string[]>([])
   const [panel, setPanel] = useState<'main' | 'candidatos'>('main')
   const [intentosStats, setIntentosStats] = useState<IntentosStats | null>(null)
+  const [continuidadStats, setContinuidadStats] = useState<ContinuidadStats | null>(null)
 
   const hasSelection = selectedPromos.length > 0
   const activeFilter = hasSelection ? selectedPromos : undefined
 
-  // Load trayectoria stats when a single promo is selected
+  // Load trayectoria + continuidad stats when a single promo is selected
   useEffect(() => {
     if (selectedPromos.length !== 1) {
       setIntentosStats(null)
+      setContinuidadStats(null)
       return
     }
-    getIntentosStats(selectedPromos[0]).then(setIntentosStats)
+    const promo = selectedPromos[0]
+    getIntentosStats(promo).then(setIntentosStats)
+    getContinuidadStats(promo).then(setContinuidadStats)
   }, [selectedPromos])
 
   function togglePromo(nombre: string) {
@@ -268,6 +272,117 @@ export default function FormacionPage() {
                       {intentosStats.candidato_record ?? '—'}
                     </p>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Continuidad de dropouts ── */}
+            {continuidadStats && (continuidadStats.dijeron_que_si > 0 || continuidadStats.dijeron_no_pero_volvieron > 0) && (
+              <div style={{ marginTop: '24px' }}>
+                <h2
+                  style={{
+                    marginBottom: '4px',
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    color: '#1c1917',
+                  }}
+                >
+                  Continuidad de dropouts
+                </h2>
+                <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#78716c' }}>
+                  De los que salieron diciendo que querían volver, ¿cuántos volvieron realmente?
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+
+                  {/* Dijeron que sí */}
+                  <div style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '10px', padding: '14px 16px' }}>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#7c3aed', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Dijeron que sí
+                    </p>
+                    <p style={{ margin: '6px 0 2px', fontSize: '1.5rem', fontWeight: 700, color: '#5b21b6', lineHeight: 1 }}>
+                      {continuidadStats.dijeron_que_si}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#a78bfa' }}>
+                      dropout_interest = Yes
+                    </p>
+                  </div>
+
+                  {/* Realmente continuaron */}
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '14px 16px' }}>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#15803d', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Continuaron
+                    </p>
+                    <p style={{ margin: '6px 0 2px', fontSize: '1.5rem', fontWeight: 700, color: '#166534', lineHeight: 1 }}>
+                      {continuidadStats.realmente_continuaron}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#4ade80' }}>
+                      de {continuidadStats.dijeron_que_si} que lo prometieron
+                    </p>
+                  </div>
+
+                  {/* Tasa de continuidad */}
+                  <div
+                    style={{
+                      background: continuidadStats.tasa_continuidad === null
+                        ? '#f9fafb'
+                        : continuidadStats.tasa_continuidad >= 50
+                          ? '#f0fdf4'
+                          : continuidadStats.tasa_continuidad >= 25
+                            ? '#fffbeb'
+                            : '#fff1f2',
+                      border: `1px solid ${
+                        continuidadStats.tasa_continuidad === null
+                          ? '#e7e2d8'
+                          : continuidadStats.tasa_continuidad >= 50
+                            ? '#bbf7d0'
+                            : continuidadStats.tasa_continuidad >= 25
+                              ? '#fde68a'
+                              : '#fecdd3'
+                      }`,
+                      borderRadius: '10px',
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <p style={{ margin: 0, fontSize: '11px', color: '#78716c', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Tasa cumplimiento
+                    </p>
+                    <p style={{ margin: '6px 0 2px', fontSize: '1.5rem', fontWeight: 700, color: '#1c1917', lineHeight: 1 }}>
+                      {continuidadStats.tasa_continuidad !== null
+                        ? `${continuidadStats.tasa_continuidad}%`
+                        : '—'}
+                    </p>
+                    {/* mini progress bar */}
+                    {continuidadStats.tasa_continuidad !== null && (
+                      <div style={{ marginTop: '6px', background: '#e7e2d8', borderRadius: '99px', height: '4px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${continuidadStats.tasa_continuidad}%`,
+                            background: continuidadStats.tasa_continuidad >= 50 ? '#22c55e'
+                              : continuidadStats.tasa_continuidad >= 25 ? '#f59e0b'
+                              : '#f43f5e',
+                            borderRadius: '99px',
+                            transition: 'width 600ms ease',
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sorpresas — dijeron no pero volvieron */}
+                  <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '10px', padding: '14px 16px' }}>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#c2410c', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Sorpresas
+                    </p>
+                    <p style={{ margin: '6px 0 2px', fontSize: '1.5rem', fontWeight: 700, color: '#9a3412', lineHeight: 1 }}>
+                      {continuidadStats.dijeron_no_pero_volvieron}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#fb923c' }}>
+                      dijeron no · y volvieron igual
+                    </p>
+                  </div>
+
                 </div>
               </div>
             )}
