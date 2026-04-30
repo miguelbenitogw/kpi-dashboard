@@ -8,6 +8,7 @@ import {
   getFormacionCandidateHistory,
   getFormacionCandidateNotes,
   getFormacionCandidateStageHistory,
+  getCandidatosConIntentos,
 } from '@/lib/queries/formacion'
 import type {
   FormacionCandidateRow,
@@ -15,6 +16,7 @@ import type {
   FormacionCandidateNote,
   FormacionPromoCount,
   FormacionCandidateStageHistory,
+  CandidatoIntentosRow,
 } from '@/lib/queries/formacion'
 
 // ---------------------------------------------------------------------------
@@ -88,6 +90,30 @@ function mergeTimeline(
   })
 
   return items
+}
+
+// ---------------------------------------------------------------------------
+// Trajectory badge
+// ---------------------------------------------------------------------------
+
+function TrayectoriaBadge({ row }: { row: CandidatoIntentosRow }) {
+  if (row.tipo === 'primera_vez') return null
+
+  if (row.tipo === 'retornado') {
+    const label = row.num_intentos > 2 ? `🔄 ${row.num_intentos} intentos` : '🔄 Retornado'
+    return (
+      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 whitespace-nowrap">
+        {label}
+      </span>
+    )
+  }
+
+  // traslado
+  return (
+    <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700 whitespace-nowrap">
+      ↗ Traslado
+    </span>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -244,6 +270,7 @@ export default function CandidatosFormacionView({ initialPromo }: CandidatosForm
   const [selectedPromo, setSelectedPromo] = useState<string | null>(initialPromo ?? null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [loadingCandidates, setLoadingCandidates] = useState(true)
+  const [intentosMap, setIntentosMap] = useState<Map<string, CandidatoIntentosRow>>(new Map())
 
   const showChips = initialPromo === undefined || initialPromo === null
 
@@ -259,6 +286,19 @@ export default function CandidatosFormacionView({ initialPromo }: CandidatosForm
     getFormacionCandidates(selectedPromo).then((data) => {
       setCandidates(data)
       setLoadingCandidates(false)
+    })
+  }, [selectedPromo])
+
+  // Load trajectory classification when a specific promo is selected
+  useEffect(() => {
+    if (!selectedPromo) {
+      setIntentosMap(new Map())
+      return
+    }
+    getCandidatosConIntentos(selectedPromo).then((rows) => {
+      const map = new Map<string, CandidatoIntentosRow>()
+      for (const row of rows) map.set(row.candidate_id, row)
+      setIntentosMap(map)
     })
   }, [selectedPromo])
 
@@ -333,8 +373,15 @@ export default function CandidatosFormacionView({ initialPromo }: CandidatosForm
                       onClick={() => handleRowClick(candidate.id)}
                       className="cursor-pointer hover:bg-surface-800/60 transition-colors"
                     >
-                      <td className="px-4 py-3 text-gray-200 font-medium">
-                        {candidate.full_name ?? '—'}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-gray-200 font-medium">
+                            {candidate.full_name ?? '—'}
+                          </span>
+                          {intentosMap.has(candidate.id) && (
+                            <TrayectoriaBadge row={intentosMap.get(candidate.id)!} />
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">

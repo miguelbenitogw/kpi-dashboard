@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronRight, ChevronLeft, Users } from 'lucide-react'
 import RetentionOverview from '@/components/formacion/RetentionOverview'
 import FormacionGraficos from '@/components/formacion/FormacionGraficos'
@@ -8,13 +8,33 @@ import PromoVistaGeneral from '@/components/formacion/PromoVistaGeneral'
 import CandidatosFormacionView from '@/components/formacion/CandidatosFormacionView'
 import PromoVacancyDistributionChart from '@/components/formacion/PromoVacancyDistributionChart'
 import PromoVacancyLinksManager from '@/components/formacion/PromoVacancyLinksManager'
+import { getIntentosStats } from '@/lib/queries/formacion'
+
+type IntentosStats = {
+  total: number
+  primera_vez: number
+  traslado: number
+  retornado: number
+  max_intentos: number
+  candidato_record: string | null
+}
 
 export default function FormacionPage() {
   const [selectedPromos, setSelectedPromos] = useState<string[]>([])
   const [panel, setPanel] = useState<'main' | 'candidatos'>('main')
+  const [intentosStats, setIntentosStats] = useState<IntentosStats | null>(null)
 
   const hasSelection = selectedPromos.length > 0
   const activeFilter = hasSelection ? selectedPromos : undefined
+
+  // Load trayectoria stats when a single promo is selected
+  useEffect(() => {
+    if (selectedPromos.length !== 1) {
+      setIntentosStats(null)
+      return
+    }
+    getIntentosStats(selectedPromos[0]).then(setIntentosStats)
+  }, [selectedPromos])
 
   function togglePromo(nombre: string) {
     setSelectedPromos(prev =>
@@ -103,6 +123,126 @@ export default function FormacionPage() {
             {hasSelection && (
               <div style={{ marginTop: '24px' }}>
                 <PromoVacancyLinksManager promoNombre={selectedPromos[0]} />
+              </div>
+            )}
+
+            {/* Trayectoria de candidatos — shown only when a single promo is selected */}
+            {intentosStats && (
+              <div style={{ marginTop: '24px' }}>
+                <h2
+                  style={{
+                    marginBottom: '12px',
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    color: '#1c1917',
+                  }}
+                >
+                  Trayectoria de candidatos
+                </h2>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gap: '12px',
+                  }}
+                >
+                  {/* Primera vez */}
+                  <div
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #e7e2d8',
+                      borderRadius: '10px',
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <p style={{ margin: 0, fontSize: '11px', color: '#78716c', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Primera vez
+                    </p>
+                    <p style={{ margin: '6px 0 2px', fontSize: '1.5rem', fontWeight: 700, color: '#1c1917', lineHeight: 1 }}>
+                      {intentosStats.primera_vez}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#a8a29e' }}>
+                      {intentosStats.total > 0
+                        ? `${Math.round((intentosStats.primera_vez / intentosStats.total) * 100)}%`
+                        : '—'}
+                    </p>
+                  </div>
+
+                  {/* Traslados */}
+                  <div
+                    style={{
+                      background: '#eff6ff',
+                      border: '1px solid #bfdbfe',
+                      borderRadius: '10px',
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <p style={{ margin: 0, fontSize: '11px', color: '#1d4ed8', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Traslados
+                    </p>
+                    <p style={{ margin: '6px 0 2px', fontSize: '1.5rem', fontWeight: 700, color: '#1e40af', lineHeight: 1 }}>
+                      {intentosStats.traslado}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#3b82f6' }}>
+                      {intentosStats.total > 0
+                        ? `${Math.round((intentosStats.traslado / intentosStats.total) * 100)}%`
+                        : '—'}
+                    </p>
+                  </div>
+
+                  {/* Retornados */}
+                  <div
+                    style={{
+                      background: '#fffbeb',
+                      border: '1px solid #fde68a',
+                      borderRadius: '10px',
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <p style={{ margin: 0, fontSize: '11px', color: '#b45309', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Retornados
+                    </p>
+                    <p style={{ margin: '6px 0 2px', fontSize: '1.5rem', fontWeight: 700, color: '#92400e', lineHeight: 1 }}>
+                      {intentosStats.retornado}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#d97706' }}>
+                      {intentosStats.total > 0
+                        ? `${Math.round((intentosStats.retornado / intentosStats.total) * 100)}%`
+                        : '—'}
+                    </p>
+                  </div>
+
+                  {/* Récord */}
+                  <div
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #e7e2d8',
+                      borderRadius: '10px',
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <p style={{ margin: 0, fontSize: '11px', color: '#78716c', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Récord
+                    </p>
+                    <p style={{ margin: '6px 0 2px', fontSize: '1.5rem', fontWeight: 700, color: '#1e4b9e', lineHeight: 1 }}>
+                      {intentosStats.max_intentos}
+                      <span style={{ fontSize: '12px', fontWeight: 400, color: '#78716c', marginLeft: '4px' }}>intentos</span>
+                    </p>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: '11px',
+                        color: '#a8a29e',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                      title={intentosStats.candidato_record ?? ''}
+                    >
+                      {intentosStats.candidato_record ?? '—'}
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 

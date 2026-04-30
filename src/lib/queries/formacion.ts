@@ -887,6 +887,187 @@ export async function getVacancyDistributionByPromo(
   return rows.sort((a, b) => b.studentCount - a.studentCount)
 }
 
+// ---------------------------------------------------------------------------
+// Retornados — candidate trajectory classification
+// ---------------------------------------------------------------------------
+
+export interface CandidatoIntentosRow {
+  candidate_id: string
+  full_name: string | null
+  promocion_nombre: string
+  num_intentos: number
+  tipo: 'primera_vez' | 'traslado' | 'retornado'
+  primera_formacion_title: string | null
+  meses_desde_primer_intento: number | null
+}
+
+/**
+ * Returns all candidates in a promo with their formación trajectory classification.
+ *
+ * Classification (computed in SQL via date_opened gap):
+ *   primera_vez  → exactly 1 formación vacancy
+ *   traslado     → 2+ formación vacancies, gap ≤ 12 months
+ *   retornado    → 2+ formación vacancies, gap > 12 months (or unknown dates)
+ */
+export async function getCandidatosConIntentos(
+  promoNombre: string,
+): Promise<CandidatoIntentosRow[]> {
+  // We query in JS because the Supabase client doesn't support CTEs directly.
+  // Two-step: fetch the raw data, then classify in-memory using the same logic
+  // the test SQL proved correct.
+
+  // Step 1 — all formación links for candidates in this promo
+  const { data: links, error } = await (supabase as any)
+    .from('candidate_job_history_kpi')
+    .select(`
+      candidate_id,
+      job_opening_id,
+      job_opening_title,
+      candidates_kpi!inner(full_name, promocion_nombre),
+      job_openings_kpi(date_opened, title)
+    `)
+    .eq('association_type', 'formacion')
+    .eq('candidates_kpi.promocion_nombre', promoNombre) as {
+      data: Array<{
+        candidate_id: string
+        job_opening_id: string | null
+        job_opening_title: string | null
+        candidates_kpi: { full_name: string | null; promocion_nombre: string }
+        job_openings_kpi: { date_opened: string | null; title: string | null } | null
+      }> | null
+      error: unknown
+    }
+
+  if (error) {
+    console.error('Error fetching candidatos con intentos:', error)
+    return []
+  }
+
+  // Step 2 — aggregate per candidate
+  type Agg = {
+    full_name: string | null
+    promocion_nombre: string
+    vacancies: Map<string, { date: number | null; title: string | null }>
+  }
+  const agg = new Map<string, Agg>()
+
+  for (const row of links ?? []) {
+    if (!row.job_opening_id) continue
+    const candidateId = row.candidate_id
+    if (!agg.has(candidateId)) {
+      agg.set(candidateId, {
+        full_name: row.candidates_kpi.full_name,
+        promocion_nombre: row.candidates_kpi.promocion_nombre,
+        vacancies: new Map(),
+      })
+    }
+    const entry = agg.get(candidateId)!
+    if (!entry.vacancies.has(row.job_opening_id)) {
+      const rawDate = row.job_openings_kpi?.date_opened ?? null
+      const ts = rawDate ? Date.parse(rawDate) : null
+      entry.vacancies.set(row.job_opening_id, {
+        date: ts !== null && !Number.isNaN(ts) ? ts : null,
+        title: row.job_openings_kpi?.title ?? row.job_opening_title ?? null,
+      })
+    }
+  }
+
+  // Step 3 — classify
+  const result: CandidatoIntentosRow[] = []
+
+  for (const [candidateId, { full_name, promocion_nombre, vacancies }] of agg) {
+    const num_intentos = vacancies.size
+
+    const datesWithTitle = Array.from(vacancies.values()).sort((a, b) => {
+      if (a.date === null && b.date === null) return 0
+      if (a.date === null) return 1
+      if (b.date === null) return -1
+      return a.date - b.date
+    })
+
+    const primera_formacion_title = datesWithTitle[0]?.title ?? null
+
+    const timestamps = datesWithTitle
+      .map((v) => v.date)
+      .filter((d): d is number => d !== null)
+
+    const minTs = timestamps.length > 0 ? Math.min(...timestamps) : null
+    const maxTs = timestamps.length > 0 ? Math.max(...timestamps) : null
+
+    const meses =
+      minTs !== null && maxTs !== null
+        ? Math.round((maxTs - minTs) / (1000 * 60 * 60 * 24 * 30.44))
+        : null
+
+    let tipo: 'primera_vez' | 'traslado' | 'retornado'
+    if (num_intentos === 1) {
+      tipo = 'primera_vez'
+    } else if (meses === null) {
+      tipo = 'retornado'
+    } else if (meses <= 12) {
+      tipo = 'traslado'
+    } else {
+      tipo = 'retornado'
+    }
+
+    result.push({
+      candidate_id: candidateId,
+      full_name,
+      promocion_nombre,
+      num_intentos,
+      tipo,
+      primera_formacion_title,
+      meses_desde_primer_intento: meses,
+    })
+  }
+
+  return result.sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''))
+}
+
+/**
+ * Returns aggregate trajectory stats for a promo.
+ */
+export async function getIntentosStats(promoNombre: string): Promise<{
+  total: number
+  primera_vez: number
+  traslado: number
+  retornado: number
+  max_intentos: number
+  candidato_record: string | null
+}> {
+  const rows = await getCandidatosConIntentos(promoNombre)
+
+  if (rows.length === 0) {
+    return { total: 0, primera_vez: 0, traslado: 0, retornado: 0, max_intentos: 0, candidato_record: null }
+  }
+
+  let primera_vez = 0
+  let traslado = 0
+  let retornado = 0
+  let max_intentos = 0
+  let candidato_record: string | null = null
+
+  for (const row of rows) {
+    if (row.tipo === 'primera_vez') primera_vez++
+    else if (row.tipo === 'traslado') traslado++
+    else retornado++
+
+    if (row.num_intentos > max_intentos) {
+      max_intentos = row.num_intentos
+      candidato_record = row.full_name
+    }
+  }
+
+  return {
+    total: rows.length,
+    primera_vez,
+    traslado,
+    retornado,
+    max_intentos,
+    candidato_record,
+  }
+}
+
 /** Returns notes timeline for a candidate, ordered by created_at DESC. */
 export async function getFormacionCandidateNotes(
   candidateId: string,
