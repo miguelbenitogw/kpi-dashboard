@@ -896,7 +896,7 @@ export interface CandidatoIntentosRow {
   full_name: string | null
   promocion_nombre: string
   num_intentos: number
-  tipo: 'primera_vez' | 'traslado' | 'retornado'
+  tipo: 'primera_vez' | 'traslado_directo' | 'traslado' | 'retornado'
   primera_formacion_title: string | null
   meses_desde_primer_intento: number | null
 }
@@ -933,6 +933,22 @@ export async function getCandidatosConIntentos(
   if (candidateIds.length === 0) return []
 
   const nameMap = new Map((candidateRows ?? []).map((r) => [r.id, r.full_name]))
+
+  // Step 1b — get the promo's start date to use as a cutoff.
+  // Some candidates have formación entries in FUTURE promos (data lag: their
+  // promocion_nombre is still set to the older promo while a sync has already
+  // linked them to a newer one). Without a cutoff, the gap between OLD→NEW promo
+  // entries wrongly classifies them in the context of the OLD promo.
+  // Adding +60 days buffer to cover late-sync edge cases.
+  const { data: promoMeta } = await (supabase as any)
+    .from('promotions_kpi')
+    .select('fecha_inicio')
+    .eq('nombre', promoNombre)
+    .maybeSingle() as { data: { fecha_inicio: string | null } | null }
+
+  const cutoffMs = promoMeta?.fecha_inicio
+    ? new Date(promoMeta.fecha_inicio).getTime() + 60 * 24 * 60 * 60 * 1000
+    : null
 
   // Step 2 — all formación links for those candidates (across all promos they've been in)
   const { data: links, error } = await (supabase as any)
@@ -992,6 +1008,7 @@ export async function getCandidatosConIntentos(
   for (const [candidateId, { full_name, vacancies }] of agg) {
     const num_intentos = vacancies.size
 
+    // Sort all formación entries by date ascending (nulls last)
     const datesWithTitle = Array.from(vacancies.values()).sort((a, b) => {
       if (a.date === null && b.date === null) return 0
       if (a.date === null) return 1
@@ -1001,27 +1018,47 @@ export async function getCandidatosConIntentos(
 
     const primera_formacion_title = datesWithTitle[0]?.title ?? null
 
+    // Only consider formación entries up to (and shortly after) the current promo's
+    // start date. This prevents entries in FUTURE promos from distorting the gap
+    // calculation when a candidate's promocion_nombre is stale.
     const timestamps = datesWithTitle
       .map((v) => v.date)
-      .filter((d): d is number => d !== null)
+      .filter((d): d is number => d !== null && (cutoffMs === null || d <= cutoffMs))
 
+    // meses_desde_primer_intento = span from first to last formación entry
     const minTs = timestamps.length > 0 ? Math.min(...timestamps) : null
     const maxTs = timestamps.length > 0 ? Math.max(...timestamps) : null
-
     const meses =
       minTs !== null && maxTs !== null
         ? Math.round((maxTs - minTs) / (1000 * 60 * 60 * 24 * 30.44))
         : null
 
-    let tipo: 'primera_vez' | 'traslado' | 'retornado'
-    if (num_intentos === 1) {
+    // Classification: based on the gap between the candidate's LAST two formación
+    // entries within the cutoff window (previous → current promo arrival).
+    // primera_vez      → 0 or 1 dated entry before the cutoff
+    // traslado_directo → gap to previous promo ≤ 90 days
+    // traslado         → gap ≤ 12 months (~365 days)
+    // retornado        → gap > 12 months OR unknown dates
+    //
+    // Note: num_intentos still counts ALL formación entries (including future ones)
+    // so it reflects total career attempts, but tipo uses only filtered timestamps.
+    let tipo: 'primera_vez' | 'traslado_directo' | 'traslado' | 'retornado'
+    if (timestamps.length <= 1) {
       tipo = 'primera_vez'
-    } else if (meses === null) {
-      tipo = 'retornado'
-    } else if (meses <= 12) {
-      tipo = 'traslado'
     } else {
-      tipo = 'retornado'
+      // Gap between the two most-recent formación entries (previous → current promo)
+      const lastTs = timestamps[timestamps.length - 1]
+      const prevTs = timestamps[timestamps.length - 2]
+      const gapDays = (lastTs - prevTs) / (1000 * 60 * 60 * 24)
+      const gapMeses = Math.round(gapDays / 30.44)
+
+      if (gapDays <= 90) {
+        tipo = 'traslado_directo'
+      } else if (gapMeses <= 12) {
+        tipo = 'traslado'
+      } else {
+        tipo = 'retornado'
+      }
     }
 
     result.push({
@@ -1044,6 +1081,7 @@ export async function getCandidatosConIntentos(
 export async function getIntentosStats(promoNombre: string): Promise<{
   total: number
   primera_vez: number
+  traslado_directo: number
   traslado: number
   retornado: number
   max_intentos: number
@@ -1052,10 +1090,11 @@ export async function getIntentosStats(promoNombre: string): Promise<{
   const rows = await getCandidatosConIntentos(promoNombre)
 
   if (rows.length === 0) {
-    return { total: 0, primera_vez: 0, traslado: 0, retornado: 0, max_intentos: 0, candidato_record: null }
+    return { total: 0, primera_vez: 0, traslado_directo: 0, traslado: 0, retornado: 0, max_intentos: 0, candidato_record: null }
   }
 
   let primera_vez = 0
+  let traslado_directo = 0
   let traslado = 0
   let retornado = 0
   let max_intentos = 0
@@ -1063,6 +1102,7 @@ export async function getIntentosStats(promoNombre: string): Promise<{
 
   for (const row of rows) {
     if (row.tipo === 'primera_vez') primera_vez++
+    else if (row.tipo === 'traslado_directo') traslado_directo++
     else if (row.tipo === 'traslado') traslado++
     else retornado++
 
@@ -1075,10 +1115,141 @@ export async function getIntentosStats(promoNombre: string): Promise<{
   return {
     total: rows.length,
     primera_vez,
+    traslado_directo,
     traslado,
     retornado,
     max_intentos,
     candidato_record,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Continuidad — did dropouts follow through on their stated intention to return?
+// ---------------------------------------------------------------------------
+
+export interface ContinuidadStats {
+  dijeron_que_si: number           // dropout_interest_future = 'Yes'
+  realmente_continuaron: number    // of those, how many appear in a later promo
+  tasa_continuidad: number | null  // percentage (null when dijeron_que_si === 0)
+  dijeron_no_pero_volvieron: number // dropout_interest_future = 'No' but came back
+}
+
+/**
+ * Returns continuity stats for dropouts in a given promo.
+ *
+ * Logic:
+ *   1. Get candidates in this promo with dropout_date IS NOT NULL
+ *   2. Check which have dropout_interest_future = 'Yes' or 'No'
+ *   3. For each, look for a formación entry AFTER their dropout_date
+ *   4. Count how many followed through (or surprised us by coming back)
+ */
+export async function getContinuidadStats(
+  promoNombre: string,
+): Promise<ContinuidadStats> {
+  const empty: ContinuidadStats = {
+    dijeron_que_si: 0,
+    realmente_continuaron: 0,
+    tasa_continuidad: null,
+    dijeron_no_pero_volvieron: 0,
+  }
+
+  // Step 1 — get dropouts in this promo with dropout metadata
+  // Note: zoho_candidate_id is the Zoho CRM ID that links to candidate_job_history_kpi.candidate_id
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: dropouts, error: dropoutError } = await (supabase as any)
+    .from('promo_students_kpi')
+    .select('zoho_candidate_id, dropout_date, dropout_interest_future')
+    .eq('promocion_nombre', promoNombre)
+    .eq('tab_name', 'Dropouts')
+    .not('dropout_date', 'is', null) as {
+      data: Array<{
+        zoho_candidate_id: string | null
+        dropout_date: string | null
+        dropout_interest_future: string | null
+      }> | null
+      error: unknown
+    }
+
+  if (dropoutError) {
+    console.error('Error fetching dropout list for continuidad:', dropoutError)
+    return empty
+  }
+
+  if (!dropouts || dropouts.length === 0) return empty
+
+  // Filter to candidates that have a zoho_candidate_id (required for cross-table join)
+  const dropoutsWithId = dropouts.filter((d) => d.zoho_candidate_id !== null) as Array<{
+    zoho_candidate_id: string
+    dropout_date: string
+    dropout_interest_future: string | null
+  }>
+
+  if (dropoutsWithId.length === 0) return empty
+
+  // Step 2 — get all formación entries for these candidate IDs
+  const candidateIds = dropoutsWithId.map((d) => d.zoho_candidate_id)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: historyRows, error: historyError } = await (supabase as any)
+    .from('candidate_job_history_kpi')
+    .select('candidate_id, job_opening_id, job_openings_kpi(date_opened)')
+    .eq('association_type', 'formacion')
+    .in('candidate_id', candidateIds) as {
+      data: Array<{
+        candidate_id: string
+        job_opening_id: string | null
+        job_openings_kpi: { date_opened: string | null } | null
+      }> | null
+      error: unknown
+    }
+
+  if (historyError) {
+    console.error('Error fetching formacion history for continuidad:', historyError)
+    return empty
+  }
+
+  // Build a map: candidate_id → list of formación dates (as timestamps)
+  const formacionDates = new Map<string, number[]>()
+  for (const row of historyRows ?? []) {
+    const rawDate = row.job_openings_kpi?.date_opened ?? null
+    const ts = rawDate ? Date.parse(rawDate) : null
+    if (ts !== null && !Number.isNaN(ts)) {
+      if (!formacionDates.has(row.candidate_id)) {
+        formacionDates.set(row.candidate_id, [])
+      }
+      formacionDates.get(row.candidate_id)!.push(ts)
+    }
+  }
+
+  // Step 3 — classify each dropout
+  let dijeron_que_si = 0
+  let realmente_continuaron = 0
+  let dijeron_no_pero_volvieron = 0
+
+  for (const d of dropoutsWithId) {
+    const interest = d.dropout_interest_future
+    const dropoutTs = Date.parse(d.dropout_date)
+    const laterDates = (formacionDates.get(d.zoho_candidate_id) ?? []).filter(
+      (ts) => ts > dropoutTs
+    )
+    const cameoBack = laterDates.length > 0
+
+    if (interest === 'Yes') {
+      dijeron_que_si++
+      if (cameoBack) realmente_continuaron++
+    } else if (interest === 'No' && cameoBack) {
+      dijeron_no_pero_volvieron++
+    }
+  }
+
+  return {
+    dijeron_que_si,
+    realmente_continuaron,
+    tasa_continuidad:
+      dijeron_que_si > 0
+        ? Math.round((realmente_continuaron / dijeron_que_si) * 10000) / 100
+        : null,
+    dijeron_no_pero_volvieron,
   }
 }
 

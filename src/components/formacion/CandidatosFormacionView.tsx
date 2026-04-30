@@ -108,6 +108,14 @@ function TrayectoriaBadge({ row }: { row: CandidatoIntentosRow }) {
     )
   }
 
+  if (row.tipo === 'traslado_directo') {
+    return (
+      <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 whitespace-nowrap">
+        ⚡ Traslado directo
+      </span>
+    )
+  }
+
   // traslado
   return (
     <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700 whitespace-nowrap">

@@ -13,6 +13,7 @@ import { getIntentosStats } from '@/lib/queries/formacion'
 type IntentosStats = {
   total: number
   primera_vez: number
+  traslado_directo: number
   traslado: number
   retornado: number
   max_intentos: number
@@ -142,7 +143,7 @@ export default function FormacionPage() {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gridTemplateColumns: 'repeat(5, 1fr)',
                     gap: '12px',
                   }}
                 >
@@ -168,6 +169,29 @@ export default function FormacionPage() {
                     </p>
                   </div>
 
+                  {/* Traslados directos */}
+                  <div
+                    style={{
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: '10px',
+                      padding: '14px 16px',
+                    }}
+                  >
+                    <p style={{ margin: 0, fontSize: '11px', color: '#15803d', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Traslado directo
+                    </p>
+                    <p style={{ margin: '6px 0 2px', fontSize: '1.5rem', fontWeight: 700, color: '#166534', lineHeight: 1 }}>
+                      {intentosStats.traslado_directo}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#4ade80' }}>
+                      {intentosStats.total > 0
+                        ? `${Math.round((intentosStats.traslado_directo / intentosStats.total) * 100)}%`
+                        : '—'}
+                    </p>
+                    <p style={{ margin: '4px 0 0', fontSize: '10px', color: '#86efac' }}>≤ 90 días</p>
+                  </div>
+
                   {/* Traslados */}
                   <div
                     style={{
@@ -188,6 +212,7 @@ export default function FormacionPage() {
                         ? `${Math.round((intentosStats.traslado / intentosStats.total) * 100)}%`
                         : '—'}
                     </p>
+                    <p style={{ margin: '4px 0 0', fontSize: '10px', color: '#93c5fd' }}>91–365 días</p>
                   </div>
 
                   {/* Retornados */}
@@ -210,6 +235,7 @@ export default function FormacionPage() {
                         ? `${Math.round((intentosStats.retornado / intentosStats.total) * 100)}%`
                         : '—'}
                     </p>
+                    <p style={{ margin: '4px 0 0', fontSize: '10px', color: '#fcd34d' }}>&gt; 12 meses</p>
                   </div>
 
                   {/* Récord */}
