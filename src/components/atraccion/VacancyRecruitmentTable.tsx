@@ -60,8 +60,38 @@ function formatSyncDate(iso: string): string {
 type SyncState = 'idle' | 'syncing' | 'success' | 'error'
 
 // ---------------------------------------------------------------------------
-// Tag chips — lazy loaded per vacancy
+// Tag chips — lazy loaded per vacancy, grouped by category
 // ---------------------------------------------------------------------------
+
+const TAG_GROUPS: { label: string; prefix: string[] }[] = [
+  { label: 'Fuente',     prefix: ['FR'] },
+  { label: 'Cómo llegó', prefix: ['CP'] },
+  { label: 'Recruiter',  prefix: ['GW'] },
+  { label: 'Modalidad',  prefix: ['ONL', 'SEMI', 'PRESEN', 'ONLINE', 'PRESENCIAL'] },
+]
+
+const TOP_PER_GROUP = 5
+const TOP_OTHER     = 6
+
+function groupTags(tags: VacancyTagCount[]) {
+  const used = new Set<string>()
+  const groups: { label: string; items: VacancyTagCount[] }[] = []
+
+  for (const g of TAG_GROUPS) {
+    const items = tags
+      .filter(t => g.prefix.some(p => t.tag.toUpperCase().startsWith(p)))
+      .slice(0, TOP_PER_GROUP)
+    if (items.length > 0) {
+      items.forEach(t => used.add(t.tag))
+      groups.push({ label: g.label, items })
+    }
+  }
+
+  const others = tags.filter(t => !used.has(t.tag)).slice(0, TOP_OTHER)
+  if (others.length > 0) groups.push({ label: 'Otras', items: others })
+
+  return groups
+}
 
 function VacancyTagRow({
   vacancyId,
@@ -88,70 +118,75 @@ function VacancyTagRow({
   const profesion = deriveProfesionTipo(vacancyTitle)
   const profesionColors = PROFESION_COLORS[profesion]
 
+  const grouped = groupTags(tags)
+
   return (
     <tr>
       <td
         colSpan={colSpan}
-        className="bg-surface-800/40 px-4 py-2 border-b border-surface-700/40"
+        style={{
+          background: '#f9f7f4',
+          borderBottom: '1px solid #e7e2d8',
+          padding: '10px 16px',
+        }}
       >
         {loading ? (
-          <div className="flex gap-2">
+          <div style={{ display: 'flex', gap: 8 }}>
             {[80, 60, 96, 70, 56].map((w, i) => (
-              <div
-                key={i}
-                className="h-5 animate-pulse rounded-full bg-surface-700/60"
-                style={{ width: w }}
-              />
+              <div key={i} style={{ height: 20, width: w, borderRadius: 99, background: '#e7e2d8', animation: 'pulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Always show vacancy metadata chips */}
-            <span
-              style={{
-                background: countryColors.bg,
-                color: countryColors.text,
-                border: `1px solid ${countryColors.border}`,
-                borderRadius: 99,
-                fontSize: 10,
-                fontWeight: 600,
-                padding: '2px 8px',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {country}
-            </span>
-            <span
-              style={{
-                background: profesionColors.bg,
-                color: profesionColors.text,
-                border: `1px solid ${profesionColors.border}`,
-                borderRadius: 99,
-                fontSize: 10,
-                fontWeight: 600,
-                padding: '2px 8px',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {PROFESION_LABELS[profesion]}
-            </span>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'nowrap', overflowX: 'auto' }}>
 
-            {tags.length > 0 ? (
-              <>
-                <span style={{ width: 1, height: 14, background: '#374151', display: 'inline-block', margin: '0 2px' }} />
-                {tags.map(({ tag, count }) => (
-                  <span
-                    key={tag}
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] ${tagChipStyle(tag)}`}
-                  >
-                    {tag}
-                    <span className="font-semibold tabular-nums opacity-75">{count}</span>
-                  </span>
-                ))}
-              </>
-            ) : (
-              <span className="text-xs text-gray-600 italic ml-1">
+            {/* Metadata pills */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+              <span style={{ fontSize: 9, fontWeight: 600, color: '#a8a29e', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Vacante</span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <span style={{ background: countryColors.bg, color: countryColors.text, border: `1px solid ${countryColors.border}`, borderRadius: 99, fontSize: 10, fontWeight: 600, padding: '2px 8px', whiteSpace: 'nowrap' }}>
+                  {country}
+                </span>
+                <span style={{ background: profesionColors.bg, color: profesionColors.text, border: `1px solid ${profesionColors.border}`, borderRadius: 99, fontSize: 10, fontWeight: 600, padding: '2px 8px', whiteSpace: 'nowrap' }}>
+                  {PROFESION_LABELS[profesion]}
+                </span>
+              </div>
+            </div>
+
+            {/* Divider */}
+            {grouped.length > 0 && (
+              <div style={{ width: 1, background: '#e7e2d8', alignSelf: 'stretch', flexShrink: 0, margin: '0 2px' }} />
+            )}
+
+            {/* Tag groups */}
+            {grouped.length > 0 ? grouped.map(group => (
+              <div key={group.label} style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+                <span style={{ fontSize: 9, fontWeight: 600, color: '#a8a29e', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {group.label}
+                </span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, maxWidth: 240 }}>
+                  {group.items.map(({ tag, count }) => (
+                    <span
+                      key={tag}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] ${tagChipStyle(tag)}`}
+                    >
+                      <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {tag}
+                      </span>
+                      <span style={{ fontWeight: 700, opacity: 0.75, flexShrink: 0 }}>{count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )) : (
+              <span style={{ fontSize: 12, color: '#a8a29e', fontStyle: 'italic', alignSelf: 'center' }}>
                 Sin etiquetas de candidatos
+              </span>
+            )}
+
+            {/* Total tags hint */}
+            {tags.length > 0 && (
+              <span style={{ fontSize: 10, color: '#c8c4bb', alignSelf: 'flex-end', flexShrink: 0, paddingBottom: 2 }}>
+                {tags.length} etiquetas en total
               </span>
             )}
           </div>

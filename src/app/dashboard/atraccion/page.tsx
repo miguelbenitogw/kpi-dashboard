@@ -16,7 +16,7 @@ type Tab = 'resumen' | 'vacantes' | 'cvs' | 'cerradas'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'resumen',   label: 'Resumen' },
-  { id: 'vacantes',  label: 'Vacantes' },
+  { id: 'vacantes',  label: 'Vacantes activas' },
   { id: 'cvs',       label: 'CVs recibidos' },
   { id: 'cerradas',  label: 'CVs cerradas' },
 ]
