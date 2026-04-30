@@ -947,7 +947,7 @@ export async function getCandidatosConIntentos(
     .maybeSingle() as { data: { fecha_inicio: string | null } | null }
 
   const cutoffMs = promoMeta?.fecha_inicio
-    ? new Date(promoMeta.fecha_inicio).getTime() + 60 * 24 * 60 * 60 * 1000
+    ? new Date(promoMeta.fecha_inicio).getTime() + 30 * 24 * 60 * 60 * 1000
     : null
 
   // Step 2 — all formación links for those candidates (across all promos they've been in)
