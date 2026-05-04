@@ -1,6 +1,5 @@
 import { getResumenVacantesPrincipales } from '@/lib/queries/atraccion'
 import { PROFESION_LABELS } from '@/lib/utils/vacancy-profession'
-import type { TipoProfesional } from '@/lib/utils/vacancy-profession'
 
 // ─── Paleta warm-light ────────────────────────────────────────────────────────
 const P = {
@@ -53,9 +52,7 @@ export default async function VacantesPrincipalesStrip() {
         }}
       >
         {vacantes.map((v) => {
-          const label =
-            PROFESION_LABELS[v.tipo_profesional as TipoProfesional] ??
-            v.tipo_profesional
+          const label = PROFESION_LABELS[v.tipo_profesional] ?? v.tipo_profesional
 
           const successPct =
             v.success_rate !== null ? `${v.success_rate}%` : '—'

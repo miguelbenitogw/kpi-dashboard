@@ -1602,6 +1602,32 @@ export async function getClosedVacanciesUnified(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Tipos de profesional desde la tabla dinámica
+// ---------------------------------------------------------------------------
+
+export interface TipoProfesionalRow {
+  slug: string
+  label: string
+  color_bg: string
+  color_text: string
+  color_border: string
+  orden: number
+}
+
+export async function getTiposProfesional(): Promise<TipoProfesionalRow[]> {
+  const { data, error } = await (supabase as any)
+    .from('tipos_profesional_kpi')
+    .select('slug, label, color_bg, color_text, color_border, orden')
+    .order('orden', { ascending: true })
+
+  if (error) {
+    console.error('[atraccion] getTiposProfesional error:', error)
+    return []
+  }
+  return data ?? []
+}
+
 /** Remove a link by its id */
 export async function removePromoVacancyLink(linkId: string): Promise<{ success: boolean }> {
   const { error } = await (supabase as any)

@@ -5,12 +5,13 @@ import {
   getVacanciesForProfessionConfig,
   updateVacancyTipoProfesional,
   type VacancyForConfig,
+  type TipoProfesionalRow,
 } from '@/lib/queries/atraccion'
 import {
   type TipoProfesional,
   PROFESION_LABELS,
 } from '@/lib/utils/vacancy-profession'
-import { setVacantePrincipalAction } from '@/app/dashboard/configuracion/actions'
+import { setVacantePrincipalAction, crearTipoProfesionalAction } from '@/app/dashboard/configuracion/actions'
 
 // ─── Paleta (sin gray-* de Tailwind) ──────────────────────────────────────────
 const C = {
@@ -32,12 +33,15 @@ const C = {
   subtler: '#a8a29e',
 }
 
-const ALL_TIPOS = Object.keys(PROFESION_LABELS) as TipoProfesional[]
-
 type RowState = 'idle' | 'saving' | 'saved' | 'error'
 type StarState = 'idle' | 'loading' | 'done' | 'error'
 
-export default function VacancyProfessionManager() {
+interface Props {
+  tiposProfesional: TipoProfesionalRow[]
+}
+
+export default function VacancyProfessionManager({ tiposProfesional: initialTipos }: Props) {
+  const [tiposProfesional, setTiposProfesional] = useState<TipoProfesionalRow[]>(initialTipos)
   const [vacancies, setVacancies] = useState<VacancyForConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [onlyActive, setOnlyActive] = useState(true)
@@ -49,6 +53,12 @@ export default function VacancyProfessionManager() {
   // star state per vacancy id
   const [starStates, setStarStates] = useState<Record<string, StarState>>({})
   const [, startTransition] = useTransition()
+
+  // Nueva profesión
+  const [newSlug, setNewSlug] = useState('')
+  const [newLabel, setNewLabel] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [createMsg, setCreateMsg] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -72,6 +82,13 @@ export default function VacancyProfessionManager() {
       return true
     })
   }, [vacancies, onlyActive, search])
+
+  // Lookup label desde tipos dinámicos o fallback hardcodeado
+  function getLabelForTipo(slug: string): string {
+    const found = tiposProfesional.find((t) => t.slug === slug)
+    if (found) return found.label
+    return PROFESION_LABELS[slug] ?? slug
+  }
 
   async function handleSave(v: VacancyForConfig) {
     const draft = drafts[v.id]
@@ -121,6 +138,27 @@ export default function VacancyProfessionManager() {
       setStarStates((prev) => ({ ...prev, [v.id]: 'done' }))
       setTimeout(() => setStarStates((prev) => ({ ...prev, [v.id]: 'idle' })), 1500)
     })
+  }
+
+  async function handleCrearProfesion() {
+    if (!newSlug.trim() || !newLabel.trim()) return
+    setIsCreating(true)
+    setCreateMsg('')
+    const result = await crearTipoProfesionalAction({ slug: newSlug.trim(), label: newLabel.trim() })
+    setIsCreating(false)
+    if (result.ok) {
+      setCreateMsg('✓ Creada')
+      const slugNorm = newSlug.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+      const labelNorm = newLabel.trim()
+      setTiposProfesional((prev) => [
+        ...prev,
+        { slug: slugNorm, label: labelNorm, color_bg: '#f3f4f6', color_text: '#374151', color_border: '#e5e7eb', orden: 99 },
+      ])
+      setNewSlug('')
+      setNewLabel('')
+    } else {
+      setCreateMsg('✗ ' + (result.error ?? 'Error'))
+    }
   }
 
   if (loading) {
@@ -501,7 +539,7 @@ export default function VacancyProfessionManager() {
                         onChange={(e) =>
                           setDrafts((prev) => ({
                             ...prev,
-                            [v.id]: e.target.value as TipoProfesional,
+                            [v.id]: e.target.value,
                           }))
                         }
                         style={{
@@ -516,9 +554,9 @@ export default function VacancyProfessionManager() {
                           cursor: 'pointer',
                         }}
                       >
-                        {ALL_TIPOS.map((t) => (
-                          <option key={t} value={t}>
-                            {PROFESION_LABELS[t]}
+                        {tiposProfesional.map((t) => (
+                          <option key={t.slug} value={t.slug}>
+                            {t.label}
                           </option>
                         ))}
                       </select>
@@ -540,9 +578,9 @@ export default function VacancyProfessionManager() {
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
                         }}
-                        title={PROFESION_LABELS[v.tipoProfesionalRegex]}
+                        title={getLabelForTipo(v.tipoProfesionalRegex)}
                       >
-                        {PROFESION_LABELS[v.tipoProfesionalRegex]}
+                        {getLabelForTipo(v.tipoProfesionalRegex)}
                       </span>
                     </td>
 
@@ -618,6 +656,62 @@ export default function VacancyProfessionManager() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Crear nueva profesión */}
+      <div style={{ marginTop: 24, padding: '16px 20px', background: '#f9f7f4', borderRadius: 10, border: '1px solid #e7e2d8' }}>
+        <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 600, color: '#1c1917' }}>
+          Nueva profesión
+        </p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: '#78716c', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Slug (sin espacios)
+            </label>
+            <input
+              type="text"
+              value={newSlug}
+              onChange={(e) => setNewSlug(e.target.value)}
+              placeholder="ej: veterinario"
+              style={{ padding: '7px 10px', border: '1px solid #e7e2d8', borderRadius: 7, fontSize: 13, width: 160, outline: 'none' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: '#78716c', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Etiqueta
+            </label>
+            <input
+              type="text"
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+              placeholder="ej: Veterinario/a"
+              style={{ padding: '7px 10px', border: '1px solid #e7e2d8', borderRadius: 7, fontSize: 13, width: 160, outline: 'none' }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleCrearProfesion}
+            disabled={isCreating || !newSlug.trim() || !newLabel.trim()}
+            style={{
+              padding: '7px 16px',
+              background: '#1c1917',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 7,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              opacity: isCreating ? 0.6 : 1,
+            }}
+          >
+            {isCreating ? 'Creando...' : '+ Crear'}
+          </button>
+          {createMsg && (
+            <span style={{ fontSize: 12, color: createMsg.startsWith('✓') ? '#16a34a' : '#dc2626' }}>
+              {createMsg}
+            </span>
+          )}
+        </div>
       </div>
 
       <style>{`

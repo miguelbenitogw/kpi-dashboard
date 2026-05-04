@@ -50,6 +50,28 @@ export async function setVacantePrincipalAction(
   return { ok: true }
 }
 
+export async function crearTipoProfesionalAction(input: {
+  slug: string
+  label: string
+}): Promise<{ ok: boolean; error?: string }> {
+  const slug = input.slug.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+  const label = input.label.trim()
+
+  if (!slug || !label) return { ok: false, error: 'Slug y label son obligatorios' }
+
+  const { error } = await (supabaseAdmin as any)
+    .from('tipos_profesional_kpi')
+    .insert({ slug, label })
+
+  if (error) {
+    return { ok: false, error: error.message }
+  }
+
+  revalidatePath('/dashboard/configuracion')
+  revalidatePath('/dashboard')
+  return { ok: true }
+}
+
 export async function getMadreSheetsAction(): Promise<MadreSheet[]> {
   const { data, error } = await (supabaseAdmin
     .from('madre_sheets_kpi') as any)

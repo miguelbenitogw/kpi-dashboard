@@ -1,15 +1,4 @@
-export type TipoProfesional =
-  | 'enfermero'
-  | 'auxiliar_enfermeria'
-  | 'medico'
-  | 'fisioterapeuta'
-  | 'maestro_primaria'
-  | 'maestro_infantil'
-  | 'farmaceutico'
-  | 'ingeniero'
-  | 'electricista'
-  | 'conductor'
-  | 'otro'
+export type TipoProfesional = string
 
 /**
  * Derives the professional type from a vacancy title using keyword matching.
@@ -18,7 +7,7 @@ export type TipoProfesional =
  * Order matters — more specific patterns come first.
  * Returns 'otro' if no match.
  */
-export function deriveProfesionTipo(title: string | null | undefined): TipoProfesional {
+export function deriveProfesionTipo(title: string | null | undefined): string {
   if (!title) return 'otro'
   // Strip diacritics for accent-insensitive matching
   const t = title
@@ -39,7 +28,7 @@ export function deriveProfesionTipo(title: string | null | undefined): TipoProfe
   return 'otro'
 }
 
-export const PROFESION_LABELS: Record<TipoProfesional, string> = {
+export const PROFESION_LABELS: Record<string, string> = {
   enfermero:           'Enfermero/a',
   auxiliar_enfermeria: 'Auxiliar de Enfermería',
   medico:              'Médico/a',
@@ -54,7 +43,7 @@ export const PROFESION_LABELS: Record<TipoProfesional, string> = {
 }
 
 export const PROFESION_COLORS: Record<
-  TipoProfesional,
+  string,
   { bg: string; text: string; border: string }
 > = {
   enfermero:           { bg: '#dbeafe', text: '#1e40af', border: '#bfdbfe' },

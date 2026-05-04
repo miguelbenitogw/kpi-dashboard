@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import ConfiguracionClient from './ConfiguracionClient'
-import VacancyProfessionManager from '@/components/configuracion/VacancyProfessionManager'
+import VacancyProfessionManagerWrapper from '@/components/configuracion/VacancyProfessionManagerWrapper'
 
 export const metadata = {
   title: 'Configuración | KPI Dashboard',
@@ -56,7 +56,7 @@ export default function ConfiguracionPage() {
           </p>
         </div>
         <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 20, overflow: 'hidden' }}>
-          <VacancyProfessionManager />
+          <VacancyProfessionManagerWrapper />
         </div>
       </section>
     </div>
