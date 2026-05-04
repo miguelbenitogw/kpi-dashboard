@@ -310,7 +310,8 @@ export default function VacancyRecruitmentTable({
   const cols = visibleCols
   const filtered = data.rows
     .filter((r) =>
-      profesionFilter === 'todos' || deriveProfesionTipo(r.title) === profesionFilter,
+      profesionFilter === 'todos' ||
+      (r.tipoProfesional ?? deriveProfesionTipo(r.title)) === profesionFilter,
     )
     .filter((r) =>
       !search.trim() || r.title.toLowerCase().includes(search.toLowerCase()),

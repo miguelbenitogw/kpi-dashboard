@@ -17,6 +17,7 @@ type VacancyRanking = {
   weeklyTarget: number | null
   newThisWeek: number
   previousWeek: number
+  tipoProfesional?: TipoProfesional
 }
 
 type VacancyWeeklySeries = {
@@ -194,7 +195,7 @@ export default function ReceivedCvsByVacancyView({
     return data.ranking
       .filter((rankingRow) =>
         profesionFilter === 'todos' ||
-        deriveProfesionTipo(rankingRow.vacancyTitle) === profesionFilter,
+        (rankingRow.tipoProfesional ?? deriveProfesionTipo(rankingRow.vacancyTitle)) === profesionFilter,
       )
       .map((rankingRow) => ({
         ...rankingRow,

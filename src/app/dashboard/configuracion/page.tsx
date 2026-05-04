@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import ConfiguracionClient from './ConfiguracionClient'
+import VacancyProfessionManager from '@/components/configuracion/VacancyProfessionManager'
 
 export const metadata = {
   title: 'Configuración | KPI Dashboard',
@@ -44,6 +45,18 @@ export default function ConfiguracionPage() {
         </div>
         <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 20, overflow: 'hidden' }}>
           <ConfiguracionClient section="sla" />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold" style={{ color: '#1c1917' }}>Profesión por vacante</h2>
+          <p className="mt-0.5 text-sm" style={{ color: '#78716c' }}>
+            Asigná el tipo de profesional a cada vacante. Las filas en amarillo tienen diferencia entre el valor guardado en BD y el que derivaría la regex automática.
+          </p>
+        </div>
+        <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 20, overflow: 'hidden' }}>
+          <VacancyProfessionManager />
         </div>
       </section>
     </div>
