@@ -87,6 +87,9 @@ export function transformJobOpening(zoho: Record<string, unknown>) {
     category,
     tipo_profesional: deriveProfesionTipo(title),
     tipo_vacante: deriveTipoVacante(title),
+    zoho_job_number: typeof zoho.Job_Opening_ID === 'number'
+      ? zoho.Job_Opening_ID
+      : (zoho.Job_Opening_ID ? parseInt(String(zoho.Job_Opening_ID), 10) || null : null),
   }
 }
 

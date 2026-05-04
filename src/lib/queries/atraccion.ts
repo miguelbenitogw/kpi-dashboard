@@ -713,6 +713,7 @@ export interface VacancyStatusRow {
   total_candidates: number
   tipoProfesional: TipoProfesional
   hired_count: number
+  zohoJobNumber: number | null
   byStatus: Record<string, number>   // candidate_status_in_jo â†’ count
   total: number
 }
@@ -727,7 +728,7 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
   // 1. Fetch active vacancies
   const { data: vacancies, error: vacError } = await supabase
     .from('job_openings_kpi')
-    .select('id, title, client_name, owner, status, date_opened, total_candidates, hired_count, tipo_profesional')
+    .select('id, title, client_name, owner, status, date_opened, total_candidates, hired_count, tipo_profesional, zoho_job_number')
     .eq('es_proceso_atraccion_actual', true)
     .order('total_candidates', { ascending: false })
 
@@ -782,6 +783,7 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
       date_opened: v.date_opened ?? null,
       total_candidates: v.total_candidates ?? 0,
       hired_count: v.hired_count ?? 0,
+      zohoJobNumber: (v as any).zoho_job_number ?? null,
       byStatus: countMap.get(v.id) ?? {},
       total: v.total_candidates ?? 0,
       tipoProfesional,
@@ -1702,6 +1704,8 @@ export interface VacancyForConfig {
   id: string
   /** Last 6 chars of the Zoho internal ID — short visual identifier */
   shortId: string
+  /** Zoho sequential job number (3-4 digits, e.g. 665) — null until backfill runs */
+  jobNumber: number | null
   title: string
   tipoProfesionalDb: TipoProfesional
   tipoProfesionalRegex: TipoProfesional
@@ -1711,7 +1715,7 @@ export interface VacancyForConfig {
 export async function getVacanciesForProfessionConfig(): Promise<VacancyForConfig[]> {
   const { data, error } = await (supabase as any)
     .from('job_openings_kpi')
-    .select('id, title, tipo_profesional, es_proceso_atraccion_actual')
+    .select('id, title, tipo_profesional, es_proceso_atraccion_actual, zoho_job_number')
     .order('es_proceso_atraccion_actual', { ascending: false })
     .order('title', { ascending: true })
 
@@ -1723,6 +1727,7 @@ export async function getVacanciesForProfessionConfig(): Promise<VacancyForConfi
   return (data as any[]).map((r) => ({
     id: r.id,
     shortId: String(r.id).slice(-6),
+    jobNumber: r.zoho_job_number ?? null,
     title: r.title ?? '',
     tipoProfesionalDb: ((r.tipo_profesional ?? 'otro') as TipoProfesional),
     tipoProfesionalRegex: deriveProfesionTipo(r.title ?? ''),

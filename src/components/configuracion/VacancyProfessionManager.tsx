@@ -63,7 +63,7 @@ export default function VacancyProfessionManager() {
     const q = search.trim().toLowerCase()
     return vacancies.filter((v) => {
       if (onlyActive && !v.isActive) return false
-      if (q && !v.title.toLowerCase().includes(q) && !v.shortId.includes(q)) return false
+      if (q && !v.title.toLowerCase().includes(q) && !v.shortId.includes(q) && !String(v.jobNumber ?? '').includes(q)) return false
       return true
     })
   }, [vacancies, onlyActive, search])
@@ -224,7 +224,7 @@ export default function VacancyProfessionManager() {
                   width: 70,
                 }}
               >
-                ID corto
+                #
               </th>
               <th
                 style={{
@@ -322,17 +322,16 @@ export default function VacancyProfessionManager() {
                       borderBottom: `1px solid ${C.border}`,
                     }}
                   >
-                    {/* ID corto */}
+                    {/* Job number */}
                     <td
                       style={{
-                        padding: '6px 10px',
+                        padding: '8px 12px',
+                        color: '#78716c',
                         fontFamily: 'monospace',
-                        fontSize: 11,
-                        color: C.subtler,
-                        whiteSpace: 'nowrap',
+                        fontSize: 12,
                       }}
                     >
-                      …{v.shortId}
+                      {v.jobNumber != null ? `#${v.jobNumber}` : '—'}
                     </td>
 
                     {/* Título */}
