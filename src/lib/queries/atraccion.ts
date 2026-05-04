@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { type TipoProfesional, deriveProfesionTipo } from '@/lib/utils/vacancy-profession'
 
 // Statuses NOT considered as "contacted" — candidates that never progressed beyond intake
 const NOT_CONTACTED_STATUSES = ['Associated', 'New', 'Not Valid']
@@ -27,6 +28,7 @@ export interface VacancyWeeklyCvSummary {
   weeklyTarget: number | null
   newThisWeek: number
   history: VacancyWeeklyCvPoint[]
+  tipoProfesional: TipoProfesional
 }
 
 export interface ReceivedCvsByVacancyResult {
@@ -306,6 +308,7 @@ type VacancyMetaRow = {
   client_name: string | null
   owner: string | null
   weekly_cv_target: number | null
+  tipo_profesional: string | null
 }
 
 export async function getReceivedCvsByVacancy(
@@ -395,7 +398,7 @@ export async function getReceivedCvsByVacancy(
   const vacancyMetaClient = supabase as unknown as VacancyMetaQueryClient
   const { data: vacanciesMeta, error: vacError } = await vacancyMetaClient
     .from('job_openings_kpi')
-    .select('id, title, client_name, owner, weekly_cv_target')
+    .select('id, title, client_name, owner, weekly_cv_target, tipo_profesional')
     .in('id', vacancyIds)
 
   if (vacError) {
@@ -403,15 +406,23 @@ export async function getReceivedCvsByVacancy(
   }
 
   const metaMap = new Map(
-    (vacanciesMeta ?? []).map((v) => [
-      v.id,
+    (vacanciesMeta ?? []).map((v) => {
+      const dbTipo = (v.tipo_profesional ?? '') as string
+      const tipoProfesional: TipoProfesional =
+        dbTipo && dbTipo !== 'otro'
+          ? (dbTipo as TipoProfesional)
+          : deriveProfesionTipo(v.title)
+      return [
+        v.id,
         {
           title: v.title,
           clientName: v.client_name ?? null,
           owner: v.owner ?? null,
           weeklyTarget: v.weekly_cv_target ?? null,
+          tipoProfesional,
         },
-    ]),
+      ]
+    }),
   )
 
   const summaries: VacancyWeeklyCvSummary[] = vacancyIds.map((vacancyId) => {
@@ -437,6 +448,7 @@ export async function getReceivedCvsByVacancy(
       weeklyTarget,
       newThisWeek,
       history,
+      tipoProfesional: meta?.tipoProfesional ?? deriveProfesionTipo(meta?.title),
     }
   })
 
@@ -460,6 +472,7 @@ export interface VacancyRankingRow {
   weeklyTarget: number | null
   newThisWeek: number
   previousWeek: number
+  tipoProfesional: TipoProfesional
 }
 
 export interface VacancyWeeklySeries {
@@ -497,6 +510,7 @@ export async function getReceivedCvsByVacancyStats(
       vacancyTitle: summary.title,
       weeklyTarget: summary.weeklyTarget,
       newThisWeek: summary.newThisWeek,
+      tipoProfesional: summary.tipoProfesional,
       previousWeek,
     }
   })
@@ -697,6 +711,7 @@ export interface VacancyStatusRow {
   status: string | null
   date_opened: string | null
   total_candidates: number
+  tipoProfesional: TipoProfesional
   hired_count: number
   byStatus: Record<string, number>   // candidate_status_in_jo â†’ count
   total: number
@@ -712,7 +727,7 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
   // 1. Fetch active vacancies
   const { data: vacancies, error: vacError } = await supabase
     .from('job_openings_kpi')
-    .select('id, title, client_name, owner, status, date_opened, total_candidates, hired_count')
+    .select('id, title, client_name, owner, status, date_opened, total_candidates, hired_count, tipo_profesional')
     .eq('es_proceso_atraccion_actual', true)
     .order('total_candidates', { ascending: false })
 
@@ -752,18 +767,26 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
   }
   const statuses = Array.from(allStatuses).sort()
 
-  const rows: VacancyStatusRow[] = vacList.map((v) => ({
-    id: v.id,
-    title: v.title,
-    client_name: v.client_name ?? null,
-    owner: v.owner ?? null,
-    status: v.status ?? null,
-    date_opened: v.date_opened ?? null,
-    total_candidates: v.total_candidates ?? 0,
-    hired_count: v.hired_count ?? 0,
-    byStatus: countMap.get(v.id) ?? {},
-    total: v.total_candidates ?? 0,
-  }))
+  const rows: VacancyStatusRow[] = vacList.map((v) => {
+    const dbTipo = ((v as any).tipo_profesional ?? '') as string
+    const tipoProfesional: TipoProfesional =
+      dbTipo && dbTipo !== 'otro'
+        ? (dbTipo as TipoProfesional)
+        : deriveProfesionTipo(v.title)
+    return {
+      id: v.id,
+      title: v.title,
+      client_name: v.client_name ?? null,
+      owner: v.owner ?? null,
+      status: v.status ?? null,
+      date_opened: v.date_opened ?? null,
+      total_candidates: v.total_candidates ?? 0,
+      hired_count: v.hired_count ?? 0,
+      byStatus: countMap.get(v.id) ?? {},
+      total: v.total_candidates ?? 0,
+      tipoProfesional,
+    }
+  })
 
   return { rows, statuses, lastSynced: latestSyncedAt }
 }
@@ -1402,6 +1425,181 @@ export async function addPromoVacancyLink(
   return { success: true }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Closed vacancies — unified view (CVs history + tags + success rate)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ClosedVacancyUnified {
+  id: string
+  title: string
+  year: number | null
+  status: string | null
+  totalCandidates: number
+  hiredCount: number
+  approvedCount: number        // candidates with status containing 'approved' or 'client'
+  successRate: number | null   // (hired + approved) / totalCandidates — null if totalCandidates === 0
+  peakWeekLabel: string | null
+  totalWeeklyCVs: number       // sum of all weekly counts in history
+  series: ClosedVacancyHistoryPoint[]
+  /** Alias for series — used by newer components */
+  points: ClosedVacancyHistoryPoint[]
+  tags: Record<string, number>
+}
+
+export interface ClosedVacanciesUnifiedData {
+  vacancies: ClosedVacancyUnified[]   // sorted by totalCandidates desc
+  /** year → { totalCVs, top 8 vacancies by CVs for stacked bar chart } */
+  byYear: Record<number, { totalCVs: number; top: { title: string; cvs: number }[] }>
+  kpis: {
+    totalVacancies: number
+    avgSuccessRate: number | null     // average of successRate across vacancies with totalCandidates > 0
+    totalCVsHistorical: number        // sum of totalCandidates across all vacancies
+  }
+  channelSummary: {
+    fr: number    // sum of counts for tags starting with 'FR'
+    cp: number    // sum of counts for tags starting with 'CP'
+    gw: number    // sum of counts for tags starting with 'GW'
+    other: number // everything else
+  }
+}
+
+export async function getClosedVacanciesUnified(
+  weeks = 52,
+): Promise<ClosedVacanciesUnifiedData> {
+  // Step 1: get all weekly CV history (es_proceso_atraccion_actual = false)
+  const entries = await getClosedVacancyCvsHistory(weeks)
+  if (entries.length === 0) {
+    return {
+      vacancies: [],
+      byYear: {},
+      kpis: { totalVacancies: 0, avgSuccessRate: null, totalCVsHistorical: 0 },
+      channelSummary: { fr: 0, cp: 0, gw: 0, other: 0 },
+    }
+  }
+
+  const vacancyIds = entries.map(e => e.vacancyId)
+
+  // Step 2: fetch date_opened and status for those vacancies
+  const { data: metaRows } = await (supabase as any)
+    .from('job_openings_kpi')
+    .select('id, date_opened, status')
+    .in('id', vacancyIds)
+
+  const metaMap = new Map<string, { date_opened: string | null; status: string | null }>()
+  for (const row of metaRows ?? []) {
+    metaMap.set(row.id, { date_opened: row.date_opened ?? null, status: row.status ?? null })
+  }
+
+  // Step 3: fetch tag counts
+  const tagCountsMap = await getVacancyTagCountsMap(vacancyIds)
+
+  // Step 4: fetch approved-by-client counts from vacancy_status_counts_kpi
+  const { data: statusRows } = await (supabase as any)
+    .from('vacancy_status_counts_kpi')
+    .select('vacancy_id, status, count')
+    .in('vacancy_id', vacancyIds)
+
+  const approvedMap = new Map<string, number>()
+  for (const row of statusRows ?? []) {
+    const s: string = (row.status ?? '').toLowerCase()
+    const isApproved = s.includes('approved') || s.includes('client') || s.includes('aprobado')
+    if (isApproved) {
+      approvedMap.set(row.vacancy_id, (approvedMap.get(row.vacancy_id) ?? 0) + (row.count ?? 0))
+    }
+  }
+
+  // Step 5: build ClosedVacancyUnified[]
+  const vacancies: ClosedVacancyUnified[] = []
+  const byYearRaw: Record<number, { totalCVs: number; vacancies: { title: string; cvs: number }[] }> = {}
+  const channelSummary = { fr: 0, cp: 0, gw: 0, other: 0 }
+
+  for (const entry of entries) {
+    const meta = metaMap.get(entry.vacancyId)
+    const year = meta?.date_opened ? new Date(meta.date_opened).getFullYear() : null
+    const tags = tagCountsMap.get(entry.vacancyId) ?? {}
+    const approvedCount = approvedMap.get(entry.vacancyId) ?? 0
+    const successRate =
+      entry.totalCandidates > 0
+        ? (entry.hiredCount + approvedCount) / entry.totalCandidates
+        : null
+
+    // peak week from series
+    let peakCount = 0
+    let peakWeekLabel: string | null = null
+    for (const pt of entry.history) {
+      if (pt.count > peakCount) { peakCount = pt.count; peakWeekLabel = pt.weekLabel }
+    }
+
+    const totalWeeklyCVs = entry.history.reduce((s, p) => s + p.count, 0)
+
+    // byYear accumulation — track per-vacancy CVs for stacked bar chart
+    if (year) {
+      if (!byYearRaw[year]) byYearRaw[year] = { totalCVs: 0, vacancies: [] }
+      byYearRaw[year].totalCVs += totalWeeklyCVs
+      byYearRaw[year].vacancies.push({ title: entry.title, cvs: totalWeeklyCVs })
+    }
+
+    // channel summary
+    for (const [tag, count] of Object.entries(tags)) {
+      const upper = tag.toUpperCase()
+      if (upper.startsWith('FR')) channelSummary.fr += count
+      else if (upper.startsWith('CP')) channelSummary.cp += count
+      else if (upper.startsWith('GW')) channelSummary.gw += count
+      else channelSummary.other += count
+    }
+
+    const historyPoints = entry.history.map((p) => ({
+      weekStart: p.weekStart,
+      weekLabel: p.weekLabel,
+      count: p.count,
+    }))
+
+    vacancies.push({
+      id: entry.vacancyId,
+      title: entry.title,
+      year,
+      status: meta?.status ?? null,
+      totalCandidates: entry.totalCandidates,
+      hiredCount: entry.hiredCount,
+      approvedCount,
+      successRate,
+      peakWeekLabel,
+      totalWeeklyCVs,
+      series: historyPoints,
+      points: historyPoints,
+      tags,
+    })
+  }
+
+  // Build rich byYear — top 8 vacancies per year by CVs
+  const byYear: Record<number, { totalCVs: number; top: { title: string; cvs: number }[] }> = {}
+  for (const [yearStr, data] of Object.entries(byYearRaw)) {
+    const yr = Number(yearStr)
+    byYear[yr] = {
+      totalCVs: data.totalCVs,
+      top: data.vacancies.sort((a, b) => b.cvs - a.cvs).slice(0, 8),
+    }
+  }
+
+  // KPIs
+  const withCandidates = vacancies.filter(v => v.totalCandidates > 0)
+  const avgSuccessRate =
+    withCandidates.length > 0
+      ? withCandidates.reduce((s, v) => s + (v.successRate ?? 0), 0) / withCandidates.length
+      : null
+
+  return {
+    vacancies,
+    byYear,
+    kpis: {
+      totalVacancies: vacancies.length,
+      avgSuccessRate,
+      totalCVsHistorical: vacancies.reduce((s, v) => s + v.totalCandidates, 0),
+    },
+    channelSummary,
+  }
+}
+
 /** Remove a link by its id */
 export async function removePromoVacancyLink(linkId: string): Promise<{ success: boolean }> {
   const { error } = await (supabase as any)
@@ -1494,4 +1692,56 @@ export async function getAtraccionVacancies(): Promise<AtraccionVacancy[]> {
     ...v,
     approved_count: approvedMap.get(v.id) ?? 0,
   }))
+}
+
+// ---------------------------------------------------------------------------
+// Vacancy profession config — read & write
+// ---------------------------------------------------------------------------
+
+export interface VacancyForConfig {
+  id: string
+  /** Last 6 chars of the Zoho internal ID — short visual identifier */
+  shortId: string
+  title: string
+  tipoProfesionalDb: TipoProfesional
+  tipoProfesionalRegex: TipoProfesional
+  isActive: boolean
+}
+
+export async function getVacanciesForProfessionConfig(): Promise<VacancyForConfig[]> {
+  const { data, error } = await (supabase as any)
+    .from('job_openings_kpi')
+    .select('id, title, tipo_profesional, es_proceso_atraccion_actual')
+    .order('es_proceso_atraccion_actual', { ascending: false })
+    .order('title', { ascending: true })
+
+  if (error || !data) {
+    console.error('[atraccion] getVacanciesForProfessionConfig error:', error)
+    return []
+  }
+
+  return (data as any[]).map((r) => ({
+    id: r.id,
+    shortId: String(r.id).slice(-6),
+    title: r.title ?? '',
+    tipoProfesionalDb: ((r.tipo_profesional ?? 'otro') as TipoProfesional),
+    tipoProfesionalRegex: deriveProfesionTipo(r.title ?? ''),
+    isActive: r.es_proceso_atraccion_actual ?? false,
+  }))
+}
+
+export async function updateVacancyTipoProfesional(
+  vacancyId: string,
+  tipoProfesional: TipoProfesional,
+): Promise<{ error: string | null }> {
+  const { error } = await (supabase as any)
+    .from('job_openings_kpi')
+    .update({ tipo_profesional: tipoProfesional })
+    .eq('id', vacancyId)
+
+  if (error) {
+    console.error('[atraccion] updateVacancyTipoProfesional error:', error)
+    return { error: error.message }
+  }
+  return { error: null }
 }
