@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import {
   getVacanciesForProfessionConfig,
   updateVacancyTipoProfesional,
@@ -10,6 +10,7 @@ import {
   type TipoProfesional,
   PROFESION_LABELS,
 } from '@/lib/utils/vacancy-profession'
+import { setVacantePrincipalAction } from '@/app/dashboard/configuracion/actions'
 
 // ─── Paleta (sin gray-* de Tailwind) ──────────────────────────────────────────
 const C = {
@@ -34,6 +35,7 @@ const C = {
 const ALL_TIPOS = Object.keys(PROFESION_LABELS) as TipoProfesional[]
 
 type RowState = 'idle' | 'saving' | 'saved' | 'error'
+type StarState = 'idle' | 'loading' | 'done' | 'error'
 
 export default function VacancyProfessionManager() {
   const [vacancies, setVacancies] = useState<VacancyForConfig[]>([])
@@ -44,6 +46,9 @@ export default function VacancyProfessionManager() {
   const [drafts, setDrafts] = useState<Record<string, TipoProfesional>>({})
   // row-level save state
   const [rowStates, setRowStates] = useState<Record<string, RowState>>({})
+  // star state per vacancy id
+  const [starStates, setStarStates] = useState<Record<string, StarState>>({})
+  const [, startTransition] = useTransition()
 
   useEffect(() => {
     let cancelled = false
@@ -86,6 +91,36 @@ export default function VacancyProfessionManager() {
     )
     setRowStates((prev) => ({ ...prev, [v.id]: 'saved' }))
     setTimeout(() => setRowStates((prev) => ({ ...prev, [v.id]: 'idle' })), 2000)
+  }
+
+  function handleSetPrincipal(v: VacancyForConfig) {
+    if (!v.isActive) return
+    if (v.isVacantePrincipal) return // ya es principal, no hacer nada
+
+    setStarStates((prev) => ({ ...prev, [v.id]: 'loading' }))
+
+    startTransition(async () => {
+      const result = await setVacantePrincipalAction(v.id)
+
+      if (!result.ok) {
+        setStarStates((prev) => ({ ...prev, [v.id]: 'error' }))
+        setTimeout(() => setStarStates((prev) => ({ ...prev, [v.id]: 'idle' })), 3000)
+        return
+      }
+
+      // Actualizar estado local: desmarcar todas del mismo tipo, marcar la seleccionada
+      setVacancies((prev) =>
+        prev.map((item) => {
+          if (item.tipoProfesionalDb === v.tipoProfesionalDb) {
+            return { ...item, isVacantePrincipal: item.id === v.id }
+          }
+          return item
+        }),
+      )
+
+      setStarStates((prev) => ({ ...prev, [v.id]: 'done' }))
+      setTimeout(() => setStarStates((prev) => ({ ...prev, [v.id]: 'idle' })), 1500)
+    })
   }
 
   if (loading) {
@@ -252,6 +287,19 @@ export default function VacancyProfessionManager() {
               <th
                 style={{
                   padding: '7px 10px',
+                  textAlign: 'center',
+                  color: C.thColor,
+                  fontSize: 11,
+                  fontWeight: 500,
+                  width: 70,
+                }}
+                title="Vacante principal por tipo de profesional (se muestra en el Resumen)"
+              >
+                Principal
+              </th>
+              <th
+                style={{
+                  padding: '7px 10px',
                   textAlign: 'left',
                   color: C.thColor,
                   fontSize: 11,
@@ -291,7 +339,7 @@ export default function VacancyProfessionManager() {
             {filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   style={{
                     padding: '24px',
                     textAlign: 'center',
@@ -368,6 +416,83 @@ export default function VacancyProfessionManager() {
                         {v.isActive ? 'Sí' : 'No'}
                       </span>
                     </td>
+
+                    {/* Principal — estrella */}
+                    {(() => {
+                      const starState = starStates[v.id] ?? 'idle'
+                      const isPrincipal = v.isVacantePrincipal
+                      const canMark = v.isActive && !isPrincipal
+
+                      return (
+                        <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                          {starState === 'loading' ? (
+                            <svg
+                              style={{
+                                width: 14,
+                                height: 14,
+                                animation: 'spin 1s linear infinite',
+                                color: '#a8a29e',
+                              }}
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                style={{ opacity: 0.25 }}
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                style={{ opacity: 0.75 }}
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"
+                              />
+                            </svg>
+                          ) : starState === 'error' ? (
+                            <span style={{ fontSize: 13, color: '#dc2626' }}>✗</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSetPrincipal(v)}
+                              disabled={!canMark}
+                              title={
+                                !v.isActive
+                                  ? 'Solo las vacantes activas pueden ser principal'
+                                  : isPrincipal
+                                    ? 'Vacante principal de este tipo de profesional'
+                                    : 'Marcar como vacante principal'
+                              }
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                padding: 0,
+                                cursor: canMark ? 'pointer' : 'default',
+                                fontSize: 16,
+                                lineHeight: 1,
+                                color: isPrincipal ? '#d97706' : '#d1c4a8',
+                                transition: 'color 0.15s, transform 0.1s',
+                              }}
+                              onMouseEnter={(e) => {
+                                if (canMark) {
+                                  ;(e.currentTarget as HTMLButtonElement).style.color = '#f59e0b'
+                                  ;(e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.2)'
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                ;(e.currentTarget as HTMLButtonElement).style.color =
+                                  isPrincipal ? '#d97706' : '#d1c4a8'
+                                ;(e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'
+                              }}
+                            >
+                              {isPrincipal ? '★' : '☆'}
+                            </button>
+                          )}
+                        </td>
+                      )
+                    })()}
 
                     {/* Prof. BD — select editable */}
                     <td style={{ padding: '6px 10px' }}>

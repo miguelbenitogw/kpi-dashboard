@@ -1,8 +1,10 @@
+import { Suspense } from 'react'
 import KpiCards from '@/components/dashboard/KpiCards'
 import AlertsSummary from '@/components/dashboard/AlertsSummary'
 import WeeklyTrendChart from '@/components/dashboard/WeeklyTrendChart'
 import TopVacancies from '@/components/dashboard/TopVacancies'
 import CvsPerVacancyChart from '@/components/dashboard/CvsPerVacancyChart'
+import VacantesPrincipalesStrip from '@/components/resumen/VacantesPrincipalesStrip'
 
 export default function DashboardPage() {
   return (
@@ -15,6 +17,13 @@ export default function DashboardPage() {
         <p className="mt-1 text-sm" style={{ color: '#78716c' }}>
           Vista general de indicadores clave de reclutamiento
         </p>
+      </div>
+
+      {/* Vacantes principales */}
+      <div style={{ background: '#f9f7f4', borderRadius: 14, padding: '16px 20px', border: '1px solid #e7e2d8' }}>
+        <Suspense fallback={null}>
+          <VacantesPrincipalesStrip />
+        </Suspense>
       </div>
 
       {/* KPI Cards */}

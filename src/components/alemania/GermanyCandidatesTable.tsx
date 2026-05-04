@@ -1,0 +1,372 @@
+'use client'
+
+import { useState, useTransition, useCallback } from 'react'
+import type { GermanyCandidateRow } from '@/lib/queries/germany'
+
+interface Props {
+  initialRows: GermanyCandidateRow[]
+  initialTotal: number
+  promos: number[]
+  tiposPerfil: string[]
+  estados: string[]
+}
+
+// Status badge colors
+function estadoBadge(estado: string | null) {
+  if (!estado) return { bg: '#f5f1ea', color: '#78716c' }
+  const e = estado.toLowerCase()
+  if (e.includes('hired')) return { bg: '#dcfce7', color: '#16a34a' }
+  if (e.includes('in training') || e.includes('standby') || e.includes('stand by'))
+    return { bg: '#dbeafe', color: '#1d4ed8' }
+  if (e.includes('to place') || e.includes('iqz') || e.includes('berlín') || e.includes('berlin'))
+    return { bg: '#fef3c7', color: '#d97706' }
+  if (
+    e.includes('fuera') ||
+    e.includes('withdrawn') ||
+    e.includes('expelled')
+  )
+    return { bg: '#fee2e2', color: '#dc2626' }
+  return { bg: '#f5f1ea', color: '#57534e' }
+}
+
+const SELECT_STYLE: React.CSSProperties = {
+  padding: '7px 10px',
+  borderRadius: '8px',
+  border: '1px solid #e7e2d8',
+  background: '#ffffff',
+  color: '#1c1917',
+  fontSize: '13px',
+  cursor: 'pointer',
+  outline: 'none',
+}
+
+const TH_STYLE: React.CSSProperties = {
+  padding: '10px 12px',
+  textAlign: 'left',
+  fontSize: '11px',
+  fontWeight: 600,
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.06em',
+  color: '#78716c',
+  borderBottom: '1px solid #e7e2d8',
+  whiteSpace: 'nowrap' as const,
+  background: '#f9f7f4',
+}
+
+const TD_STYLE: React.CSSProperties = {
+  padding: '10px 12px',
+  fontSize: '13px',
+  color: '#1c1917',
+  borderBottom: '1px solid #e7e2d8',
+  verticalAlign: 'middle',
+}
+
+export default function GermanyCandidatesTable({
+  initialRows,
+  initialTotal,
+  promos,
+  tiposPerfil,
+  estados,
+}: Props) {
+  const [rows, setRows] = useState<GermanyCandidateRow[]>(initialRows)
+  const [total, setTotal] = useState(initialTotal)
+  const [page, setPage] = useState(1)
+  const [promoFilter, setPromoFilter] = useState<string>('')
+  const [tipoPerfilFilter, setTipoPerfilFilter] = useState<string>('')
+  const [estadoFilter, setEstadoFilter] = useState<string>('')
+  const [isPending, startTransition] = useTransition()
+
+  const PAGE_SIZE = 50
+
+  const fetchData = useCallback(
+    (newPage: number, promo: string, tipoPerfil: string, estado: string) => {
+      startTransition(async () => {
+        const params = new URLSearchParams()
+        params.set('page', String(newPage))
+        params.set('pageSize', String(PAGE_SIZE))
+        if (promo) params.set('promoNumero', promo)
+        if (tipoPerfil) params.set('tipoPerfil', tipoPerfil)
+        if (estado) params.set('estado', estado)
+
+        const res = await fetch(`/api/germany/candidates?${params.toString()}`)
+        if (!res.ok) return
+        const json = await res.json()
+        setRows(json.rows)
+        setTotal(json.total)
+        setPage(newPage)
+      })
+    },
+    []
+  )
+
+  function handleFilterChange(
+    newPromo: string,
+    newTipo: string,
+    newEstado: string
+  ) {
+    setPromoFilter(newPromo)
+    setTipoPerfilFilter(newTipo)
+    setEstadoFilter(newEstado)
+    fetchData(1, newPromo, newTipo, newEstado)
+  }
+
+  const totalPages = Math.ceil(total / PAGE_SIZE)
+
+  return (
+    <div>
+      {/* Filtros */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '10px',
+          flexWrap: 'wrap',
+          marginBottom: '16px',
+          alignItems: 'center',
+        }}
+      >
+        <select
+          style={SELECT_STYLE}
+          value={promoFilter}
+          onChange={(e) =>
+            handleFilterChange(e.target.value, tipoPerfilFilter, estadoFilter)
+          }
+        >
+          <option value="">Todas las promos</option>
+          {promos.map((p) => (
+            <option key={p} value={String(p)}>
+              Promo #{p}
+            </option>
+          ))}
+        </select>
+
+        <select
+          style={SELECT_STYLE}
+          value={tipoPerfilFilter}
+          onChange={(e) =>
+            handleFilterChange(promoFilter, e.target.value, estadoFilter)
+          }
+        >
+          <option value="">Todos los perfiles</option>
+          {tiposPerfil.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+
+        <select
+          style={SELECT_STYLE}
+          value={estadoFilter}
+          onChange={(e) =>
+            handleFilterChange(promoFilter, tipoPerfilFilter, e.target.value)
+          }
+        >
+          <option value="">Todos los estados</option>
+          {estados.map((e) => (
+            <option key={e} value={e}>
+              {e}
+            </option>
+          ))}
+        </select>
+
+        <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#78716c' }}>
+          {total} candidato{total !== 1 ? 's' : ''}
+          {(promoFilter || tipoPerfilFilter || estadoFilter) ? ' (filtrado)' : ''}
+        </span>
+      </div>
+
+      {/* Tabla */}
+      <div
+        style={{
+          overflowX: 'auto',
+          opacity: isPending ? 0.6 : 1,
+          transition: 'opacity 200ms',
+        }}
+      >
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={TH_STYLE}>Nombre</th>
+              <th style={TH_STYLE}>Promo</th>
+              <th style={TH_STYLE}>Tipo Perfil</th>
+              <th style={TH_STYLE}>Estado</th>
+              <th style={TH_STYLE}>Cliente</th>
+              <th style={TH_STYLE}>Ciudad / Kita</th>
+              <th style={TH_STYLE}>Tags</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={7}
+                  style={{
+                    ...TD_STYLE,
+                    textAlign: 'center',
+                    color: '#78716c',
+                    padding: '24px',
+                  }}
+                >
+                  No hay candidatos con esos filtros.
+                </td>
+              </tr>
+            ) : (
+              rows.map((row, i) => {
+                const badge = estadoBadge(row.estado)
+                return (
+                  <tr
+                    key={`${row.nombre}-${i}`}
+                    style={{ transition: 'background 150ms' }}
+                    onMouseEnter={(e) => {
+                      ;(e.currentTarget as HTMLTableRowElement).style.background =
+                        '#faf9f7'
+                    }}
+                    onMouseLeave={(e) => {
+                      ;(e.currentTarget as HTMLTableRowElement).style.background =
+                        'transparent'
+                    }}
+                  >
+                    <td style={{ ...TD_STYLE, fontWeight: 500 }}>
+                      {row.nombre ?? '—'}
+                    </td>
+                    <td style={TD_STYLE}>
+                      {row.promo_numero !== null ? (
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color: '#1e4b9e',
+                            fontSize: '12px',
+                          }}
+                        >
+                          #{row.promo_numero}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td style={TD_STYLE}>
+                      <span style={{ color: '#57534e' }}>
+                        {row.tipo_perfil ?? '—'}
+                      </span>
+                    </td>
+                    <td style={TD_STYLE}>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          padding: '2px 9px',
+                          borderRadius: '99px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          background: badge.bg,
+                          color: badge.color,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {row.estado ?? '—'}
+                      </span>
+                    </td>
+                    <td style={{ ...TD_STYLE, color: '#57534e' }}>
+                      {row.cliente ?? '—'}
+                    </td>
+                    <td style={{ ...TD_STYLE, color: '#57534e' }}>
+                      {row.ciudad_kita ?? '—'}
+                    </td>
+                    <td style={TD_STYLE}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '4px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        {(row.tags ?? []).slice(0, 4).map((tag) => (
+                          <span
+                            key={tag}
+                            style={{
+                              display: 'inline-block',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 500,
+                              background: '#f5f1ea',
+                              color: '#57534e',
+                              border: '1px solid #e7e2d8',
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {(row.tags ?? []).length > 4 && (
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              color: '#a8a29e',
+                              alignSelf: 'center',
+                            }}
+                          >
+                            +{row.tags!.length - 4}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            gap: '8px',
+            marginTop: '16px',
+          }}
+        >
+          <button
+            disabled={page <= 1 || isPending}
+            onClick={() =>
+              fetchData(page - 1, promoFilter, tipoPerfilFilter, estadoFilter)
+            }
+            style={{
+              padding: '6px 14px',
+              borderRadius: '8px',
+              border: '1px solid #e7e2d8',
+              background: '#ffffff',
+              color: page <= 1 ? '#a8a29e' : '#1c1917',
+              fontSize: '13px',
+              cursor: page <= 1 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            ← Anterior
+          </button>
+          <span style={{ fontSize: '13px', color: '#78716c' }}>
+            Página {page} de {totalPages}
+          </span>
+          <button
+            disabled={page >= totalPages || isPending}
+            onClick={() =>
+              fetchData(page + 1, promoFilter, tipoPerfilFilter, estadoFilter)
+            }
+            style={{
+              padding: '6px 14px',
+              borderRadius: '8px',
+              border: '1px solid #e7e2d8',
+              background: '#ffffff',
+              color: page >= totalPages ? '#a8a29e' : '#1c1917',
+              fontSize: '13px',
+              cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Siguiente →
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}

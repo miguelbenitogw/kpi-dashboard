@@ -1710,12 +1710,13 @@ export interface VacancyForConfig {
   tipoProfesionalDb: TipoProfesional
   tipoProfesionalRegex: TipoProfesional
   isActive: boolean
+  isVacantePrincipal: boolean
 }
 
 export async function getVacanciesForProfessionConfig(): Promise<VacancyForConfig[]> {
   const { data, error } = await (supabase as any)
     .from('job_openings_kpi')
-    .select('id, title, tipo_profesional, es_proceso_atraccion_actual, zoho_job_number')
+    .select('id, title, tipo_profesional, es_proceso_atraccion_actual, zoho_job_number, is_vacante_principal')
     .order('es_proceso_atraccion_actual', { ascending: false })
     .order('title', { ascending: true })
 
@@ -1732,6 +1733,7 @@ export async function getVacanciesForProfessionConfig(): Promise<VacancyForConfi
     tipoProfesionalDb: ((r.tipo_profesional ?? 'otro') as TipoProfesional),
     tipoProfesionalRegex: deriveProfesionTipo(r.title ?? ''),
     isActive: r.es_proceso_atraccion_actual ?? false,
+    isVacantePrincipal: r.is_vacante_principal ?? false,
   }))
 }
 
@@ -1749,4 +1751,155 @@ export async function updateVacancyTipoProfesional(
     return { error: error.message }
   }
   return { error: null }
+}
+
+// ---------------------------------------------------------------------------
+// Vacante principal por tipo de profesional
+// ---------------------------------------------------------------------------
+
+export interface VacantePrincipal {
+  id: string
+  title: string
+  tipo_profesional: string
+  zoho_job_number: number | null
+  is_vacante_principal: boolean
+}
+
+export interface ResumenVacantePrincipal {
+  id: string
+  title: string
+  tipo_profesional: string
+  zoho_job_number: number | null
+  total_candidates: number
+  hired_count: number
+  success_rate: number | null
+}
+
+/**
+ * Marca una vacante como "principal" para su tipo_profesional.
+ * Primero obtiene el tipo_profesional de esa vacante, luego
+ * desmarca todas las del mismo tipo, y finalmente marca la indicada.
+ *
+ * IMPORTANTE: usa supabase (cliente público) porque se llama desde
+ * componentes client-side en configuración. Para llamadas server-side
+ * usar setVacantePrincipalAdmin (que usa supabaseAdmin).
+ */
+export async function setVacantePrincipal(
+  vacancyId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  // 1. Buscar el tipo_profesional de la vacante
+  const { data: vacancy, error: fetchError } = await (supabase as any)
+    .from('job_openings_kpi')
+    .select('id, tipo_profesional')
+    .eq('id', vacancyId)
+    .single()
+
+  if (fetchError || !vacancy) {
+    const msg = fetchError?.message ?? 'Vacante no encontrada'
+    console.error('[atraccion] setVacantePrincipal fetch error:', msg)
+    return { ok: false, error: msg }
+  }
+
+  const tipoProfesional = vacancy.tipo_profesional as string
+
+  // 2. Desmarcar todas las del mismo tipo
+  const { error: unsetError } = await (supabase as any)
+    .from('job_openings_kpi')
+    .update({ is_vacante_principal: false })
+    .eq('tipo_profesional', tipoProfesional)
+
+  if (unsetError) {
+    console.error('[atraccion] setVacantePrincipal unset error:', unsetError)
+    return { ok: false, error: unsetError.message }
+  }
+
+  // 3. Marcar la vacante indicada
+  const { error: setError } = await (supabase as any)
+    .from('job_openings_kpi')
+    .update({ is_vacante_principal: true })
+    .eq('id', vacancyId)
+
+  if (setError) {
+    console.error('[atraccion] setVacantePrincipal set error:', setError)
+    return { ok: false, error: setError.message }
+  }
+
+  return { ok: true }
+}
+
+/**
+ * Obtiene todas las vacantes marcadas como principal.
+ */
+export async function getVacantesPrincipales(): Promise<VacantePrincipal[]> {
+  const { data, error } = await (supabase as any)
+    .from('job_openings_kpi')
+    .select('id, title, tipo_profesional, zoho_job_number, is_vacante_principal')
+    .eq('is_vacante_principal', true)
+    .order('tipo_profesional', { ascending: true })
+
+  if (error) {
+    console.error('[atraccion] getVacantesPrincipales error:', error)
+    return []
+  }
+
+  return (data ?? []) as VacantePrincipal[]
+}
+
+/**
+ * Obtiene el resumen con KPIs de cada vacante principal.
+ * Para el success_rate usa: (hired_count + approved_by_client) / total_candidates.
+ */
+export async function getResumenVacantesPrincipales(): Promise<ResumenVacantePrincipal[]> {
+  // 1. Fetch vacantes principales
+  const { data: vacancies, error: vacError } = await (supabase as any)
+    .from('job_openings_kpi')
+    .select('id, title, tipo_profesional, zoho_job_number, total_candidates, hired_count')
+    .eq('is_vacante_principal', true)
+    .order('tipo_profesional', { ascending: true })
+
+  if (vacError || !vacancies || (vacancies as any[]).length === 0) {
+    if (vacError) console.error('[atraccion] getResumenVacantesPrincipales error:', vacError)
+    return []
+  }
+
+  const rows = vacancies as {
+    id: string
+    title: string | null
+    tipo_profesional: string | null
+    zoho_job_number: number | null
+    total_candidates: number | null
+    hired_count: number | null
+  }[]
+
+  const ids = rows.map((r) => r.id)
+
+  // 2. Fetch approved_by_client counts
+  const { data: statusRows } = await (supabase as any)
+    .from('vacancy_status_counts_kpi')
+    .select('vacancy_id, count')
+    .in('vacancy_id', ids)
+    .eq('status', 'Approved by client')
+
+  const approvedMap = new Map<string, number>()
+  for (const s of (statusRows ?? []) as { vacancy_id: string; count: number }[]) {
+    approvedMap.set(s.vacancy_id, (approvedMap.get(s.vacancy_id) ?? 0) + s.count)
+  }
+
+  return rows.map((v) => {
+    const total = v.total_candidates ?? 0
+    const hired = v.hired_count ?? 0
+    const approved = approvedMap.get(v.id) ?? 0
+    const success_rate =
+      total > 0 ? Math.round(((hired + approved) / total) * 10000) / 100 : null
+
+    return {
+      id: v.id,
+      title: v.title ?? 'Vacante sin título',
+      tipo_profesional: v.tipo_profesional ?? 'otro',
+      zoho_job_number: v.zoho_job_number ?? null,
+      total_candidates: total,
+      hired_count: hired,
+      success_rate,
+    }
+  })
 }

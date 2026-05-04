@@ -15,6 +15,7 @@ import {
   Archive,
   Settings2,
   Briefcase,
+  Globe,
 } from "lucide-react";
 
 type NavItem = {
@@ -37,13 +38,19 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    title: "OPERACIÓN",
+    title: "OPERACIÓN · NORUEGA",
     items: [
       { href: "/dashboard/atraccion", label: "Atracción", icon: Users },
       { href: "/dashboard/atraccion/cerradas", label: "Vacantes cerradas", icon: Archive },
       { href: "/dashboard/formacion", label: "Formación", icon: GraduationCap },
       { href: "/dashboard/formacion/abandonos", label: "Abandonos", icon: TrendingDown },
       { href: "/dashboard/colocacion", label: "Colocación", icon: Briefcase },
+    ],
+  },
+  {
+    title: "OPERACIÓN · ALEMANIA",
+    items: [
+      { href: "/dashboard/alemania", label: "Alemania", icon: Globe },
     ],
   },
   {
