@@ -1,3 +1,5 @@
+'use client'
+
 import type { GermanyExamRow } from '@/lib/queries/germany'
 
 interface Props {

@@ -1,3 +1,5 @@
+'use client'
+
 import type { GermanyPaymentsSummary as PaymentsSummary } from '@/lib/queries/germany'
 
 interface Props {
