@@ -504,9 +504,9 @@ export default function GermanyAbandonosView({ stats, initialRows }: Props) {
                   </td>
                 </tr>
               ) : (
-                filteredRows.map((row, idx) => (
+                filteredRows.map((row) => (
                   <tr
-                    key={idx}
+                    key={`${row.nombre ?? ''}|${row.promo_numero}`}
                     style={{
                       borderBottom: `1px solid ${T.border}`,
                       transition: 'background 0.1s',

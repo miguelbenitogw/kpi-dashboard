@@ -366,7 +366,12 @@ export async function getGermanyDropoutStats(): Promise<GermanyDropoutStats> {
     return empty
   }
 
+  if (candidateRes.error) {
+    console.error('[getGermanyDropoutStats] Error fetching candidate tags (by_profile usará "Sin etiqueta"):', candidateRes.error)
+  }
+
   // Mapa nombre|promo → etiqueta de profesión
+  // Key: nombre normalizado + "|" + promo_numero (null → "null" vía template literal — igual en ambos lados)
   const profMap = new Map<string, string>()
   for (const c of (candidateRes.data ?? []) as Array<{ nombre: string | null; promo_numero: number | null; tags: string[] | null }>) {
     const key = `${(c.nombre ?? '').toLowerCase().trim()}|${c.promo_numero}`
@@ -416,7 +421,8 @@ export async function getGermanyDropoutStats(): Promise<GermanyDropoutStats> {
     reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1)
 
     // Profesión — etiqueta del candidato en germany_candidates_kpi
-    const lookupKey = `${(row.nombre ?? '').toLowerCase().trim()}|${promoNum}`
+    // Usamos row.promo_numero directamente (no ?? 0) para que null → "null" igual que en profMap
+    const lookupKey = `${(row.nombre ?? '').toLowerCase().trim()}|${row.promo_numero}`
     const profTag = profMap.get(lookupKey) ?? 'Sin etiqueta'
     profileCounts.set(profTag, (profileCounts.get(profTag) ?? 0) + 1)
 
