@@ -9,6 +9,7 @@ interface Props {
   promos: number[]
   tiposPerfil: string[]
   estados: string[]
+  profesiones: string[]
   externalPromo?: number | null
   onClearExternalPromo?: () => void
 }
@@ -69,6 +70,7 @@ export default function GermanyCandidatesTable({
   promos,
   tiposPerfil,
   estados,
+  profesiones,
   externalPromo,
   onClearExternalPromo,
 }: Props) {
@@ -78,12 +80,13 @@ export default function GermanyCandidatesTable({
   const [promoFilter, setPromoFilter] = useState<string>('')
   const [tipoPerfilFilter, setTipoPerfilFilter] = useState<string>('')
   const [estadoFilter, setEstadoFilter] = useState<string>('')
+  const [profesionFilter, setProfesionFilter] = useState<string>('')
   const [isPending, startTransition] = useTransition()
 
   const PAGE_SIZE = 50
 
   const fetchData = useCallback(
-    (newPage: number, promo: string, tipoPerfil: string, estado: string) => {
+    (newPage: number, promo: string, tipoPerfil: string, estado: string, profesion: string) => {
       startTransition(async () => {
         const params = new URLSearchParams()
         params.set('page', String(newPage))
@@ -91,6 +94,7 @@ export default function GermanyCandidatesTable({
         if (promo) params.set('promoNumero', promo)
         if (tipoPerfil) params.set('tipoPerfil', tipoPerfil)
         if (estado) params.set('estado', estado)
+        if (profesion) params.set('profesion', profesion)
 
         const res = await fetch(`/api/germany/candidates?${params.toString()}`)
         if (!res.ok) return
@@ -107,19 +111,21 @@ export default function GermanyCandidatesTable({
   useEffect(() => {
     const promoStr = externalPromo != null ? String(externalPromo) : ''
     setPromoFilter(promoStr)
-    fetchData(1, promoStr, tipoPerfilFilter, estadoFilter)
+    fetchData(1, promoStr, tipoPerfilFilter, estadoFilter, profesionFilter)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalPromo])
 
   function handleFilterChange(
     newPromo: string,
     newTipo: string,
-    newEstado: string
+    newEstado: string,
+    newProfesion: string
   ) {
     setPromoFilter(newPromo)
     setTipoPerfilFilter(newTipo)
     setEstadoFilter(newEstado)
-    fetchData(1, newPromo, newTipo, newEstado)
+    setProfesionFilter(newProfesion)
+    fetchData(1, newPromo, newTipo, newEstado, newProfesion)
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -184,7 +190,7 @@ export default function GermanyCandidatesTable({
           value={promoFilter}
           disabled={externalPromo != null}
           onChange={(e) =>
-            handleFilterChange(e.target.value, tipoPerfilFilter, estadoFilter)
+            handleFilterChange(e.target.value, tipoPerfilFilter, estadoFilter, profesionFilter)
           }
         >
           <option value="">Todas las promos</option>
@@ -199,7 +205,7 @@ export default function GermanyCandidatesTable({
           style={SELECT_STYLE}
           value={tipoPerfilFilter}
           onChange={(e) =>
-            handleFilterChange(promoFilter, e.target.value, estadoFilter)
+            handleFilterChange(promoFilter, e.target.value, estadoFilter, profesionFilter)
           }
         >
           <option value="">Todos los perfiles</option>
@@ -214,7 +220,7 @@ export default function GermanyCandidatesTable({
           style={SELECT_STYLE}
           value={estadoFilter}
           onChange={(e) =>
-            handleFilterChange(promoFilter, tipoPerfilFilter, e.target.value)
+            handleFilterChange(promoFilter, tipoPerfilFilter, e.target.value, profesionFilter)
           }
         >
           <option value="">Todos los estados</option>
@@ -225,9 +231,24 @@ export default function GermanyCandidatesTable({
           ))}
         </select>
 
+        <select
+          style={SELECT_STYLE}
+          value={profesionFilter}
+          onChange={(e) =>
+            handleFilterChange(promoFilter, tipoPerfilFilter, estadoFilter, e.target.value)
+          }
+        >
+          <option value="">Todas las profesiones</option>
+          {profesiones.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+
         <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#78716c' }}>
           {total} candidato{total !== 1 ? 's' : ''}
-          {(promoFilter || tipoPerfilFilter || estadoFilter) ? ' (filtrado)' : ''}
+          {(promoFilter || tipoPerfilFilter || estadoFilter || profesionFilter) ? ' (filtrado)' : ''}
         </span>
       </div>
 
@@ -387,7 +408,7 @@ export default function GermanyCandidatesTable({
           <button
             disabled={page <= 1 || isPending}
             onClick={() =>
-              fetchData(page - 1, promoFilter, tipoPerfilFilter, estadoFilter)
+              fetchData(page - 1, promoFilter, tipoPerfilFilter, estadoFilter, profesionFilter)
             }
             style={{
               padding: '6px 14px',
@@ -407,7 +428,7 @@ export default function GermanyCandidatesTable({
           <button
             disabled={page >= totalPages || isPending}
             onClick={() =>
-              fetchData(page + 1, promoFilter, tipoPerfilFilter, estadoFilter)
+              fetchData(page + 1, promoFilter, tipoPerfilFilter, estadoFilter, profesionFilter)
             }
             style={{
               padding: '6px 14px',

@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
   const promoNumeroRaw = searchParams.get('promoNumero')
   const tipoPerfil = searchParams.get('tipoPerfil') ?? undefined
   const estado = searchParams.get('estado') ?? undefined
+  const profesion = searchParams.get('profesion') ?? undefined
 
   const promoNumero =
     promoNumeroRaw ? parseInt(promoNumeroRaw, 10) : undefined
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
     promoNumero: isNaN(promoNumero ?? NaN) ? undefined : promoNumero,
     tipoPerfil,
     estado,
+    profesion,
   })
 
   return NextResponse.json(result)

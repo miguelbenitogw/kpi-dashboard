@@ -147,10 +147,11 @@ export async function getGermanyCandidates(filters: {
   promoNumero?: number
   tipoPerfil?: string
   estado?: string
+  profesion?: string
   page?: number
   pageSize?: number
 }): Promise<GermanyCandidatesResult> {
-  const { promoNumero, tipoPerfil, estado, page = 1, pageSize = 50 } = filters
+  const { promoNumero, tipoPerfil, estado, profesion, page = 1, pageSize = 50 } = filters
 
   let q = (supabase as any)
     .from('germany_candidates_kpi')
@@ -163,6 +164,7 @@ export async function getGermanyCandidates(filters: {
   if (promoNumero !== undefined) q = q.eq('promo_numero', promoNumero)
   if (tipoPerfil) q = q.eq('tipo_perfil', tipoPerfil)
   if (estado) q = q.ilike('estado', `%${estado}%`)
+  if (profesion) q = q.contains('tags', [profesion])
 
   const from = (page - 1) * pageSize
   const to = from + pageSize - 1
@@ -190,6 +192,7 @@ export async function getGermanyFilterOptions(): Promise<{
   promos: number[]
   tiposPerfil: string[]
   estados: string[]
+  profesiones: string[]
 }> {
   const { data, error } = await (supabase as any)
     .from('germany_candidates_kpi')
@@ -203,7 +206,7 @@ export async function getGermanyFilterOptions(): Promise<{
     }
 
   if (error || !data) {
-    return { promos: [], tiposPerfil: [], estados: [] }
+    return { promos: [], tiposPerfil: [], estados: [], profesiones: [] }
   }
 
   const promos = Array.from(
@@ -218,7 +221,44 @@ export async function getGermanyFilterOptions(): Promise<{
     new Set(data.map((r) => r.estado).filter((v): v is string => Boolean(v)))
   ).sort()
 
-  return { promos, tiposPerfil, estados }
+  // Detección dinámica de profesiones desde tags
+  const { data: tagData } = await (supabase as any)
+    .from('germany_candidates_kpi')
+    .select('tags') as { data: { tags: string[] | null }[] | null }
+
+  const tagCounts: Record<string, number> = {}
+  for (const row of tagData ?? []) {
+    for (const tag of row.tags ?? []) {
+      tagCounts[tag] = (tagCounts[tag] ?? 0) + 1
+    }
+  }
+
+  const NON_PROFESSION_PREFIXES = ['FR ', 'CP ', 'GW', 'Promo', 'promo', 'Prom.', 'prom.', 'EF', 'Uni "']
+  const NON_PROFESSION_PATTERNS = [
+    /^\d{4}$/,
+    /^prioridad/i,
+    /^Calendly/i,
+    /^Pedimos/i,
+    /^ONLINE$/i,
+    /^SEMIPRESENCIAL$/i,
+    /^Whatsapp/i,
+    /^webinar/i,
+    /^De promo/i,
+    /^\+ /,
+    /^Tatjana/i,
+  ]
+
+  const profesiones = Object.entries(tagCounts)
+    .filter(([tag, count]) => {
+      if (count < 5) return false
+      if (NON_PROFESSION_PREFIXES.some((p) => tag.startsWith(p))) return false
+      if (NON_PROFESSION_PATTERNS.some((p) => p.test(tag))) return false
+      return true
+    })
+    .map(([tag]) => tag)
+    .sort()
+
+  return { promos, tiposPerfil, estados, profesiones }
 }
 
 // ---------------------------------------------------------------------------

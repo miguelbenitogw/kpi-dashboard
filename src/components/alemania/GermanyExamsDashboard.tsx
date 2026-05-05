@@ -15,6 +15,7 @@ interface Props {
     promos: number[]
     tiposPerfil: string[]
     estados: string[]
+    profesiones: string[]
   }
 }
 
@@ -93,6 +94,7 @@ export default function GermanyExamsDashboard({
           promos={filterOptions.promos}
           tiposPerfil={filterOptions.tiposPerfil}
           estados={filterOptions.estados}
+          profesiones={filterOptions.profesiones}
           externalPromo={selectedPromo}
           onClearExternalPromo={handleClearExternalPromo}
         />
