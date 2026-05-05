@@ -38,10 +38,15 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    title: "OPERACIÓN · NORUEGA",
+    title: "OPERACIÓN · ATRACCIÓN",
     items: [
       { href: "/dashboard/atraccion", label: "Atracción", icon: Users },
       { href: "/dashboard/atraccion/cerradas", label: "Vacantes cerradas", icon: Archive },
+    ],
+  },
+  {
+    title: "OPERACIÓN · NORUEGA",
+    items: [
       { href: "/dashboard/formacion", label: "Formación", icon: GraduationCap },
       { href: "/dashboard/formacion/abandonos", label: "Abandonos", icon: TrendingDown },
       { href: "/dashboard/colocacion", label: "Colocación", icon: Briefcase },
