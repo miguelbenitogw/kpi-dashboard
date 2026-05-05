@@ -85,6 +85,7 @@ repairServiceAccountEnv()
 
 import {
   importGermanyDropoutsForPromo,
+  P25_COLUMN_MAP,
   type GermanyDropoutPromoConfig,
 } from '@/lib/google-sheets/import-germany-dropouts'
 
@@ -97,6 +98,13 @@ const PROMOS: GermanyDropoutPromoConfig[] = [
     promo_numero: 24,
     spreadsheet_id: '1w9rMWkgdBzqWL05x_DPs3Ttdeax2tfvI3wsoQiGGbUw',
     gid: 1646413473, // tab " Dropouts (abandonos)"
+    // Uses default P24_COLUMN_MAP (no columnMap needed)
+  },
+  {
+    promo_numero: 25,
+    spreadsheet_id: '1y-PaHgs6im6WHsu4jf0XjIyKyQ7fPgyuRHshSGEnn_g',
+    gid: 1646413473, // tab " Dropouts (abandonos)"
+    columnMap: P25_COLUMN_MAP, // P25 has no Profile column; cols 3-8 shifted left, lang cols at 12-16
   },
 ]
 
