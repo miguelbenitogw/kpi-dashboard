@@ -6,8 +6,7 @@ import {
   getGermanyPaymentsSummary,
 } from '@/lib/queries/germany'
 import GermanyKpiStrip from '@/components/alemania/GermanyKpiStrip'
-import GermanyExamsTable from '@/components/alemania/GermanyExamsTable'
-import GermanyCandidatesTable from '@/components/alemania/GermanyCandidatesTable'
+import GermanyExamsDashboard from '@/components/alemania/GermanyExamsDashboard'
 import GermanyPaymentsSummary from '@/components/alemania/GermanyPaymentsSummary'
 
 const SECTION_STYLE: React.CSSProperties = {
@@ -94,29 +93,12 @@ export default async function AlemaniaPage() {
         <GermanyKpiStrip kpis={kpis} />
       </section>
 
-      {/* Tabla de promos / exámenes */}
-      <section style={SECTION_STYLE}>
-        <h2 style={SECTION_TITLE_STYLE}>Promos · Exámenes</h2>
-        <p style={SECTION_SUB_STYLE}>
-          Resumen por promoción desde germany_exams_kpi, ordenado por promo más reciente.
-        </p>
-        <GermanyExamsTable rows={exams} />
-      </section>
-
-      {/* Candidatos */}
-      <section style={SECTION_STYLE}>
-        <h2 style={SECTION_TITLE_STYLE}>Candidatos</h2>
-        <p style={SECTION_SUB_STYLE}>
-          {candidatesResult.total} candidatos en total · 50 por página
-        </p>
-        <GermanyCandidatesTable
-          initialRows={candidatesResult.rows}
-          initialTotal={candidatesResult.total}
-          promos={filterOptions.promos}
-          tiposPerfil={filterOptions.tiposPerfil}
-          estados={filterOptions.estados}
-        />
-      </section>
+      {/* Promos + Candidatos coordinados */}
+      <GermanyExamsDashboard
+        exams={exams}
+        initialCandidates={candidatesResult}
+        filterOptions={filterOptions}
+      />
 
       {/* Pagos */}
       <section style={SECTION_STYLE}>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useCallback } from 'react'
+import { useState, useTransition, useCallback, useEffect } from 'react'
 import type { GermanyCandidateRow } from '@/lib/queries/germany'
 
 interface Props {
@@ -9,6 +9,8 @@ interface Props {
   promos: number[]
   tiposPerfil: string[]
   estados: string[]
+  externalPromo?: number | null
+  onClearExternalPromo?: () => void
 }
 
 // Status badge colors
@@ -67,6 +69,8 @@ export default function GermanyCandidatesTable({
   promos,
   tiposPerfil,
   estados,
+  externalPromo,
+  onClearExternalPromo,
 }: Props) {
   const [rows, setRows] = useState<GermanyCandidateRow[]>(initialRows)
   const [total, setTotal] = useState(initialTotal)
@@ -99,6 +103,14 @@ export default function GermanyCandidatesTable({
     []
   )
 
+  // Reaccionar a cambios de filtro externo por promo
+  useEffect(() => {
+    const promoStr = externalPromo != null ? String(externalPromo) : ''
+    setPromoFilter(promoStr)
+    fetchData(1, promoStr, tipoPerfilFilter, estadoFilter)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalPromo])
+
   function handleFilterChange(
     newPromo: string,
     newTipo: string,
@@ -114,6 +126,46 @@ export default function GermanyCandidatesTable({
 
   return (
     <div>
+      {/* Chip de filtro externo activo */}
+      {externalPromo != null && (
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '12px',
+            background: '#fff7ed',
+            border: '1px solid #fed7aa',
+            borderRadius: '8px',
+            padding: '6px 12px',
+            fontSize: '12px',
+            color: '#d97706',
+            fontWeight: 500,
+          }}
+        >
+          <span>Filtrando por Promo #{externalPromo}</span>
+          <button
+            onClick={() => onClearExternalPromo?.()}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#d97706',
+              fontSize: '14px',
+              fontWeight: 700,
+              padding: '0 2px',
+              lineHeight: 1,
+              display: 'flex',
+              alignItems: 'center',
+            }}
+            title="Quitar filtro"
+          >
+            ×
+          </button>
+          <span style={{ color: '#f5a855', fontSize: '11px' }}>Quitar filtro</span>
+        </div>
+      )}
+
       {/* Filtros */}
       <div
         style={{
@@ -125,8 +177,12 @@ export default function GermanyCandidatesTable({
         }}
       >
         <select
-          style={SELECT_STYLE}
+          style={{
+            ...SELECT_STYLE,
+            ...(externalPromo != null ? { opacity: 0.6 } : {}),
+          }}
           value={promoFilter}
+          disabled={externalPromo != null}
           onChange={(e) =>
             handleFilterChange(e.target.value, tipoPerfilFilter, estadoFilter)
           }
