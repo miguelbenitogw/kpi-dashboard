@@ -1,4 +1,4 @@
-import { fetchCandidates, fetchAssociatedJobOpeningsForCandidate, zohoFetch } from './client'
+import { fetchCandidates, fetchAssociatedJobOpeningsForCandidate, fetchAllCandidatesByJobOpening, zohoFetch } from './client'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
 export interface SyncGermanyResult {
@@ -424,4 +424,236 @@ export async function syncGermanyCandidateNotes(): Promise<SyncNotesResult> {
   }
 
   return { total_candidates_with_record_id, notes_upserted, errors }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VACANCY-FIRST HISTORY SYNC — germany_candidate_history_kpi
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SyncGermanyCandidateHistoryResult {
+  vacancies_processed: number
+  associations_upserted: number
+  stage_changes_detected: number
+  errors: number
+}
+
+/**
+ * Vacancy-first sync of Germany candidate history.
+ *
+ * Strategy (mirrors Norway's atraccion history cron):
+ *   1. Load all Germany candidates from germany_candidates_kpi → Set for O(1) lookup
+ *   2. Fetch Germany-relevant vacancies from job_openings_kpi
+ *      (title keywords: Alemania, Infantil, Educación Infantil, Maestr, Técnico)
+ *      excluding the historical catch-all vacancy 179458000025917049
+ *   3. For each vacancy, call fetchAllCandidatesByJobOpening() (paginated)
+ *   4. Filter candidates by Germany Set (Candidate_ID match)
+ *   5. Compare vs. existing germany_candidate_history_kpi to detect status changes
+ *   6. Insert stage changes into germany_stage_history_kpi
+ *   7. Upsert current state into germany_candidate_history_kpi
+ *   8. Wait 300ms between vacancies (rate limiting)
+ */
+export async function syncGermanyCandidateHistory(): Promise<SyncGermanyCandidateHistoryResult> {
+  const INTER_VACANCY_DELAY_MS = 300
+  const EXCLUDED_VACANCY_ID = '179458000025917049'
+
+  let associations_upserted = 0
+  let stage_changes_detected = 0
+  let errors = 0
+
+  // ── 1. Load all Germany candidates ──────────────────────────────────────
+  const { data: germanyRows, error: germanyErr } = await supabaseAdmin
+    .from('germany_candidates_kpi')
+    .select('zoho_candidate_id, nombre')
+    .not('zoho_candidate_id', 'is', null)
+
+  if (germanyErr) {
+    throw new Error(`Failed to fetch germany_candidates_kpi: ${germanyErr.message}`)
+  }
+
+  // Build Set<zoho_candidate_id> for O(1) lookup
+  // Also build Map<zoho_candidate_id, name> for enriching history rows
+  const germanyIdSet = new Set<string>()
+  const germanyNameMap = new Map<string, string | null>()
+  for (const row of germanyRows ?? []) {
+    if (row.zoho_candidate_id) {
+      germanyIdSet.add(row.zoho_candidate_id)
+      germanyNameMap.set(row.zoho_candidate_id, (row as Record<string, unknown>).nombre as string | null ?? null)
+    }
+  }
+
+  console.log(`[sync-germany-history] Germany candidates loaded: ${germanyIdSet.size}`)
+
+  // ── 2. Fetch Germany-relevant vacancies ──────────────────────────────────
+  const { data: vacanciesRaw, error: vacanciesErr } = await supabaseAdmin
+    .from('job_openings_kpi')
+    .select('id, title')
+    .neq('id', EXCLUDED_VACANCY_ID)
+    .or(
+      'title.ilike.%Alemania%,' +
+      'title.ilike.%Educación Infantil%,' +
+      'title.ilike.%Educacion Infantil%,' +
+      'title.ilike.%Infantil%,' +
+      'title.ilike.%Maestr%,' +
+      'title.ilike.%Técnico%,' +
+      'title.ilike.%Tecnico%'
+    )
+    .order('title', { ascending: true })
+
+  if (vacanciesErr) {
+    throw new Error(`Failed to fetch Germany vacancies: ${vacanciesErr.message}`)
+  }
+
+  const vacancies = (vacanciesRaw ?? []) as Array<{ id: string; title: string }>
+  console.log(`[sync-germany-history] Vacancies to process: ${vacancies.length}`)
+
+  const fetchedAt = new Date().toISOString()
+
+  // ── 3–7. Per-vacancy loop ─────────────────────────────────────────────────
+  for (let i = 0; i < vacancies.length; i++) {
+    const vacancy = vacancies[i]
+
+    let zohoAssociations: Record<string, unknown>[]
+
+    try {
+      zohoAssociations = await fetchAllCandidatesByJobOpening(vacancy.id)
+    } catch (err) {
+      console.error(
+        `[sync-germany-history] Error fetching vacancy ${vacancy.id} (${vacancy.title}):`,
+        err instanceof Error ? err.message : err
+      )
+      errors++
+      if (i < vacancies.length - 1) await sleep(INTER_VACANCY_DELAY_MS)
+      continue
+    }
+
+    if (zohoAssociations.length === 0) {
+      if (i < vacancies.length - 1) await sleep(INTER_VACANCY_DELAY_MS)
+      continue
+    }
+
+    // Filter to Germany candidates only
+    const germanyMatches = zohoAssociations.filter((c) => {
+      const candidateId = String(c.Candidate_ID ?? c.id ?? '')
+      return candidateId && germanyIdSet.has(candidateId)
+    })
+
+    if (germanyMatches.length === 0) {
+      if (i < vacancies.length - 1) await sleep(INTER_VACANCY_DELAY_MS)
+      continue
+    }
+
+    console.log(
+      `[sync-germany-history] Vacancy "${vacancy.title}": ${zohoAssociations.length} total, ${germanyMatches.length} Germany matches`
+    )
+
+    // Fetch existing history rows for this vacancy in one batch query
+    const candidateIdsInVacancy = germanyMatches
+      .map((c) => String(c.Candidate_ID ?? c.id ?? ''))
+      .filter(Boolean)
+
+    const { data: existingRows } = await supabaseAdmin
+      .from('germany_candidate_history_kpi')
+      .select('zoho_candidate_id, candidate_status')
+      .eq('job_opening_id', vacancy.id)
+      .in('zoho_candidate_id', candidateIdsInVacancy)
+
+    // Build Map<zoho_candidate_id, existing_status> for this vacancy
+    const existingStatusMap = new Map<string, string | null>()
+    for (const row of existingRows ?? []) {
+      existingStatusMap.set(row.zoho_candidate_id, row.candidate_status)
+    }
+
+    // Process each Germany match
+    for (const zohoCandidate of germanyMatches) {
+      const candidateId = String(zohoCandidate.Candidate_ID ?? zohoCandidate.id ?? '')
+      if (!candidateId) continue
+
+      const newStatus =
+        (zohoCandidate.Candidate_Status as string) ??
+        (zohoCandidate.Candidate_Stage as string) ??
+        null
+
+      const zohoRecordId = String(zohoCandidate.id ?? '')
+      const candidateName =
+        (zohoCandidate.Full_Name as string) ?? germanyNameMap.get(candidateId) ?? null
+
+      // Detect status change
+      const isNew = !existingStatusMap.has(candidateId)
+      const prevStatus = existingStatusMap.get(candidateId) ?? null
+      const statusChanged = !isNew && prevStatus !== newStatus
+
+      if ((isNew && newStatus) || statusChanged) {
+        // Insert into stage history
+        const stageRow = {
+          zoho_candidate_id: candidateId,
+          job_opening_id: vacancy.id,
+          candidate_name: candidateName,
+          job_opening_title: vacancy.title,
+          from_status: isNew ? null : prevStatus,
+          to_status: newStatus ?? '',
+          changed_at: fetchedAt,
+        }
+
+        const { error: stageErr } = await supabaseAdmin
+          .from('germany_stage_history_kpi')
+          .upsert(stageRow, {
+            onConflict: 'zoho_candidate_id,job_opening_id,from_status,to_status,changed_at',
+            ignoreDuplicates: true,
+          })
+
+        if (stageErr) {
+          console.error(
+            `[sync-germany-history] Stage history insert error for ${candidateId}/${vacancy.id}: ${stageErr.message}`
+          )
+          errors++
+        } else {
+          stage_changes_detected++
+        }
+      }
+
+      // Upsert current state into germany_candidate_history_kpi
+      const historyRow = {
+        zoho_candidate_id: candidateId,
+        zoho_record_id: zohoRecordId || null,
+        candidate_name: candidateName,
+        job_opening_id: vacancy.id,
+        job_opening_title: vacancy.title,
+        candidate_status: newStatus,
+        fetched_at: fetchedAt,
+      }
+
+      const { error: upsertErr } = await supabaseAdmin
+        .from('germany_candidate_history_kpi')
+        .upsert(historyRow, {
+          onConflict: 'zoho_candidate_id,job_opening_id',
+          ignoreDuplicates: false,
+        })
+
+      if (upsertErr) {
+        console.error(
+          `[sync-germany-history] Upsert error for ${candidateId}/${vacancy.id}: ${upsertErr.message}`
+        )
+        errors++
+      } else {
+        associations_upserted++
+      }
+    }
+
+    if (i < vacancies.length - 1) await sleep(INTER_VACANCY_DELAY_MS)
+
+    const done = i + 1
+    if (done % 10 === 0 || done === vacancies.length) {
+      console.log(
+        `[sync-germany-history] Progress: ${done}/${vacancies.length} vacancies ` +
+        `(upserted=${associations_upserted}, stage_changes=${stage_changes_detected}, errors=${errors})`
+      )
+    }
+  }
+
+  return {
+    vacancies_processed: vacancies.length,
+    associations_upserted,
+    stage_changes_detected,
+    errors,
+  }
 }
