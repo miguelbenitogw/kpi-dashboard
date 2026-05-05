@@ -30,6 +30,7 @@ export interface GermanyExamRow {
 
 export interface GermanyCandidateRow {
   id?: number
+  zoho_candidate_id?: string | null
   nombre: string | null
   estado: string | null
   tipo_perfil: string | null
@@ -156,7 +157,7 @@ export async function getGermanyCandidates(filters: {
   let q = (supabase as any)
     .from('germany_candidates_kpi')
     .select(
-      'nombre, estado, tipo_perfil, promocion, promo_numero, coordinador, cliente, ciudad_kita, fp, tags',
+      'zoho_candidate_id, nombre, estado, tipo_perfil, promocion, promo_numero, coordinador, cliente, ciudad_kita, fp, tags',
       { count: 'exact' }
     )
     .order('nombre', { ascending: true })
@@ -492,6 +493,92 @@ export async function getGermanyDropoutRows(filters?: {
   }
 
   return data ?? []
+}
+
+// ---------------------------------------------------------------------------
+// Cronología de candidato (drawer)
+// ---------------------------------------------------------------------------
+
+export interface GermanyCandidateCronologia {
+  candidate: {
+    nombre: string | null
+    estado: string | null
+    promo_numero: number | null
+    tipo_perfil: string | null
+  }
+  vacancies: Array<{
+    job_opening_title: string
+    candidate_status: string | null
+    fetched_at: string | null
+  }>
+  stage_history: Array<{
+    job_opening_title: string
+    from_status: string | null
+    to_status: string
+    changed_at: string
+  }>
+  notes: Array<{
+    note_title: string | null
+    note_content: string | null
+    note_owner: string | null
+    created_at: string | null
+  }>
+}
+
+export async function getGermanyCandidateCronologia(
+  zohoId: string
+): Promise<GermanyCandidateCronologia | null> {
+  // Fetch candidate base info + the three related tables in parallel
+  const [candidateRes, vacanciesRes, stageRes, notesRes] = await Promise.all([
+    (supabase as any)
+      .from('germany_candidates_kpi')
+      .select('nombre, estado, promo_numero, tipo_perfil')
+      .eq('zoho_candidate_id', zohoId)
+      .maybeSingle() as Promise<{
+        data: { nombre: string | null; estado: string | null; promo_numero: number | null; tipo_perfil: string | null } | null
+        error: unknown
+      }>,
+    (supabase as any)
+      .from('germany_candidate_history_kpi')
+      .select('job_opening_title, candidate_status, fetched_at')
+      .eq('zoho_candidate_id', zohoId)
+      .order('fetched_at', { ascending: false }) as Promise<{
+        data: Array<{ job_opening_title: string; candidate_status: string | null; fetched_at: string | null }> | null
+        error: unknown
+      }>,
+    (supabase as any)
+      .from('germany_stage_history_kpi')
+      .select('job_opening_title, from_status, to_status, changed_at')
+      .eq('zoho_candidate_id', zohoId)
+      .order('changed_at', { ascending: false }) as Promise<{
+        data: Array<{ job_opening_title: string; from_status: string | null; to_status: string; changed_at: string }> | null
+        error: unknown
+      }>,
+    (supabase as any)
+      .from('germany_candidate_notes_kpi')
+      .select('note_title, note_content, note_owner, created_at')
+      .eq('zoho_candidate_id', zohoId)
+      .order('created_at', { ascending: false }) as Promise<{
+        data: Array<{ note_title: string | null; note_content: string | null; note_owner: string | null; created_at: string | null }> | null
+        error: unknown
+      }>,
+  ])
+
+  if (candidateRes.error || !candidateRes.data) {
+    console.error('[getGermanyCandidateCronologia] candidate error:', candidateRes.error)
+    return null
+  }
+
+  if (vacanciesRes.error) console.error('[getGermanyCandidateCronologia] vacancies error:', vacanciesRes.error)
+  if (stageRes.error) console.error('[getGermanyCandidateCronologia] stage_history error:', stageRes.error)
+  if (notesRes.error) console.error('[getGermanyCandidateCronologia] notes error:', notesRes.error)
+
+  return {
+    candidate: candidateRes.data,
+    vacancies: vacanciesRes.data ?? [],
+    stage_history: stageRes.data ?? [],
+    notes: notesRes.data ?? [],
+  }
 }
 
 // ---------------------------------------------------------------------------

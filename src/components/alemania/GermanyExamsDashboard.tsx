@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import type { GermanyExamRow, GermanyCandidateRow } from '@/lib/queries/germany'
 import GermanyExamsTable from './GermanyExamsTable'
 import GermanyCandidatesTable from './GermanyCandidatesTable'
+import GermanyCandidateDrawer from './GermanyCandidateDrawer'
 
 interface Props {
   exams: GermanyExamRow[]
@@ -45,6 +46,8 @@ export default function GermanyExamsDashboard({
   filterOptions,
 }: Props) {
   const [selectedPromo, setSelectedPromo] = useState<number | null>(null)
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
+  const [selectedCandidateName, setSelectedCandidateName] = useState<string | null>(null)
   const candidatesRef = useRef<HTMLDivElement>(null)
 
   // Scroll suave hacia candidatos cuando se selecciona una promo
@@ -60,6 +63,11 @@ export default function GermanyExamsDashboard({
 
   function handleClearExternalPromo() {
     setSelectedPromo(null)
+  }
+
+  function handleCandidateClick(zohoId: string, nombre: string | null) {
+    setSelectedCandidateId(zohoId)
+    setSelectedCandidateName(nombre)
   }
 
   return (
@@ -97,8 +105,15 @@ export default function GermanyExamsDashboard({
           profesiones={filterOptions.profesiones}
           externalPromo={selectedPromo}
           onClearExternalPromo={handleClearExternalPromo}
+          onCandidateClick={handleCandidateClick}
         />
       </section>
+
+      <GermanyCandidateDrawer
+        zohoId={selectedCandidateId}
+        candidateName={selectedCandidateName}
+        onClose={() => setSelectedCandidateId(null)}
+      />
     </>
   )
 }

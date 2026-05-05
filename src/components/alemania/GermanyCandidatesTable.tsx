@@ -12,6 +12,7 @@ interface Props {
   profesiones: string[]
   externalPromo?: number | null
   onClearExternalPromo?: () => void
+  onCandidateClick?: (zohoId: string, nombre: string | null) => void
 }
 
 // Status badge colors
@@ -73,6 +74,7 @@ export default function GermanyCandidatesTable({
   profesiones,
   externalPromo,
   onClearExternalPromo,
+  onCandidateClick,
 }: Props) {
   const [rows, setRows] = useState<GermanyCandidateRow[]>(initialRows)
   const [total, setTotal] = useState(initialTotal)
@@ -304,7 +306,36 @@ export default function GermanyCandidatesTable({
                     }}
                   >
                     <td style={{ ...TD_STYLE, fontWeight: 500 }}>
-                      {row.nombre ?? '—'}
+                      {onCandidateClick && row.zoho_candidate_id ? (
+                        <button
+                          onClick={() =>
+                            onCandidateClick(row.zoho_candidate_id!, row.nombre)
+                          }
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            cursor: 'pointer',
+                            color: '#1e4b9e',
+                            fontWeight: 600,
+                            fontSize: '13px',
+                            textAlign: 'left',
+                            textDecoration: 'underline',
+                            textDecorationColor: 'transparent',
+                            transition: 'text-decoration-color 150ms',
+                          }}
+                          onMouseEnter={(e) => {
+                            ;(e.currentTarget as HTMLButtonElement).style.textDecorationColor = '#1e4b9e'
+                          }}
+                          onMouseLeave={(e) => {
+                            ;(e.currentTarget as HTMLButtonElement).style.textDecorationColor = 'transparent'
+                          }}
+                        >
+                          {row.nombre ?? '—'}
+                        </button>
+                      ) : (
+                        row.nombre ?? '—'
+                      )}
                     </td>
                     <td style={TD_STYLE}>
                       {row.promo_numero !== null ? (
