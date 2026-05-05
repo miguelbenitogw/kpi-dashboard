@@ -56,6 +56,7 @@ const navSections: NavSection[] = [
     title: "OPERACIÓN · ALEMANIA",
     items: [
       { href: "/dashboard/alemania", label: "Alemania", icon: Globe },
+      { href: "/dashboard/alemania/abandonos", label: "Abandonos", icon: TrendingDown },
     ],
   },
   {

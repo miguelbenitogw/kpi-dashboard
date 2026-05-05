@@ -262,6 +262,196 @@ export async function getGermanyFilterOptions(): Promise<{
 }
 
 // ---------------------------------------------------------------------------
+// Abandonos (germany_dropouts_kpi)
+// ---------------------------------------------------------------------------
+
+export interface GermanyDropoutRow {
+  promo_numero: number | null
+  status: string | null
+  nombre: string | null
+  profile: string | null
+  modality: string | null
+  start_date: string | null
+  dropout_date: string | null
+  days_of_training: number | null
+  hours_of_training: number | null
+  amount_to_pay: number | null
+  language_level_performance: string | null
+  level_at_dropout: string | null
+  absence_percentage: number | null
+  reason_for_dropout: string | null
+  interest_in_future: string | null
+}
+
+export interface GermanyDropoutStats {
+  total_offer_declined: number
+  total_offer_withdrawn: number
+  total_transferred: number
+  total_all: number
+  avg_days_training: number | null
+  interest_in_future_yes: number
+  interest_in_future_no: number
+  by_reason: { reason: string; count: number }[]
+  by_profile: { profile: string; count: number }[]
+  by_promo: {
+    promo_numero: number
+    offer_declined: number
+    offer_withdrawn: number
+    transferred: number
+    total: number
+  }[]
+}
+
+export async function getGermanyDropoutStats(): Promise<GermanyDropoutStats> {
+  const { data, error } = await (supabase as any)
+    .from('germany_dropouts_kpi')
+    .select(
+      'promo_numero, status, days_of_training, interest_in_future, reason_for_dropout, profile'
+    )
+    .order('promo_numero', { ascending: false }) as {
+      data: Array<{
+        promo_numero: number | null
+        status: string | null
+        days_of_training: number | null
+        interest_in_future: string | null
+        reason_for_dropout: string | null
+        profile: string | null
+      }> | null
+      error: unknown
+    }
+
+  const empty: GermanyDropoutStats = {
+    total_offer_declined: 0,
+    total_offer_withdrawn: 0,
+    total_transferred: 0,
+    total_all: 0,
+    avg_days_training: null,
+    interest_in_future_yes: 0,
+    interest_in_future_no: 0,
+    by_reason: [],
+    by_profile: [],
+    by_promo: [],
+  }
+
+  if (error || !data) {
+    console.error('Error fetching Germany dropout stats:', error)
+    return empty
+  }
+
+  let total_offer_declined = 0
+  let total_offer_withdrawn = 0
+  let total_transferred = 0
+  let interest_in_future_yes = 0
+  let interest_in_future_no = 0
+  let daysSum = 0
+  let daysCount = 0
+
+  const reasonCounts = new Map<string, number>()
+  const profileCounts = new Map<string, number>()
+  const promoMap = new Map<
+    number,
+    { offer_declined: number; offer_withdrawn: number; transferred: number }
+  >()
+
+  for (const row of data) {
+    const status = row.status ?? ''
+    const promoNum = row.promo_numero ?? 0
+
+    // Status counts
+    if (status === 'Offer Declined') total_offer_declined++
+    else if (status === 'Offer Withdrawn') total_offer_withdrawn++
+    else if (status === 'Transferred') total_transferred++
+
+    // Interest in future
+    if (row.interest_in_future === 'Yes') interest_in_future_yes++
+    else if (row.interest_in_future === 'No') interest_in_future_no++
+
+    // Avg days training — only Offer Withdrawn (withdrew during training)
+    if (status === 'Offer Withdrawn') {
+      const d = Number(row.days_of_training)
+      if (!isNaN(d) && d > 0 && d < 10000) {
+        daysSum += d
+        daysCount++
+      }
+    }
+
+    // Reason
+    const reason = row.reason_for_dropout ?? 'Sin motivo'
+    reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1)
+
+    // Profile
+    const profile = row.profile ?? 'Sin perfil'
+    profileCounts.set(profile, (profileCounts.get(profile) ?? 0) + 1)
+
+    // Per promo
+    if (!promoMap.has(promoNum)) {
+      promoMap.set(promoNum, { offer_declined: 0, offer_withdrawn: 0, transferred: 0 })
+    }
+    const entry = promoMap.get(promoNum)!
+    if (status === 'Offer Declined') entry.offer_declined++
+    else if (status === 'Offer Withdrawn') entry.offer_withdrawn++
+    else if (status === 'Transferred') entry.transferred++
+  }
+
+  const by_promo = Array.from(promoMap.entries())
+    .sort(([a], [b]) => b - a)
+    .map(([promo_numero, counts]) => ({
+      promo_numero,
+      ...counts,
+      total: counts.offer_declined + counts.offer_withdrawn + counts.transferred,
+    }))
+
+  return {
+    total_offer_declined,
+    total_offer_withdrawn,
+    total_transferred,
+    total_all: data.length,
+    avg_days_training: daysCount > 0 ? Math.round(daysSum / daysCount) : null,
+    interest_in_future_yes,
+    interest_in_future_no,
+    by_reason: Array.from(reasonCounts.entries())
+      .sort(([, a], [, b]) => b - a)
+      .map(([reason, count]) => ({ reason, count })),
+    by_profile: Array.from(profileCounts.entries())
+      .sort(([, a], [, b]) => b - a)
+      .map(([profile, count]) => ({ profile, count })),
+    by_promo,
+  }
+}
+
+export async function getGermanyDropoutRows(filters?: {
+  promo_numero?: number
+  status?: string
+}): Promise<GermanyDropoutRow[]> {
+  let q = (supabase as any)
+    .from('germany_dropouts_kpi')
+    .select(
+      'promo_numero, status, nombre, profile, modality, start_date, dropout_date, days_of_training, hours_of_training, amount_to_pay, language_level_performance, level_at_dropout, absence_percentage, reason_for_dropout, interest_in_future'
+    )
+    .order('promo_numero', { ascending: false })
+    .order('nombre', { ascending: true })
+
+  if (filters?.promo_numero !== undefined) {
+    q = q.eq('promo_numero', filters.promo_numero)
+  }
+  if (filters?.status) {
+    q = q.eq('status', filters.status)
+  }
+
+  const { data, error } = await q as {
+    data: GermanyDropoutRow[] | null
+    error: unknown
+  }
+
+  if (error) {
+    console.error('Error fetching Germany dropout rows:', error)
+    return []
+  }
+
+  return data ?? []
+}
+
+// ---------------------------------------------------------------------------
 // Resumen de pagos
 // ---------------------------------------------------------------------------
 
