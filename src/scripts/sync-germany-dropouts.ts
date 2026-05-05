@@ -106,6 +106,12 @@ const PROMOS: GermanyDropoutPromoConfig[] = [
     gid: 1646413473, // tab " Dropouts (abandonos)"
     columnMap: P25_COLUMN_MAP, // P25 has no Profile column; cols 3-8 shifted left, lang cols at 12-16
   },
+  {
+    promo_numero: 26,
+    spreadsheet_id: '1PePTioNQAPUXKEnHSSOURi7LqnAVeAlGtXA54EJPRQM',
+    gid: 1646413473, // tab " Dropouts (abandonos)"
+    columnMap: P25_COLUMN_MAP, // Assumed same layout as P25 (no Profile column)
+  },
 ]
 
 // ---------------------------------------------------------------------------

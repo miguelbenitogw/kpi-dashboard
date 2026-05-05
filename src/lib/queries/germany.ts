@@ -302,23 +302,51 @@ export interface GermanyDropoutStats {
   }[]
 }
 
+// Tags que NO son profesión (misma lógica que getGermanyFilterOptions)
+const NON_PROF_PREFIXES = ['FR ', 'CP ', 'GW', 'Promo', 'promo', 'Prom.', 'prom.', 'EF', 'Uni "']
+const NON_PROF_PATTERNS = [
+  /^\d{4}$/,
+  /^prioridad/i,
+  /^Calendly/i,
+  /^Pedimos/i,
+  /^ONLINE$/i,
+  /^SEMIPRESENCIAL$/i,
+  /^Whatsapp/i,
+  /^webinar/i,
+  /^De promo/i,
+  /^\+ /,
+  /^Tatjana/i,
+]
+
+function extractProfesionTag(tags: string[] | null): string | null {
+  for (const tag of tags ?? []) {
+    if (NON_PROF_PREFIXES.some((p) => tag.startsWith(p))) continue
+    if (NON_PROF_PATTERNS.some((p) => p.test(tag))) continue
+    return tag
+  }
+  return null
+}
+
 export async function getGermanyDropoutStats(): Promise<GermanyDropoutStats> {
-  const { data, error } = await (supabase as any)
-    .from('germany_dropouts_kpi')
-    .select(
-      'promo_numero, status, days_of_training, interest_in_future, reason_for_dropout, profile'
-    )
-    .order('promo_numero', { ascending: false }) as {
-      data: Array<{
-        promo_numero: number | null
-        status: string | null
-        days_of_training: number | null
-        interest_in_future: string | null
-        reason_for_dropout: string | null
-        profile: string | null
-      }> | null
-      error: unknown
-    }
+  // Fetch dropout records + candidate tags en paralelo
+  const [dropoutRes, candidateRes] = await Promise.all([
+    (supabase as any)
+      .from('germany_dropouts_kpi')
+      .select('promo_numero, status, nombre, days_of_training, interest_in_future, reason_for_dropout')
+      .order('promo_numero', { ascending: false }),
+    (supabase as any)
+      .from('germany_candidates_kpi')
+      .select('nombre, promo_numero, tags'),
+  ])
+
+  const data = dropoutRes.data as Array<{
+    promo_numero: number | null
+    status: string | null
+    nombre: string | null
+    days_of_training: number | null
+    interest_in_future: string | null
+    reason_for_dropout: string | null
+  }> | null
 
   const empty: GermanyDropoutStats = {
     total_offer_declined: 0,
@@ -333,9 +361,17 @@ export async function getGermanyDropoutStats(): Promise<GermanyDropoutStats> {
     by_promo: [],
   }
 
-  if (error || !data) {
-    console.error('Error fetching Germany dropout stats:', error)
+  if (dropoutRes.error || !data) {
+    console.error('Error fetching Germany dropout stats:', dropoutRes.error)
     return empty
+  }
+
+  // Mapa nombre|promo → etiqueta de profesión
+  const profMap = new Map<string, string>()
+  for (const c of (candidateRes.data ?? []) as Array<{ nombre: string | null; promo_numero: number | null; tags: string[] | null }>) {
+    const key = `${(c.nombre ?? '').toLowerCase().trim()}|${c.promo_numero}`
+    const tag = extractProfesionTag(c.tags)
+    if (tag) profMap.set(key, tag)
   }
 
   let total_offer_declined = 0
@@ -379,9 +415,10 @@ export async function getGermanyDropoutStats(): Promise<GermanyDropoutStats> {
     const reason = row.reason_for_dropout ?? 'Sin motivo'
     reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1)
 
-    // Profile
-    const profile = row.profile ?? 'Sin perfil'
-    profileCounts.set(profile, (profileCounts.get(profile) ?? 0) + 1)
+    // Profesión — etiqueta del candidato en germany_candidates_kpi
+    const lookupKey = `${(row.nombre ?? '').toLowerCase().trim()}|${promoNum}`
+    const profTag = profMap.get(lookupKey) ?? 'Sin etiqueta'
+    profileCounts.set(profTag, (profileCounts.get(profTag) ?? 0) + 1)
 
     // Per promo
     if (!promoMap.has(promoNum)) {
