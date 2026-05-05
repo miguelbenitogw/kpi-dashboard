@@ -10,6 +10,7 @@ import VacancyStatusCharts from '@/components/atraccion/VacancyStatusCharts'
 import ReceivedCvsByVacancyView from '@/components/atraccion/ReceivedCvsByVacancyView'
 import CvsResumenCard from '@/components/atraccion/CvsResumenCard'
 import ClosedVacancyCvsView from '@/components/atraccion/ClosedVacancyCvsView'
+import FavoriteVacanciesResumen from '@/components/atraccion/FavoriteVacanciesResumen'
 import { type TipoProfesional, PROFESION_LABELS } from '@/lib/utils/vacancy-profession'
 
 type Tab = 'resumen' | 'vacantes' | 'cvs' | 'cerradas'
@@ -134,6 +135,9 @@ export default function AtraccionPage() {
 
           {/* Charlas */}
           <CharlasSummary />
+
+          {/* Vacantes favoritas */}
+          <FavoriteVacanciesResumen />
         </div>
       )}
 
