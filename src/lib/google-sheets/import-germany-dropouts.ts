@@ -169,14 +169,19 @@ export async function importGermanyDropoutsForPromo(
     return { inserted: 0, updated: 0, skipped: 0, errors: 0 }
   }
 
+  // Deduplicate by excel_id — keep last occurrence (sheets sometimes have duplicate rows)
+  const deduped = Array.from(
+    parsed.reduce((map, row) => map.set(row.excel_id, row), new Map<number, ParsedDropout>()).values()
+  )
+
   // Upsert in batches of 50
   let inserted = 0,
     skipped = 0,
     errors = 0
   const BATCH = 50
 
-  for (let i = 0; i < parsed.length; i += BATCH) {
-    const batch = parsed.slice(i, i + BATCH)
+  for (let i = 0; i < deduped.length; i += BATCH) {
+    const batch = deduped.slice(i, i + BATCH)
 
     const { error } = await (supabaseAdmin as any)
       .from('germany_dropouts_kpi')
