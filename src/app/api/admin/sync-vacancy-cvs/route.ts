@@ -19,6 +19,13 @@ type WeeklyKpiRow = {
   synced_at: string
 }
 
+type DailyKpiRow = {
+  vacancy_id: string
+  day: string
+  candidate_count: number
+  synced_at: string
+}
+
 type VacancyCvWeeklyUpsertClient = {
   from: (table: string) => {
     upsert: (
@@ -173,6 +180,36 @@ function buildWeeklyRows(
   }))
 }
 
+function getCandidateDay(candidate: Record<string, unknown>, fallbackDate: Date): string {
+  const createdTime = candidate['Created_Time']
+  if (typeof createdTime === 'string' && createdTime.trim().length > 0) {
+    const parsed = new Date(createdTime)
+    if (!Number.isNaN(parsed.getTime())) return toIsoDate(parsed)
+  }
+  return toIsoDate(fallbackDate)
+}
+
+function buildDailyRows(
+  vacancyId: string,
+  candidates: Record<string, unknown>[],
+  syncedAtIso: string,
+): DailyKpiRow[] {
+  const fallbackDate = new Date(syncedAtIso)
+  const dailyCounts = new Map<string, number>()
+
+  for (const candidate of candidates) {
+    const day = getCandidateDay(candidate, fallbackDate)
+    dailyCounts.set(day, (dailyCounts.get(day) ?? 0) + 1)
+  }
+
+  return Array.from(dailyCounts.entries()).map(([day, candidate_count]) => ({
+    vacancy_id: vacancyId,
+    day,
+    candidate_count,
+    synced_at: syncedAtIso,
+  }))
+}
+
 async function isAuthorizedRequest(request: Request): Promise<boolean> {
   if (validateApiKey(request)) return true
 
@@ -282,6 +319,7 @@ export async function POST(request: Request) {
     try {
       const candidates = await fetchAllCandidatesByJobOpening(vacancy.id)
       const rows = buildWeeklyRows(vacancy.id, candidates, syncedAtIso)
+      const dailyRows = buildDailyRows(vacancy.id, candidates, syncedAtIso)
 
       if (rows.length > 0) {
         const upsertClient = supabaseAdmin as unknown as VacancyCvWeeklyUpsertClient
@@ -302,6 +340,17 @@ export async function POST(request: Request) {
 
         if (deleteError) {
           errors.push(`${vacancy.title} (${vacancy.id}): ${deleteError.message}`)
+        }
+      }
+
+      // Daily KPI — upsert alongside weekly (non-blocking errors)
+      if (dailyRows.length > 0) {
+        const { error: dailyError } = await (supabaseAdmin as any)
+          .from('vacancy_cv_daily_kpi')
+          .upsert(dailyRows, { onConflict: 'vacancy_id,day' })
+
+        if (dailyError) {
+          errors.push(`daily ${vacancy.title}: ${dailyError.message}`)
         }
       }
 

@@ -1948,6 +1948,8 @@ export interface ResumenVacanteItem {
   tipo_profesional: string
   cvsThisWeek: number
   cvsLastWeek: number
+  /** CVs per day Mon–Sun of the current ISO week (may be 0 for future days) */
+  dailyCvsThisWeek: { day: string; count: number }[]
   statusCounts: { status: string; count: number }[]
   totalCandidates: number
 }
@@ -1990,6 +1992,26 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
     else if (wr.week_start === lastWeek) entry.lastWeek += count
   }
 
+  // 2b. Daily CVs — Mon to Sun of current week (from vacancy_cv_daily_kpi)
+  const weekDays: string[] = []
+  for (let d = 0; d < 7; d++) {
+    const day = new Date(thisWeek)
+    day.setUTCDate(day.getUTCDate() + d)
+    weekDays.push(day.toISOString().split('T')[0])
+  }
+
+  const { data: dailyRows } = await (supabase as any)
+    .from('vacancy_cv_daily_kpi')
+    .select('vacancy_id, day, candidate_count')
+    .in('vacancy_id', ids)
+    .in('day', weekDays)
+
+  const dailyMap = new Map<string, Map<string, number>>()
+  for (const id of ids) dailyMap.set(id, new Map())
+  for (const dr of (dailyRows ?? []) as { vacancy_id: string; day: string; candidate_count: number | null }[]) {
+    dailyMap.get(dr.vacancy_id)?.set(dr.day, dr.candidate_count ?? 0)
+  }
+
   // 3. Status counts
   const { data: statusRows } = await (supabase as any)
     .from('vacancy_status_counts_kpi')
@@ -2010,6 +2032,10 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
     tipo_profesional: v.tipo_profesional ?? 'otro',
     cvsThisWeek: weeklyMap.get(v.id)?.thisWeek ?? 0,
     cvsLastWeek: weeklyMap.get(v.id)?.lastWeek ?? 0,
+    dailyCvsThisWeek: weekDays.map((day) => ({
+      day,
+      count: dailyMap.get(v.id)?.get(day) ?? 0,
+    })),
     statusCounts: statusMap.get(v.id) ?? [],
     totalCandidates: v.total_candidates ?? 0,
   }))
