@@ -86,6 +86,7 @@ repairServiceAccountEnv()
 import {
   importGermanyDropoutsForPromo,
   P25_COLUMN_MAP,
+  P26_COLUMN_MAP,
   type GermanyDropoutPromoConfig,
 } from '@/lib/google-sheets/import-germany-dropouts'
 
@@ -101,12 +102,7 @@ const PROMOS: GermanyDropoutPromoConfig[] = [
     // Uses default P24_COLUMN_MAP — promos anteriores a P25 tienen columna Profile
   },
   // Promo 23 omitida — el archivo es .xlsx en Drive, la API de Sheets no puede leerlo
-  {
-    promo_numero: 24,
-    spreadsheet_id: '1w9rMWkgdBzqWL05x_DPs3Ttdeax2tfvI3wsoQiGGbUw',
-    gid: 1646413473, // tab " Dropouts (abandonos)"
-    // Uses default P24_COLUMN_MAP (no columnMap needed)
-  },
+  // Promo 24 omitida — sheet vacío (sin nombres ni IDs), layout distinto (Name|Group|Status sin ID numérico)
   {
     promo_numero: 25,
     spreadsheet_id: '1y-PaHgs6im6WHsu4jf0XjIyKyQ7fPgyuRHshSGEnn_g',
@@ -117,7 +113,13 @@ const PROMOS: GermanyDropoutPromoConfig[] = [
     promo_numero: 26,
     spreadsheet_id: '1PePTioNQAPUXKEnHSSOURi7LqnAVeAlGtXA54EJPRQM',
     gid: 1646413473, // tab " Dropouts (abandonos)"
-    columnMap: P25_COLUMN_MAP, // Assumed same layout as P25 (no Profile column)
+    columnMap: P26_COLUMN_MAP, // P26: Profile at col[2], ID at col[3] — swapped vs P24
+  },
+  {
+    promo_numero: 28,
+    spreadsheet_id: '1w9rMWkgdBzqWL05x_DPs3Ttdeax2tfvI3wsoQiGGbUw',
+    gid: 1646413473, // tab " Dropouts (abandonos)" — Excel Coordinación Promo 28/29
+    // Uses default P24_COLUMN_MAP: Status|Name|ID|Profile|Modality...
   },
 ]
 

@@ -44,6 +44,29 @@ export const P24_COLUMN_MAP: GermanyDropoutColumnMap = {
 }
 
 /**
+ * Column layout for Promo 26 — same columns as P24 but Profile and ID are swapped:
+ * col[2]=Profile, col[3]=ID (in P24 it was col[2]=ID, col[3]=Profile).
+ * Language columns remain at 13-17.
+ */
+export const P26_COLUMN_MAP: GermanyDropoutColumnMap = {
+  status: 0,
+  name: 1,
+  profile: 2, // Profile at col[2] — swapped vs P24
+  id: 3,      // ID at col[3] — swapped vs P24
+  modality: 4,
+  start_date: 5,
+  dropout_date: 6,
+  days_of_training: 7,
+  hours_of_training: 8,
+  amount_to_pay: 9,
+  language_level_performance: 13,
+  level_at_dropout: 14,
+  absence_percentage: 15,
+  reason_for_dropout: 16,
+  interest_in_future: 17,
+}
+
+/**
  * Column layout for Promo 25 — "Profile" column was removed;
  * col[3] is now Modality, and columns 3-8 shift one position left.
  * Language-related columns move from 13-17 to 12-16.
