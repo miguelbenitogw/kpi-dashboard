@@ -1,16 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import ConversionRates from '@/components/atraccion/ConversionRates'
-import WeeklyCVChart from '@/components/atraccion/WeeklyCVChart'
-import AttractionTrafficLights from '@/components/atraccion/AttractionTrafficLights'
-import CharlasSummary from '@/components/atraccion/CharlasSummary'
 import VacancyRecruitmentTable from '@/components/atraccion/VacancyRecruitmentTable'
 import VacancyStatusCharts from '@/components/atraccion/VacancyStatusCharts'
 import ReceivedCvsByVacancyView from '@/components/atraccion/ReceivedCvsByVacancyView'
-import CvsResumenCard from '@/components/atraccion/CvsResumenCard'
 import ClosedVacancyCvsView from '@/components/atraccion/ClosedVacancyCvsView'
-import FavoriteVacanciesResumen from '@/components/atraccion/FavoriteVacanciesResumen'
+import AtraccionResumen from '@/components/atraccion/AtraccionResumen'
 import { type TipoProfesional, PROFESION_LABELS } from '@/lib/utils/vacancy-profession'
 
 type Tab = 'resumen' | 'vacantes' | 'cvs' | 'cerradas'
@@ -115,31 +110,7 @@ export default function AtraccionPage() {
       )}
 
       {/* ─── RESUMEN ─── */}
-      {tab === 'resumen' && (
-        <div className="space-y-4">
-          {/* CVs recibidos — números grandes arriba */}
-          <CvsResumenCard />
-
-          {/* Tasas de conversión */}
-          <ConversionRates />
-
-          {/* WeeklyCVChart + Semáforos */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <WeeklyCVChart />
-            </div>
-            <div>
-              <AttractionTrafficLights />
-            </div>
-          </div>
-
-          {/* Charlas */}
-          <CharlasSummary />
-
-          {/* Vacantes favoritas */}
-          <FavoriteVacanciesResumen />
-        </div>
-      )}
+      {tab === 'resumen' && <AtraccionResumen />}
 
       {/* ─── VACANTES ─── */}
       {tab === 'vacantes' && (

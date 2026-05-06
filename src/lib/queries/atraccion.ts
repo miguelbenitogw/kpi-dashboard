@@ -1929,3 +1929,88 @@ export async function getResumenVacantesPrincipales(): Promise<ResumenVacantePri
     }
   })
 }
+
+// ---------------------------------------------------------------------------
+// Resumen atracción — vacantes favoritas con CVs semanales + estado
+// ---------------------------------------------------------------------------
+
+function getCurrentIsoMonday(): string {
+  const now = new Date()
+  const day = now.getUTCDay()
+  const diff = day === 0 ? -6 : 1 - day
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diff))
+  return monday.toISOString().split('T')[0]
+}
+
+export interface ResumenVacanteItem {
+  id: string
+  title: string
+  tipo_profesional: string
+  cvsThisWeek: number
+  cvsLastWeek: number
+  statusCounts: { status: string; count: number }[]
+  totalCandidates: number
+}
+
+export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[]> {
+  // 1. Starred vacancies
+  const { data: vacancies, error: vacError } = await (supabase as any)
+    .from('job_openings_kpi')
+    .select('id, title, tipo_profesional, total_candidates')
+    .eq('is_vacante_principal', true)
+    .order('tipo_profesional', { ascending: true })
+
+  if (vacError || !vacancies || (vacancies as any[]).length === 0) {
+    if (vacError) console.error('[atraccion] getResumenAtraccionVacantes vacancies error:', vacError)
+    return []
+  }
+
+  const rows = vacancies as { id: string; title: string | null; tipo_profesional: string | null; total_candidates: number | null }[]
+  const ids = rows.map((r) => r.id)
+
+  // 2. Weekly CVs — this week + last week
+  const thisWeek = getCurrentIsoMonday()
+  const lastWeekDate = new Date(thisWeek)
+  lastWeekDate.setUTCDate(lastWeekDate.getUTCDate() - 7)
+  const lastWeek = lastWeekDate.toISOString().split('T')[0]
+
+  const { data: weeklyRows } = await (supabase as any)
+    .from('vacancy_cv_weekly_kpi')
+    .select('vacancy_id, week_start, candidate_count')
+    .in('vacancy_id', ids)
+    .in('week_start', [thisWeek, lastWeek])
+
+  const weeklyMap = new Map<string, { thisWeek: number; lastWeek: number }>()
+  for (const id of ids) weeklyMap.set(id, { thisWeek: 0, lastWeek: 0 })
+  for (const wr of (weeklyRows ?? []) as { vacancy_id: string; week_start: string; candidate_count: number | null }[]) {
+    const entry = weeklyMap.get(wr.vacancy_id)
+    if (!entry) continue
+    const count = wr.candidate_count ?? 0
+    if (wr.week_start === thisWeek) entry.thisWeek += count
+    else if (wr.week_start === lastWeek) entry.lastWeek += count
+  }
+
+  // 3. Status counts
+  const { data: statusRows } = await (supabase as any)
+    .from('vacancy_status_counts_kpi')
+    .select('vacancy_id, status, count')
+    .in('vacancy_id', ids)
+
+  const statusMap = new Map<string, { status: string; count: number }[]>()
+  for (const id of ids) statusMap.set(id, [])
+  for (const sr of (statusRows ?? []) as { vacancy_id: string; status: string; count: number }[]) {
+    statusMap.get(sr.vacancy_id)?.push({ status: sr.status, count: sr.count })
+  }
+  // Sort each vacancy's statuses by count desc
+  for (const [, arr] of statusMap) arr.sort((a, b) => b.count - a.count)
+
+  return rows.map((v) => ({
+    id: v.id,
+    title: v.title ?? 'Sin título',
+    tipo_profesional: v.tipo_profesional ?? 'otro',
+    cvsThisWeek: weeklyMap.get(v.id)?.thisWeek ?? 0,
+    cvsLastWeek: weeklyMap.get(v.id)?.lastWeek ?? 0,
+    statusCounts: statusMap.get(v.id) ?? [],
+    totalCandidates: v.total_candidates ?? 0,
+  }))
+}
