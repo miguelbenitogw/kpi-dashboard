@@ -100,12 +100,7 @@ const PROMOS: GermanyDropoutPromoConfig[] = [
     gid: 1646413473, // tab " Dropouts (abandonos)"
     // Uses default P24_COLUMN_MAP — promos anteriores a P25 tienen columna Profile
   },
-  {
-    promo_numero: 23,
-    spreadsheet_id: '1pO8mZSTZM-v-43Dc2NKJW32f5xHSdFAw',
-    gid: 39203821, // tab diferente al resto
-    // Uses default P24_COLUMN_MAP
-  },
+  // Promo 23 omitida — el archivo es .xlsx en Drive, la API de Sheets no puede leerlo
   {
     promo_numero: 24,
     spreadsheet_id: '1w9rMWkgdBzqWL05x_DPs3Ttdeax2tfvI3wsoQiGGbUw',
