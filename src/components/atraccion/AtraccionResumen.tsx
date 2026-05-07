@@ -264,10 +264,26 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
           </div>
           <div style={{ fontSize: 11, color: P.muted, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span>{item.totalCandidates} candidatos</span>
-            <span>·</span>
-            <span style={{ color: successPct >= 20 ? P.green : successPct >= 5 ? P.accent : P.orange, fontWeight: 600 }}>
-              {successPct}% Hired+Approved
-            </span>
+            {item.ratioExitoContactados != null && (() => {
+              const pct = Math.round(item.ratioExitoContactados! * 100)
+              const color = pct >= 30 ? '#16a34a' : pct >= 15 ? '#d97706' : '#dc2626'
+              return (
+                <>
+                  <span>·</span>
+                  <span style={{ color, fontWeight: 700 }}>✓ {pct}% éxito</span>
+                </>
+              )
+            })()}
+            {item.ratioDescarte != null && (() => {
+              const pct = Math.round(item.ratioDescarte! * 100)
+              const color = pct >= 50 ? '#dc2626' : pct >= 30 ? '#d97706' : '#78716c'
+              return (
+                <>
+                  <span>·</span>
+                  <span style={{ color, fontWeight: 700 }}>✗ {pct}% descarte</span>
+                </>
+              )
+            })()}
             {item.closingDate && (
               <>
                 <span>·</span>
@@ -283,29 +299,6 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
               </>
             )}
           </div>
-          {/* ── KPIs de calidad ── */}
-          {(item.ratioExitoContactados != null || item.ratioDescarte != null) && (
-            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              {item.ratioExitoContactados != null && (() => {
-                const pct = Math.round(item.ratioExitoContactados! * 100)
-                const color = pct >= 30 ? '#16a34a' : pct >= 15 ? '#d97706' : '#dc2626'
-                return (
-                  <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}14`, border: `1px solid ${color}30`, borderRadius: 6, padding: '2px 7px', letterSpacing: '0.01em' }}>
-                    ✓ {pct}% éxito real
-                  </span>
-                )
-              })()}
-              {item.ratioDescarte != null && (() => {
-                const pct = Math.round(item.ratioDescarte! * 100)
-                const color = pct >= 50 ? '#dc2626' : pct >= 30 ? '#d97706' : '#78716c'
-                return (
-                  <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}14`, border: `1px solid ${color}30`, borderRadius: 6, padding: '2px 7px', letterSpacing: '0.01em' }}>
-                    ✗ {pct}% descarte
-                  </span>
-                )
-              })()}
-            </div>
-          )}
         </div>
         <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 99, background: cc.bg, color: cc.text, border: `1px solid ${cc.border}` }}>
           {country}
