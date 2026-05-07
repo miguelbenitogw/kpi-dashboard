@@ -1159,11 +1159,19 @@ export default function ClosedVacancyCvsView({ profesionFilter = 'todos', countr
   async function runBackfill() {
     setBackfillState('running')
     try {
-      const res = await fetch('/api/admin/do-backfill')
-      const json = await res.json()
+      const res = await fetch('/api/admin/do-backfill', { method: 'POST' })
+      const text = await res.text()
+      console.log('[backfill] status:', res.status, 'body:', text)
+      if (!res.ok) {
+        console.error('[backfill] error response:', text)
+        setBackfillState('error')
+        return
+      }
+      const json = JSON.parse(text)
       setBackfillResult(json)
       setBackfillState('done')
-    } catch {
+    } catch (err) {
+      console.error('[backfill] fetch/parse error:', err)
       setBackfillState('error')
     }
   }
@@ -1230,7 +1238,7 @@ export default function ClosedVacancyCvsView({ profesionFilter = 'todos', countr
           {backfillState === 'idle' && '▶ Ejecutar backfill'}
           {backfillState === 'running' && '⏳ Ejecutando (~50s)…'}
           {backfillState === 'done' && `✓ Hecho — ${backfillResult?.updated} actualizadas`}
-          {backfillState === 'error' && '✗ Error — ver consola'}
+          {backfillState === 'error' && '✗ Error — abrí DevTools (F12) → Console'}
         </button>
         {backfillState === 'done' && backfillResult && (
           <span style={{ fontSize: 11, color: '#78716c' }}>

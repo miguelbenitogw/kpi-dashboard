@@ -14,7 +14,7 @@ const BATCH_SIZE = 50
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
 
-export async function GET() {
+export async function POST() {
   const { data: rows, error } = await supabaseAdmin
     .from('job_openings_kpi')
     .select('id, zoho_id')
