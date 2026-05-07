@@ -17,14 +17,13 @@ function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
 export async function POST() {
   const { data: rows, error } = await supabaseAdmin
     .from('job_openings_kpi')
-    .select('id, zoho_id')
+    .select('id')
     .eq('is_active', false)
     .eq('hired_count', 0)
-    .not('zoho_id', 'is', null)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const vacancies = (rows ?? []) as { id: string; zoho_id: string }[]
+  const vacancies = (rows ?? []) as { id: string }[]
   let updated = 0, skipped = 0, errors = 0
 
   for (let i = 0; i < vacancies.length; i += BATCH_SIZE) {
@@ -32,8 +31,9 @@ export async function POST() {
     for (let j = 0; j < batch.length; j++) {
       const v = batch[j]
       try {
+        // v.id IS the Zoho record ID (e.g. "179458000010180096")
         const res = await zohoFetch<{ data?: Array<Record<string, unknown>> }>(
-          `/Job_Openings/${v.zoho_id}`,
+          `/Job_Openings/${v.id}`,
           { fields: 'No_of_Candidates_Hired' }
         )
         const record = res.data?.[0]
