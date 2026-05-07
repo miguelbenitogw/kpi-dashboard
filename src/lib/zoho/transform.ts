@@ -1,6 +1,5 @@
 // Real field mappings from Zoho Recruit API
 import { deriveProfesionTipo } from '@/lib/utils/vacancy-profession'
-import { deriveTipoVacante } from '@/lib/utils/vacancy-type'
 
 export function transformCandidate(zoho: Record<string, unknown>) {
   // Associated_Tags: Zoho returns either string[] or {name, id, color_code}[]
@@ -86,10 +85,6 @@ export function transformJobOpening(zoho: Record<string, unknown>) {
     es_proceso_atraccion_actual: esProcesoAtraccionActual,
     category,
     tipo_profesional: deriveProfesionTipo(title),
-    tipo_vacante: deriveTipoVacante(title),
-    zoho_job_number: typeof zoho.Job_Opening_ID === 'number'
-      ? zoho.Job_Opening_ID
-      : (zoho.Job_Opening_ID ? parseInt(String(zoho.Job_Opening_ID), 10) || null : null),
   }
 }
 

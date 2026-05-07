@@ -16,6 +16,8 @@ type WeeklyKpiRow = {
   vacancy_id: string
   week_start: string
   candidate_count: number
+  /** Total candidates at the Monday that opened this week — delta baseline */
+  baseline_count: number
   synced_at: string
 }
 
@@ -33,25 +35,6 @@ type GwTagKpiRow = {
   synced_at: string
 }
 
-type VacancyCvWeeklyUpsertClient = {
-  from: (table: string) => {
-    upsert: (
-      values: WeeklyKpiRow[],
-      options: { onConflict: string },
-    ) => Promise<{ error: { message: string } | null }>
-  }
-}
-
-type VacancyCvWeeklyDeleteClient = {
-  from: (table: string) => {
-    delete: () => {
-      eq: (
-        column: string,
-        value: string,
-      ) => Promise<{ error: { message: string } | null }>
-    }
-  }
-}
 
 type VacancyCvSyncStateRow = {
   vacancy_id: string
@@ -166,25 +149,48 @@ function shouldSyncVacancy(
   return nowMs - lastSyncMs >= maxAgeMs
 }
 
-function buildWeeklyRows(
+/**
+ * Computes the weekly KPI row for the CURRENT week only, using delta-based counting.
+ *
+ * candidate_count = total_candidates_now - baseline_count
+ *
+ * baseline_count is established on the first sync of the week (set to the total at the
+ * end of the previous week, i.e. previousStateTotal). Subsequent syncs within the same
+ * week read the stored baseline so the delta keeps growing correctly.
+ *
+ * Past weeks are NEVER touched — they auto-lock once the week ends.
+ */
+async function computeCurrentWeekRow(
   vacancyId: string,
-  candidates: Record<string, unknown>[],
+  currentTotal: number,
+  previousStateTotal: number,
   syncedAtIso: string,
-): WeeklyKpiRow[] {
-  const fallbackDate = new Date(syncedAtIso)
-  const weeklyCounts = new Map<string, number>()
+): Promise<WeeklyKpiRow> {
+  const weekStart = getIsoWeekStart(new Date())
 
-  for (const candidate of candidates) {
-    const weekStart = getCandidateWeekStart(candidate, fallbackDate)
-    weeklyCounts.set(weekStart, (weeklyCounts.get(weekStart) ?? 0) + 1)
-  }
+  // Read existing row for this week — may already have a baseline from an earlier sync today
+  const { data: existingRow } = await (supabaseAdmin as any)
+    .from('vacancy_cv_weekly_kpi')
+    .select('baseline_count')
+    .eq('vacancy_id', vacancyId)
+    .eq('week_start', weekStart)
+    .maybeSingle()
 
-  return Array.from(weeklyCounts.entries()).map(([week_start, candidate_count]) => ({
+  // First sync of this week: anchor the baseline to last-known total (end of previous week).
+  // Subsequent syncs: reuse the stored baseline so the delta keeps accumulating.
+  const baseline: number = existingRow != null
+    ? (existingRow.baseline_count ?? 0)
+    : previousStateTotal
+
+  const candidateCount = Math.max(0, currentTotal - baseline)
+
+  return {
     vacancy_id: vacancyId,
-    week_start,
-    candidate_count,
+    week_start: weekStart,
+    candidate_count: candidateCount,
+    baseline_count: baseline,
     synced_at: syncedAtIso,
-  }))
+  }
 }
 
 function getCandidateDay(candidate: Record<string, unknown>, fallbackDate: Date): string {
@@ -270,7 +276,6 @@ export async function POST(request: Request) {
   const syncedAtIso = new Date().toISOString()
   const errors: string[] = []
   const syncStateClient = supabaseAdmin as unknown as VacancyCvSyncStateClient
-  const weeklyDeleteClient = supabaseAdmin as unknown as VacancyCvWeeklyDeleteClient
 
   const { data: vacancies, error: vacancyError } = await supabaseAdmin
     .from('job_openings_kpi')
@@ -356,31 +361,27 @@ export async function POST(request: Request) {
 
     try {
       const candidates = await fetchAllCandidatesByJobOpening(vacancy.id)
-      const rows = buildWeeklyRows(vacancy.id, candidates, syncedAtIso)
+      const previousTotal = toNonNegativeInt(previousState?.last_total_candidates)
+
+      // Weekly KPI — delta-based: only write the current week row, past weeks are frozen
+      const weeklyRow = await computeCurrentWeekRow(
+        vacancy.id,
+        candidates.length,
+        previousTotal,
+        syncedAtIso,
+      )
+      const { error: weeklyError } = await (supabaseAdmin as any)
+        .from('vacancy_cv_weekly_kpi')
+        .upsert(weeklyRow, { onConflict: 'vacancy_id,week_start' })
+
+      if (weeklyError) {
+        errors.push(`weekly ${vacancy.title} (${vacancy.id}): ${weeklyError.message}`)
+      } else {
+        rowsUpserted += 1
+      }
+
       const dailyRows = buildDailyRows(vacancy.id, candidates, syncedAtIso)
       const gwTagRows = buildGwTagRows(vacancy.id, candidates, syncedAtIso)
-
-      if (rows.length > 0) {
-        const upsertClient = supabaseAdmin as unknown as VacancyCvWeeklyUpsertClient
-        const { error: upsertError } = await upsertClient
-          .from('vacancy_cv_weekly_kpi')
-          .upsert(rows, { onConflict: 'vacancy_id,week_start' })
-
-        if (upsertError) {
-          errors.push(`${vacancy.title} (${vacancy.id}): ${upsertError.message}`)
-        } else {
-          rowsUpserted += rows.length
-        }
-      } else {
-        const { error: deleteError } = await weeklyDeleteClient
-          .from('vacancy_cv_weekly_kpi')
-          .delete()
-          .eq('vacancy_id', vacancy.id)
-
-        if (deleteError) {
-          errors.push(`${vacancy.title} (${vacancy.id}): ${deleteError.message}`)
-        }
-      }
 
       // Daily KPI — upsert alongside weekly (non-blocking errors)
       if (dailyRows.length > 0) {

@@ -4,6 +4,19 @@
 
 ---
 
+## Documentación relacionada
+
+| Archivo | Qué contiene |
+|---------|-------------|
+| `SYSTEM.md` (este) | Fuente de verdad: modelo de datos, lógica de negocio, problemas conocidos, quirks de APIs |
+| `AGENTS.md` | Instrucciones para agentes, reglas de contexto, ideas pendientes |
+| `STRUCTURE.md` | Árbol de archivos, mapa de rutas (22 pages), inventario de ~135 componentes, 19 módulos de queries |
+| `API-REFERENCE.md` | Los 51 endpoints documentados, 9 cron jobs, patrones de auth, diagrama del pipeline de datos |
+| `INTEGRATIONS.md` | Integraciones externas: Zoho (auth, client, sync, quirks), Google Sheets, GA4, YouTube, OpenAI, Supabase |
+| `INFRASTRUCTURE.md` | Next.js config, middleware MFA, vercel.json, env vars, 33 migraciones DB, dependencias |
+
+---
+
 ## 1. Visión general del negocio
 
 **GlobalWorking** es una empresa de reclutamiento internacional especializada en colocar profesionales sanitarios (enfermeros, fisioterapeutas, médicos) y educativos (maestros) en países como Noruega, Alemania y Bélgica. Gestiona el proceso completo: captación de candidatos, formación lingüística y profesional, y colocación final en clientes (hospitales, kommuner noruegos, etc.).
@@ -18,10 +31,10 @@ El **KPI Dashboard** es el panel de control interno que mide ese proceso en tres
 
 **Usuarios**: coordinadores de promociones, responsables de atracción, dirección.
 
-**Stack**:
-- Frontend: Next.js 15 (App Router), TypeScript, Supabase JS client
+**Stack** (detalle completo en `INFRASTRUCTURE.md`):
+- Frontend: Next.js 16.2.3 (App Router), React 19, TypeScript 5, Tailwind 4, Recharts 3.8
 - Backend: Supabase (PostgreSQL + Auth + Realtime + RLS), Vercel (hosting + crons)
-- Datos externos: Zoho Recruit (ATS), Google Sheets/Excel Madre, YouTube API
+- Datos externos: Zoho Recruit (ATS), Google Sheets/Excel Madre, YouTube API, GA4, OpenAI
 
 ---
 
@@ -461,6 +474,19 @@ La sección `/dashboard/colocacion` contiene datos hardcodeados en el componente
 
 ## 10. Archivos de referencia rápida
 
+### Documentación del proyecto
+
+| Archivo | Propósito |
+|---------|-----------|
+| `SYSTEM.md` (este) | Fuente de verdad: modelo de datos, negocio, problemas conocidos |
+| `AGENTS.md` | Instrucciones para agentes, reglas de contexto, ideas pendientes |
+| `STRUCTURE.md` | Árbol completo de archivos, mapa de rutas, inventario de componentes y queries |
+| `API-REFERENCE.md` | Todos los endpoints (51), crons (9), auth patterns, pipeline de datos |
+| `INTEGRATIONS.md` | Integraciones: Zoho, Google Sheets, GA4, YouTube, OpenAI, Supabase |
+| `INFRASTRUCTURE.md` | Config, middleware, env vars, migraciones DB, dependencias |
+
+### Archivos de código clave
+
 | Archivo | Propósito |
 |---------|-----------|
 | `src/lib/utils/vacancy-type.ts` | `deriveTipoVacante()` — lógica de clasificación atraccion/formacion |
@@ -474,4 +500,4 @@ La sección `/dashboard/colocacion` contiene datos hardcodeados en el componente
 | `src/app/api/admin/backfill-atraccion-history/route.ts` | Backfill manual de historial (vacancy-first approach) |
 | `src/app/api/cron/sync-atraccion-history/route.ts` | Cron semanal de historial de atracción |
 | `vercel.json` | Schedule de todos los crons |
-| `supabase/migrations/` | 31 migraciones — historia completa del schema |
+| `supabase/migrations/` | 33 migraciones — historia completa del schema |

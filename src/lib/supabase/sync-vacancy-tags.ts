@@ -131,6 +131,7 @@ export async function syncVacancyTagCounts(options?: {
       const vacancyCounts = new Map<string, Map<string, number>>() // vacancy_id → tag → count
       for (const hist of historyRows ?? []) {
         const tags = candidateTagMap.get(hist.candidate_id) ?? []
+        if (!hist.job_opening_id) continue
         for (const tag of tags) {
           if (!vacancyCounts.has(hist.job_opening_id)) vacancyCounts.set(hist.job_opening_id, new Map())
           const tagMap = vacancyCounts.get(hist.job_opening_id)!

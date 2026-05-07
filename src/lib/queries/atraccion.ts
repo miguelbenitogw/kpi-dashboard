@@ -728,7 +728,7 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
   // 1. Fetch active vacancies
   const { data: vacancies, error: vacError } = await supabase
     .from('job_openings_kpi')
-    .select('id, title, client_name, owner, status, date_opened, total_candidates, hired_count, tipo_profesional, zoho_job_number')
+    .select('id, title, client_name, owner, status, date_opened, total_candidates, hired_count, tipo_profesional')
     .eq('es_proceso_atraccion_actual', true)
     .order('total_candidates', { ascending: false })
 
@@ -783,7 +783,7 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
       date_opened: v.date_opened ?? null,
       total_candidates: v.total_candidates ?? 0,
       hired_count: v.hired_count ?? 0,
-      zohoJobNumber: (v as any).zoho_job_number ?? null,
+      zohoJobNumber: null,
       byStatus: countMap.get(v.id) ?? {},
       total: v.total_candidates ?? 0,
       tipoProfesional,

@@ -78,7 +78,7 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
 
   // 3. For each vacancy, pull all associated candidates from Zoho
   for (let i = 0; i < vacancies.length; i++) {
-    const vacancy = vacancies[i]
+    const vacancy: { id: string; title: string | null } = vacancies[i]
 
     try {
       const zohoRecords = await fetchAllCandidatesByJobOpening(vacancy.id)
@@ -105,18 +105,28 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
       // candidates_kpi.id = Candidate_ID (short sequential, e.g. "88082"),
       // NOT the internal Zoho record id (long, e.g. "179458000031006174").
       // Use Candidate_ID for matching; keep internal id in zoho_record_id.
-      const rows = zohoRecords
+      type RowFull = {
+        candidate_id: string
+        candidate_name: string | null
+        zoho_record_id: string
+        job_opening_id: string
+        job_opening_title: string | null
+        candidate_status_in_jo: string | null
+        association_type: 'atraccion'
+        fetched_at: string
+      }
+      const rows: RowFull[] = zohoRecords
         .filter((record) => madreCandidateIds.has(String(record.Candidate_ID ?? record.id)))
-        .map((record) => ({
-        candidate_id: String(record.Candidate_ID ?? record.id),
-        candidate_name: (record.Full_Name as string) || null,
-        zoho_record_id: String(record.id),
-        job_opening_id: vacancy.id,
-        job_opening_title: vacancy.title ?? null,
-        candidate_status_in_jo: (record.Candidate_Status as string) || null,
-        association_type: 'atraccion' as const,
-        fetched_at: fetchedAt,
-      }))
+        .map((record): RowFull => ({
+          candidate_id: String(record.Candidate_ID ?? record.id),
+          candidate_name: (record.Full_Name as string) || null,
+          zoho_record_id: String(record.id),
+          job_opening_id: vacancy.id,
+          job_opening_title: vacancy.title ?? null,
+          candidate_status_in_jo: (record.Candidate_Status as string) || null,
+          association_type: 'atraccion',
+          fetched_at: fetchedAt,
+        }))
 
       // 6. Build status-change entries for stage_history_kpi
       //    Only log when there WAS a previous status and it's different from the new one
@@ -156,14 +166,16 @@ export async function syncCandidatesForActiveVacancies(): Promise<SyncCandidates
       // 7. Upsert candidate rows in batches
       //    New rows get association_type = 'atraccion'.
       //    Existing rows: only update status, name, title and fetched_at — never overwrite association_type.
-      const newRows = rows.filter((r) => !prevStatus.has(r.candidate_id))
-      const updatedRows = rows
+      type RowUpdate = Omit<RowFull, 'association_type'>
+
+      const newRows: RowFull[] = rows.filter((r) => !prevStatus.has(r.candidate_id))
+      const updatedRows: RowUpdate[] = rows
         .filter((r) => prevStatus.has(r.candidate_id))
         .map(({ association_type: _at, ...rest }) => rest)
 
-      const allBatches: Array<typeof rows[number] | Omit<typeof rows[number], 'association_type'>>[] = []
-      for (let j = 0; j < newRows.length; j += UPSERT_BATCH_SIZE) allBatches.push(newRows.slice(j, j + UPSERT_BATCH_SIZE) as any)
-      for (let j = 0; j < updatedRows.length; j += UPSERT_BATCH_SIZE) allBatches.push(updatedRows.slice(j, j + UPSERT_BATCH_SIZE) as any)
+      const allBatches: Array<RowFull[] | RowUpdate[]> = []
+      for (let j = 0; j < newRows.length; j += UPSERT_BATCH_SIZE) allBatches.push(newRows.slice(j, j + UPSERT_BATCH_SIZE))
+      for (let j = 0; j < updatedRows.length; j += UPSERT_BATCH_SIZE) allBatches.push(updatedRows.slice(j, j + UPSERT_BATCH_SIZE))
 
       for (let b = 0; b < allBatches.length; b++) {
         const batch = allBatches[b]

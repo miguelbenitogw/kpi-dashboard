@@ -209,11 +209,11 @@ export default function PromoVacancyDistributionChart({ promoNombre }: Props) {
             />
             <Tooltip
               {...TOOLTIP_STYLE}
-              formatter={(v: number) => [
-                v.toLocaleString('es-AR') + ' alumno' + (v !== 1 ? 's' : ''),
-                'Total',
-              ]}
-              labelFormatter={(label: string) => truncate(label, 50)}
+              formatter={((v: unknown) => {
+                const n = typeof v === 'number' ? v : 0
+                return [n.toLocaleString('es-AR') + ' alumno' + (n !== 1 ? 's' : ''), 'Total']
+              }) as never}
+              labelFormatter={((label: unknown) => truncate(String(label ?? ''), 50)) as never}
             />
             <Bar dataKey="studentCount" radius={[0, 6, 6, 0]} maxBarSize={28}>
               {data.map((row, i) => (

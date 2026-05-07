@@ -327,10 +327,10 @@ function CvsByYearChart({ byYear }: { byYear: ClosedVacanciesUnifiedData['byYear
                   fontSize: 11,
                 }}
                 labelStyle={{ color: '#1c1917', fontWeight: 600 }}
-                formatter={(value: number, name: string) => [
-                  value.toLocaleString('es-AR'),
+                formatter={((value: unknown, name: string) => [
+                  typeof value === 'number' ? value.toLocaleString('es-AR') : String(value ?? ''),
                   truncateTitle(name, 40),
-                ]}
+                ]) as never}
               />
               <Legend
                 iconType="square"
@@ -515,10 +515,10 @@ function ChannelDonut({
                   borderRadius: 8,
                   fontSize: 11,
                 }}
-                formatter={(value: number, name: string) => [
-                  `${value.toLocaleString('es-AR')} (${total > 0 ? ((value / total) * 100).toFixed(1) : 0}%)`,
-                  name,
-                ]}
+                formatter={((value: unknown, name: string) => {
+                  const n = typeof value === 'number' ? value : 0
+                  return [`${n.toLocaleString('es-AR')} (${total > 0 ? ((n / total) * 100).toFixed(1) : 0}%)`, name]
+                }) as never}
               />
               <Legend
                 iconType="circle"

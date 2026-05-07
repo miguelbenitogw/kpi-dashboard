@@ -45,11 +45,13 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 import { importGlobalPlacement } from '@/lib/google-sheets/import-global-placement'
 
 async function main() {
-  const { data: madreSheets, error } = await supabaseAdmin
-    .from('madre_sheets_kpi' as any)
+  const { data: madreSheetsRaw, error } = await (supabaseAdmin as any)
+    .from('madre_sheets_kpi')
     .select('sheet_id, label')
     .eq('is_active', true)
     .order('year', { ascending: true })
+
+  const madreSheets = madreSheetsRaw as Array<{ sheet_id: string; label: string }> | null
 
   if (error) {
     console.error('Failed to fetch madre sheets:', error.message)

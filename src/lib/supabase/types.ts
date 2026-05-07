@@ -2134,3 +2134,29 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
+// ── Convenience type aliases ────────────────────────────────────────────────
+// These make imports cleaner across the codebase instead of Tables<'...'>
+
+export type Candidate = Tables<'candidates_kpi'>
+export type CandidateInsert = TablesInsert<'candidates_kpi'>
+export type CandidateUpdate = TablesUpdate<'candidates_kpi'>
+
+export type JobOpening = Tables<'job_openings_kpi'>
+export type JobOpeningInsert = TablesInsert<'job_openings_kpi'>
+export type JobOpeningUpdate = TablesUpdate<'job_openings_kpi'>
+
+export type CandidateJobHistory = Tables<'candidate_job_history_kpi'>
+
+export type StageHistory = Tables<'stage_history_kpi'>
+
+export type SlaAlert = Tables<'sla_alerts_kpi'>
+
+export type DashboardConfig = Tables<'dashboard_config_kpi'>
+
+export type Promotion = Tables<'promotions_kpi'>
+export type PromotionInsert = TablesInsert<'promotions_kpi'>
+export type PromotionUpdate = TablesUpdate<'promotions_kpi'>
+
+export type PromoSheet = Tables<'promo_sheets_kpi'>
+export type PromoSheetInsert = TablesInsert<'promo_sheets_kpi'>

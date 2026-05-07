@@ -1,17 +1,20 @@
 <!-- BEGIN:system-reference -->
-# PRIMERA REGLA — leer SYSTEM.md antes de cualquier cosa
+# PRIMERA REGLA — leer los docs antes de cualquier cosa
 
-**Ante cualquier duda sobre el sistema, antes de implementar cualquier funcionalidad nueva, y al abrir cualquier conversación sobre este proyecto: leer `SYSTEM.md` en la raíz del repositorio.**
+**Ante cualquier duda sobre el sistema, antes de implementar cualquier funcionalidad nueva, y al abrir cualquier conversación sobre este proyecto: consultar la documentación del proyecto.**
 
-`SYSTEM.md` es la fuente de verdad del sistema. Contiene:
-- Arquitectura de datos completa (tablas, relaciones, campos clave)
-- Clasificación de vacantes (atracción vs formación)
-- Pipeline de datos y crons
-- APIs y endpoints disponibles
-- Problemas conocidos y limitaciones
-- Ideas pendientes de implementar
+## Mapa de documentación
 
-No implementes nada sin haberlo consultado primero. Si algo no está documentado en SYSTEM.md, documentalo ahí antes de continuar.
+| Archivo | Qué contiene | Cuándo leerlo |
+|---------|-------------|---------------|
+| `SYSTEM.md` | **Fuente de verdad**: modelo de datos, lógica de negocio, quirks de Zoho, problemas conocidos | Siempre primero. Antes de tocar cualquier tabla, query o sync |
+| `AGENTS.md` (este) | Instrucciones para agentes, reglas de contexto, ideas pendientes | Para entender las reglas del juego |
+| `STRUCTURE.md` | Árbol de archivos, mapa de rutas (22 pages), inventario de ~135 componentes, 19 módulos de queries | Antes de crear componentes o buscar dónde vive algo |
+| `API-REFERENCE.md` | Los 51 endpoints, 9 cron jobs, patrones de auth, diagrama del pipeline de datos | Antes de crear/modificar endpoints o entender el flujo de sync |
+| `INTEGRATIONS.md` | Integraciones externas: Zoho (auth, client, sync), Google Sheets (9 importers), GA4, YouTube, OpenAI, Supabase | Antes de tocar cualquier integración externa |
+| `INFRASTRUCTURE.md` | Next.js config, middleware MFA, vercel.json, env vars, 33 migraciones DB, dependencias | Para config, deployment, o schema changes |
+
+**No implementes nada sin haber consultado `SYSTEM.md` primero.** Si necesitás entender la estructura del código → `STRUCTURE.md`. Si necesitás entender un endpoint → `API-REFERENCE.md`. Si algo no está documentado, documentalo antes de continuar.
 <!-- END:system-reference -->
 
 <!-- BEGIN:nextjs-agent-rules -->

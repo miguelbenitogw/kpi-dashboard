@@ -258,7 +258,7 @@ export default function VacancyStatusCharts() {
                   {...TOOLTIP_STYLE}
                   formatter={((v: number) => [v.toLocaleString('es-AR'), 'Candidatos']) as never}
                 />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 10, fill: '#a8a29e', formatter: (v: number) => v > 0 ? v : '' }}>
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 10, fill: '#a8a29e', formatter: ((v: string | number | null | undefined) => (typeof v === 'number' && v > 0) ? v : '') as never }}>
                   {chartAData.map(entry => (
                     <Cell key={entry.status} fill={statusColor(entry.status)} />
                   ))}
@@ -340,7 +340,7 @@ export default function VacancyStatusCharts() {
                 <XAxis type="number" tick={{ fill: '#a8a29e', fontSize: 10 }} axisLine={{ stroke: '#e7e2d8' }} tickLine={false} allowDecimals={false} />
                 <YAxis type="category" dataKey="tag" width={180} tick={{ fill: '#78716c', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip {...TOOLTIP_STYLE} formatter={((v: number) => [v.toLocaleString('es-AR'), 'Candidatos']) as never} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 10, fill: '#a8a29e', formatter: (v: number) => v > 0 ? v : '' }}>
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 10, fill: '#a8a29e', formatter: ((v: string | number | null | undefined) => (typeof v === 'number' && v > 0) ? v : '') as never }}>
                   {tagData.map((entry) => (
                     <Cell key={entry.tag} fill={tagColor(entry.tag)} />
                   ))}

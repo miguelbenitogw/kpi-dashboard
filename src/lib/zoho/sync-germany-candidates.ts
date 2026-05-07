@@ -1,6 +1,11 @@
 import { fetchCandidates, fetchAssociatedJobOpeningsForCandidate, fetchAllCandidatesByJobOpening, zohoFetch } from './client'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
+// Germany-specific tables are not in the generated types (they're additional tables).
+// Cast supabaseAdmin to any for these queries only.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabaseAdmin as any
+
 export interface SyncGermanyResult {
   total_candidates: number
   tags_updated: number
@@ -70,7 +75,7 @@ export async function syncGermanyCandidateData(): Promise<SyncGermanyResult> {
   const errors: string[] = []
 
   // ─── Fetch Germany candidate IDs from Supabase ───────────────────────────
-  const { data: germanyRows, error: fetchError } = await supabaseAdmin
+  const { data: germanyRows, error: fetchError } = await db
     .from('germany_candidates_kpi')
     .select('id, zoho_candidate_id, zoho_history')
     .not('zoho_candidate_id', 'is', null)
@@ -118,7 +123,7 @@ export async function syncGermanyCandidateData(): Promise<SyncGermanyResult> {
 
   for (const batch of tagBatches) {
     const updatePromises = batch.map((c) =>
-      supabaseAdmin
+      db
         .from('germany_candidates_kpi')
         .update({ tags: tagsMap.get(c.zoho_candidate_id) ?? [] })
         .eq('id', c.id)
@@ -168,7 +173,7 @@ export async function syncGermanyCandidateData(): Promise<SyncGermanyResult> {
           continue
         }
 
-        const { error: updateError } = await supabaseAdmin
+        const { error: updateError } = await db
           .from('germany_candidates_kpi')
           .update({
             zoho_history: newHistory,
@@ -224,7 +229,7 @@ export async function enrichGermanyCandidatesWithRecordId(): Promise<EnrichRecor
   let enriched = 0
   let not_found = 0
 
-  const { data: rows, error: fetchError } = await supabaseAdmin
+  const { data: rows, error: fetchError } = await db
     .from('germany_candidates_kpi')
     .select('id, zoho_candidate_id')
     .is('zoho_record_id', null)
@@ -274,7 +279,7 @@ export async function enrichGermanyCandidatesWithRecordId(): Promise<EnrichRecor
           continue
         }
 
-        const { error: updateError } = await supabaseAdmin
+        const { error: updateError } = await db
           .from('germany_candidates_kpi')
           .update({ zoho_record_id })
           .eq('id', candidate.id)
@@ -330,7 +335,7 @@ export async function syncGermanyCandidateNotes(): Promise<SyncNotesResult> {
   const errors: string[] = []
   let notes_upserted = 0
 
-  const { data: rows, error: fetchError } = await supabaseAdmin
+  const { data: rows, error: fetchError } = await db
     .from('germany_candidates_kpi')
     .select('id, zoho_candidate_id, zoho_record_id')
     .not('zoho_record_id', 'is', null)
@@ -397,7 +402,7 @@ export async function syncGermanyCandidateNotes(): Promise<SyncNotesResult> {
           synced_at: new Date().toISOString(),
         }))
 
-        const { error: upsertError } = await supabaseAdmin
+        const { error: upsertError } = await db
           .from('germany_candidate_notes_kpi')
           .upsert(upsertRows, { onConflict: 'zoho_note_id' })
 
@@ -461,7 +466,7 @@ export async function syncGermanyCandidateHistory(): Promise<SyncGermanyCandidat
   let errors = 0
 
   // ── 1. Load all Germany candidates ──────────────────────────────────────
-  const { data: germanyRows, error: germanyErr } = await supabaseAdmin
+  const { data: germanyRows, error: germanyErr } = await db
     .from('germany_candidates_kpi')
     .select('zoho_candidate_id, nombre')
     .not('zoho_candidate_id', 'is', null)
@@ -551,7 +556,7 @@ export async function syncGermanyCandidateHistory(): Promise<SyncGermanyCandidat
       .map((c) => String(c.Candidate_ID ?? c.id ?? ''))
       .filter(Boolean)
 
-    const { data: existingRows } = await supabaseAdmin
+    const { data: existingRows } = await db
       .from('germany_candidate_history_kpi')
       .select('zoho_candidate_id, candidate_status')
       .eq('job_opening_id', vacancy.id)
@@ -594,7 +599,7 @@ export async function syncGermanyCandidateHistory(): Promise<SyncGermanyCandidat
           changed_at: fetchedAt,
         }
 
-        const { error: stageErr } = await supabaseAdmin
+        const { error: stageErr } = await db
           .from('germany_stage_history_kpi')
           .upsert(stageRow, {
             onConflict: 'zoho_candidate_id,job_opening_id,from_status,to_status,changed_at',
@@ -622,7 +627,7 @@ export async function syncGermanyCandidateHistory(): Promise<SyncGermanyCandidat
         fetched_at: fetchedAt,
       }
 
-      const { error: upsertErr } = await supabaseAdmin
+      const { error: upsertErr } = await db
         .from('germany_candidate_history_kpi')
         .upsert(historyRow, {
           onConflict: 'zoho_candidate_id,job_opening_id',

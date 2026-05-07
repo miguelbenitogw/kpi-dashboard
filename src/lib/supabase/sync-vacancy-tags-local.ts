@@ -138,6 +138,7 @@ export async function syncVacancyTagCountsLocal(options?: {
       // d. Aggregate: vacancy_id → tag → count
       const counts = new Map<string, Map<string, number>>()
       for (const row of history) {
+        if (!row.job_opening_id) continue
         const tags = tagMap.get(row.candidate_id) ?? []
         for (const tag of tags) {
           if (!counts.has(row.job_opening_id)) counts.set(row.job_opening_id, new Map())
