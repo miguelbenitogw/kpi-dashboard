@@ -1462,6 +1462,8 @@ export interface ClosedVacancyUnified {
   /** Alias for series — used by newer components */
   points: ClosedVacancyHistoryPoint[]
   tags: Record<string, number>
+  /** Candidate counts by status from vacancy_status_counts_kpi */
+  byStatus: Record<string, number>
   ratioExitoContactados: number | null
   ratioDescarte: number | null
   ratioExitoThreshold: number | null
@@ -1483,6 +1485,8 @@ export interface ClosedVacanciesUnifiedData {
     gw: number    // sum of counts for tags starting with 'GW'
     other: number // everything else
   }
+  /** All distinct candidate statuses across all vacancies, sorted */
+  allStatuses: string[]
 }
 
 export async function getClosedVacanciesUnified(
@@ -1496,6 +1500,7 @@ export async function getClosedVacanciesUnified(
       byYear: {},
       kpis: { totalVacancies: 0, avgSuccessRate: null, totalCVsHistorical: 0 },
       channelSummary: { fr: 0, cp: 0, gw: 0, other: 0 },
+      allStatuses: [],
     }
   }
 
@@ -1529,18 +1534,30 @@ export async function getClosedVacanciesUnified(
   // Step 3: fetch tag counts
   const tagCountsMap = await getVacancyTagCountsMap(vacancyIds)
 
-  // Step 4: fetch approved-by-client counts from vacancy_status_counts_kpi
+  // Step 4: fetch ALL status counts from vacancy_status_counts_kpi
   const { data: statusRows } = await (supabase as any)
     .from('vacancy_status_counts_kpi')
     .select('vacancy_id, status, count')
     .in('vacancy_id', vacancyIds)
 
-  const approvedMap = new Map<string, number>()
+  const byStatusMap = new Map<string, Record<string, number>>()
+  const allStatusesSet = new Set<string>()
+
   for (const row of statusRows ?? []) {
-    const s: string = (row.status ?? '').toLowerCase()
-    const isApproved = s.includes('approved') || s.includes('client') || s.includes('aprobado')
-    if (isApproved) {
-      approvedMap.set(row.vacancy_id, (approvedMap.get(row.vacancy_id) ?? 0) + (row.count ?? 0))
+    if (!row.vacancy_id || !row.status) continue
+    if (!byStatusMap.has(row.vacancy_id)) byStatusMap.set(row.vacancy_id, {})
+    byStatusMap.get(row.vacancy_id)![row.status] = (row.count ?? 0)
+    allStatusesSet.add(row.status)
+  }
+
+  // Build approvedMap for successRate calculation (backward compat)
+  const approvedMap = new Map<string, number>()
+  for (const [vacancyId, statusCounts] of byStatusMap.entries()) {
+    for (const [status, count] of Object.entries(statusCounts)) {
+      const s = status.toLowerCase()
+      if (s.includes('approved') || s.includes('client') || s.includes('aprobado')) {
+        approvedMap.set(vacancyId, (approvedMap.get(vacancyId) ?? 0) + count)
+      }
     }
   }
 
@@ -1604,6 +1621,7 @@ export async function getClosedVacanciesUnified(
       series: historyPoints,
       points: historyPoints,
       tags,
+      byStatus: byStatusMap.get(entry.vacancyId) ?? {},
       ratioExitoContactados: meta?.ratio_exito_contactados ?? null,
       ratioDescarte: meta?.ratio_descarte ?? null,
       ratioExitoThreshold: meta?.ratio_exito_threshold ?? null,
@@ -1637,6 +1655,7 @@ export async function getClosedVacanciesUnified(
       totalCVsHistorical: vacancies.reduce((s, v) => s + v.totalCandidates, 0),
     },
     channelSummary,
+    allStatuses: Array.from(allStatusesSet).sort(),
   }
 }
 

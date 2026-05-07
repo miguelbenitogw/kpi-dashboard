@@ -1,61 +1,67 @@
 /**
  * TEMPORAL — delete after single use.
- * GET /api/admin/do-backfill — called from the admin button in ClosedVacancyCvsView.
+ * POST /api/admin/do-backfill — called from the admin button in ClosedVacancyCvsView.
  * No auth: this route exists only for the temporary UI button and will be removed.
+ *
+ * Strategy: counts candidates with status 'Hired' or 'Approved by client' per closed
+ * vacancy directly from candidate_job_history_kpi — same logic used for active vacancies.
+ * No Zoho API calls needed.
  */
 import { NextResponse } from 'next/server'
-import { zohoFetch } from '@/lib/zoho/client'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
-export const maxDuration = 300
-
-const DELAY_MS = 250
-const BATCH_SIZE = 50
-
-function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
+export const maxDuration = 60
 
 export async function POST() {
-  const { data: rows, error } = await supabaseAdmin
-    .from('job_openings_kpi')
-    .select('id')
-    .eq('is_active', false)
-    .eq('hired_count', 0)
+  // 1. Aggregate hired counts from candidate history (same logic as active vacancies)
+  // "Positivos" group — same statuses used in VacancyStatusCharts segmented bar
+  const HIRED_STATUSES = [
+    'Hired',
+    'Approved by client',
+    'In Training',
+    'To Place',
+    'Assigned',
+    'Training Finished',
+    'Stand-by',
+  ]
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const { data: counts, error: countErr } = await supabaseAdmin
+    .from('candidate_job_history_kpi')
+    .select('job_opening_id')
+    .in('candidate_status_in_jo', HIRED_STATUSES)
 
-  const vacancies = (rows ?? []) as { id: string }[]
-  let updated = 0, skipped = 0, errors = 0
+  if (countErr) return NextResponse.json({ error: countErr.message }, { status: 500 })
 
-  for (let i = 0; i < vacancies.length; i += BATCH_SIZE) {
-    const batch = vacancies.slice(i, i + BATCH_SIZE)
-    for (let j = 0; j < batch.length; j++) {
-      const v = batch[j]
-      try {
-        // v.id IS the Zoho record ID (e.g. "179458000010180096")
-        const res = await zohoFetch<{ data?: Array<Record<string, unknown>> }>(
-          `/Job_Openings/${v.id}`,
-          { fields: 'No_of_Candidates_Hired' }
-        )
-        const record = res.data?.[0]
-        if (!record) { skipped++; continue }
-
-        const raw = record['No_of_Candidates_Hired']
-        const count = typeof raw === 'number' ? raw : typeof raw === 'string' ? parseInt(raw, 10) || 0 : 0
-
-        if (count === 0) { skipped++; continue }
-
-        const { error: upErr } = await supabaseAdmin
-          .from('job_openings_kpi')
-          .update({ hired_count: count })
-          .eq('id', v.id)
-
-        if (upErr) errors++; else updated++
-      } catch { errors++ }
-
-      if (j < batch.length - 1) await sleep(DELAY_MS)
-    }
-    if (i + BATCH_SIZE < vacancies.length) await sleep(DELAY_MS)
+  // Group by job_opening_id
+  const byVacancy = new Map<string, number>()
+  for (const row of counts ?? []) {
+    if (!row.job_opening_id) continue
+    byVacancy.set(row.job_opening_id, (byVacancy.get(row.job_opening_id) ?? 0) + 1)
   }
 
-  return NextResponse.json({ total: vacancies.length, updated, skipped, errors })
+  if (byVacancy.size === 0) {
+    return NextResponse.json({ total: 0, updated: 0, skipped: 0, errors: 0 })
+  }
+
+  // 2. Update each closed vacancy that has a non-zero count
+  let updated = 0, skipped = 0, errors = 0
+
+  for (const [vacancyId, count] of byVacancy.entries()) {
+    if (count === 0) { skipped++; continue }
+
+    const { error: upErr } = await supabaseAdmin
+      .from('job_openings_kpi')
+      .update({ hired_count: count })
+      .eq('id', vacancyId)
+      .eq('es_proceso_atraccion_actual', false)
+
+    if (upErr) errors++; else updated++
+  }
+
+  return NextResponse.json({
+    total: byVacancy.size,
+    updated,
+    skipped,
+    errors,
+  })
 }
