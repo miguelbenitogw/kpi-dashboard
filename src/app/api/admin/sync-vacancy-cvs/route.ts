@@ -26,6 +26,13 @@ type DailyKpiRow = {
   synced_at: string
 }
 
+type GwTagKpiRow = {
+  vacancy_id: string
+  tag: string
+  count: number
+  synced_at: string
+}
+
 type VacancyCvWeeklyUpsertClient = {
   from: (table: string) => {
     upsert: (
@@ -210,6 +217,37 @@ function buildDailyRows(
   }))
 }
 
+function buildGwTagRows(
+  vacancyId: string,
+  candidates: Record<string, unknown>[],
+  syncedAtIso: string,
+): GwTagKpiRow[] {
+  const tagCounts = new Map<string, number>()
+
+  for (const candidate of candidates) {
+    const rawTags = candidate['Associated_Tags'] as
+      | Array<string | { name: string }>
+      | null
+      | undefined
+
+    if (!rawTags) continue
+
+    for (const t of rawTags) {
+      const name = typeof t === 'string' ? t : ((t as { name: string }).name ?? '')
+      if (/^GW/i.test(name)) {
+        tagCounts.set(name, (tagCounts.get(name) ?? 0) + 1)
+      }
+    }
+  }
+
+  return Array.from(tagCounts.entries()).map(([tag, count]) => ({
+    vacancy_id: vacancyId,
+    tag,
+    count,
+    synced_at: syncedAtIso,
+  }))
+}
+
 async function isAuthorizedRequest(request: Request): Promise<boolean> {
   if (validateApiKey(request)) return true
 
@@ -320,6 +358,7 @@ export async function POST(request: Request) {
       const candidates = await fetchAllCandidatesByJobOpening(vacancy.id)
       const rows = buildWeeklyRows(vacancy.id, candidates, syncedAtIso)
       const dailyRows = buildDailyRows(vacancy.id, candidates, syncedAtIso)
+      const gwTagRows = buildGwTagRows(vacancy.id, candidates, syncedAtIso)
 
       if (rows.length > 0) {
         const upsertClient = supabaseAdmin as unknown as VacancyCvWeeklyUpsertClient
@@ -351,6 +390,23 @@ export async function POST(request: Request) {
 
         if (dailyError) {
           errors.push(`daily ${vacancy.title}: ${dailyError.message}`)
+        }
+      }
+
+      // GW tag counts — full-refresh: delete existing rows then upsert new ones
+      await (supabaseAdmin as any)
+        .from('vacancy_tag_counts_kpi')
+        .delete()
+        .eq('vacancy_id', vacancy.id)
+        .ilike('tag', 'GW%')
+
+      if (gwTagRows.length > 0) {
+        const { error: gwTagError } = await (supabaseAdmin as any)
+          .from('vacancy_tag_counts_kpi')
+          .upsert(gwTagRows, { onConflict: 'vacancy_id,tag' })
+
+        if (gwTagError) {
+          errors.push(`gw-tags ${vacancy.title}: ${gwTagError.message}`)
         }
       }
 

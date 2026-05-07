@@ -283,6 +283,100 @@ function StatusCard({ item }: { item: ResumenVacanteItem }) {
   )
 }
 
+// ─── GW tag color palette ─────────────────────────────────────────────────────
+// Deterministic color per worker name — same name always same color
+const GW_COLORS = [
+  '#1e4b9e', '#7c3aed', '#0891b2', '#16a34a', '#d97706',
+  '#dc2626', '#0d9488', '#db2777', '#6366f1', '#ea580c',
+]
+function gwColor(tag: string): string {
+  let h = 0
+  for (let i = 0; i < tag.length; i++) h = (h * 31 + tag.charCodeAt(i)) >>> 0
+  return GW_COLORS[h % GW_COLORS.length]
+}
+function gwInitials(tag: string): string {
+  // "GWMaria" → "M", "GWFrancesco" → "F"
+  const name = tag.replace(/^GW/i, '')
+  return (name[0] ?? '?').toUpperCase()
+}
+function gwName(tag: string): string {
+  return tag.replace(/^GW/i, '')
+}
+
+function SkeletonGwCard() {
+  return (
+    <div style={{ background: P.card, border: `1px solid ${P.border}`, borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}><Sk w="60%" h={14} /><Sk w={48} h={20} r={99} /></div>
+      {[70, 55, 40, 25].map((w, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Sk w={28} h={28} r={99} /><Sk w={64} h={10} /><Sk w={`${w}%`} h={7} r={99} /><Sk w={24} h={10} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── GW tags card ─────────────────────────────────────────────────────────────
+function GwTagsCard({ item }: { item: ResumenVacanteItem }) {
+  const country = getVacancyCountry(item.title)
+  const cc = COUNTRY_COLORS[country]
+  const maxCount = Math.max(1, ...item.gwTags.map((t) => t.count))
+  const display = item.gwTags.slice(0, 10)
+
+  return (
+    <div style={{ background: P.card, border: `1px solid ${P.border}`, borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <div
+          style={{ fontSize: 13, fontWeight: 600, color: P.text, lineHeight: 1.35, flex: 1, minWidth: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+          title={item.title}
+        >
+          {item.title}
+        </div>
+        <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 99, background: cc.bg, color: cc.text, border: `1px solid ${cc.border}` }}>
+          {country}
+        </span>
+      </div>
+
+      {/* Worker rows */}
+      {display.length === 0 ? (
+        <div style={{ fontSize: 12, color: P.muted }}>Sin asignaciones GW</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {display.map((t) => {
+            const color = gwColor(t.tag)
+            const pct = Math.max(4, Math.round((t.count / maxCount) * 100))
+            return (
+              <div key={t.tag} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Avatar */}
+                <div style={{
+                  width: 26, height: 26, borderRadius: '50%', background: color,
+                  color: '#fff', fontSize: 10, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  {gwInitials(t.tag)}
+                </div>
+                {/* Name */}
+                <div style={{ width: 84, fontSize: 12, fontWeight: 600, color: P.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {gwName(t.tag)}
+                </div>
+                {/* Bar */}
+                <div style={{ flex: 1, height: 6, borderRadius: 99, background: P.border, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, borderRadius: 99, background: color, transition: 'width 0.4s ease' }} />
+                </div>
+                {/* Count */}
+                <div style={{ width: 28, fontSize: 12, fontWeight: 700, color, textAlign: 'right', flexShrink: 0 }}>
+                  {t.count}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Section header ───────────────────────────────────────────────────────────
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
@@ -345,6 +439,20 @@ export default function AtraccionResumen() {
         ) : items.length === 0 ? null : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
             {items.map((item) => <StatusCard key={item.id} item={item} />)}
+          </div>
+        )}
+      </section>
+
+      {/* ── Etiquetas GW por vacante ── */}
+      <section>
+        <SectionHeader title="Equipo GW" subtitle="Candidatos por gestor en vacantes favoritas" />
+        {loading ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+            <SkeletonGwCard /><SkeletonGwCard /><SkeletonGwCard />
+          </div>
+        ) : items.length === 0 ? null : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+            {items.map((item) => <GwTagsCard key={item.id} item={item} />)}
           </div>
         )}
       </section>

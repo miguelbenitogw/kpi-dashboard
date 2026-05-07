@@ -1942,6 +1942,11 @@ function getCurrentIsoMonday(): string {
   return monday.toISOString().split('T')[0]
 }
 
+export interface GwTagCount {
+  tag: string    // e.g. "GWMaria"
+  count: number
+}
+
 export interface ResumenVacanteItem {
   id: string
   title: string
@@ -1952,6 +1957,8 @@ export interface ResumenVacanteItem {
   dailyCvsThisWeek: { day: string; count: number }[]
   statusCounts: { status: string; count: number }[]
   totalCandidates: number
+  /** GW worker tag counts for this vacancy, sorted by count desc */
+  gwTags: GwTagCount[]
 }
 
 export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[]> {
@@ -2012,11 +2019,18 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
     dailyMap.get(dr.vacancy_id)?.set(dr.day, dr.candidate_count ?? 0)
   }
 
-  // 3. Status counts
-  const { data: statusRows } = await (supabase as any)
-    .from('vacancy_status_counts_kpi')
-    .select('vacancy_id, status, count')
-    .in('vacancy_id', ids)
+  // 3. Status counts + GW tag counts in parallel
+  const [{ data: statusRows }, { data: gwTagRows }] = await Promise.all([
+    (supabase as any)
+      .from('vacancy_status_counts_kpi')
+      .select('vacancy_id, status, count')
+      .in('vacancy_id', ids),
+    (supabase as any)
+      .from('vacancy_tag_counts_kpi')
+      .select('vacancy_id, tag, count')
+      .in('vacancy_id', ids)
+      .ilike('tag', 'GW%'),
+  ])
 
   const statusMap = new Map<string, { status: string; count: number }[]>()
   for (const id of ids) statusMap.set(id, [])
@@ -2025,6 +2039,14 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
   }
   // Sort each vacancy's statuses by count desc
   for (const [, arr] of statusMap) arr.sort((a, b) => b.count - a.count)
+
+  const gwTagMap = new Map<string, GwTagCount[]>()
+  for (const id of ids) gwTagMap.set(id, [])
+  for (const gr of (gwTagRows ?? []) as { vacancy_id: string; tag: string; count: number }[]) {
+    gwTagMap.get(gr.vacancy_id)?.push({ tag: gr.tag, count: gr.count })
+  }
+  // Already ordered by count desc from DB, but sort defensively
+  for (const [, arr] of gwTagMap) arr.sort((a, b) => b.count - a.count)
 
   return rows.map((v) => ({
     id: v.id,
@@ -2038,5 +2060,6 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
     })),
     statusCounts: statusMap.get(v.id) ?? [],
     totalCandidates: v.total_candidates ?? 0,
+    gwTags: gwTagMap.get(v.id) ?? [],
   }))
 }
