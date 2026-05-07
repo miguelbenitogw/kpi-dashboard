@@ -50,6 +50,15 @@ const PREFIX_CONFIG = [
     dotClass: 'bg-purple-500',
     textClass: 'text-purple-400',
   },
+  {
+    prefix: 'MODALIDAD' as const,
+    title: 'Modalidad',
+    subtitle: 'Modalidad de la promoción (ONL / SEMI / PRESEN)',
+    color: '#f59e0b',
+    borderClass: 'border-amber-500/30',
+    dotClass: 'bg-amber-500',
+    textClass: 'text-amber-400',
+  },
 ]
 
 const TOOLTIP_STYLE = {
@@ -189,7 +198,7 @@ interface TagPrefixChartsProps {
 
 export default function TagPrefixCharts({ allTags }: TagPrefixChartsProps) {
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {PREFIX_CONFIG.map((cfg) => {
         const data = allTags
           .filter((t) => tagPrefix(t.tag) === cfg.prefix)

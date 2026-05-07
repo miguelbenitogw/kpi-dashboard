@@ -61,8 +61,8 @@ function Skeleton() {
   return (
     <div className="space-y-6">
       {/* Prefix charts skeleton */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {[0, 1, 2].map((i) => (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {[0, 1, 2, 3].map((i) => (
           <div key={i} className="rounded-xl border border-gray-700/50 bg-gray-800/50 p-5">
             <div className="mb-4 h-4 w-32 animate-pulse rounded bg-gray-700" />
             <div className="h-40 animate-pulse rounded-lg bg-gray-700/40" />
