@@ -91,9 +91,25 @@ interface DeadlineInfo {
   label: string | null
 }
 
+/**
+ * Deadline color based on VOLUME PACE (when hiringTarget is set) or time progress (fallback).
+ *
+ * Volume logic:
+ *   pace_needed    = hiringTarget / totalWeeks
+ *   expected_now   = pace_needed * weeksElapsed
+ *   ratio          = approvedSoFar / expected_now
+ *   ≥ 1.0  → green (on track or ahead)
+ *   ≥ 0.75 → amber (slightly behind)
+ *   ≥ 0.50 → orange (notably behind)
+ *   < 0.50 → red (very behind)
+ *
+ * If hiringTarget is null/0 → falls back to time-based progress coloring.
+ */
 function getDeadlineInfo(
   closingDate: string | null,
   dateOpened: string | null,
+  hiringTarget: number | null,
+  approvedSoFar: number,
 ): DeadlineInfo {
   const neutral: DeadlineInfo = { color: DEADLINE_COLORS.neutral, tint: 'transparent', isExpired: false, label: null }
 
@@ -108,22 +124,44 @@ function getDeadlineInfo(
   }
 
   const opened = dateOpened ? new Date(dateOpened).getTime() : null
-  if (!opened || opened >= closing) {
-    // Can't compute progress — use neutral
-    return neutral
-  }
+  if (!opened || opened >= closing) return neutral
 
-  const progress = (now - opened) / (closing - opened)
+  const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
+  const totalWeeks = (closing - opened) / MS_PER_WEEK
+  const weeksElapsed = (now - opened) / MS_PER_WEEK
 
   let color: string
-  if (progress <= 0.50) {
-    color = DEADLINE_COLORS.green
-  } else if (progress <= 0.75) {
-    color = DEADLINE_COLORS.amber
-  } else if (progress <= 0.90) {
-    color = DEADLINE_COLORS.orange
+
+  if (hiringTarget && hiringTarget > 0 && totalWeeks > 0) {
+    // ── Volume-based: are we hiring fast enough?
+    const expectedNow = (hiringTarget / totalWeeks) * weeksElapsed
+    // In the very first days, expectedNow is near 0 — don't penalise
+    if (expectedNow < 0.5) {
+      color = DEADLINE_COLORS.green
+    } else {
+      const ratio = approvedSoFar / expectedNow
+      if (ratio >= 1.0) {
+        color = DEADLINE_COLORS.green
+      } else if (ratio >= 0.75) {
+        color = DEADLINE_COLORS.amber
+      } else if (ratio >= 0.50) {
+        color = DEADLINE_COLORS.orange
+      } else {
+        color = DEADLINE_COLORS.red
+      }
+    }
   } else {
-    color = DEADLINE_COLORS.red
+    // ── Time-based fallback (no target set)
+    const progress = (now - opened) / (closing - opened)
+    if (progress <= 0.50) {
+      color = DEADLINE_COLORS.green
+    } else if (progress <= 0.75) {
+      color = DEADLINE_COLORS.amber
+    } else if (progress <= 0.90) {
+      color = DEADLINE_COLORS.orange
+    } else {
+      color = DEADLINE_COLORS.red
+    }
   }
 
   return { color, tint: `${color}18`, isExpired: false, label: null }
@@ -186,9 +224,6 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
   const cc = COUNTRY_COLORS[country]
   const today = todayIso()
 
-  // ── Deadline color
-  const deadline = getDeadlineInfo(item.closingDate, item.dateOpened)
-
   // ── CVs
   const delta = item.cvsThisWeek - item.cvsLastWeek
   const deltaColor = delta > 0 ? P.green : delta < 0 ? P.orange : P.muted
@@ -199,6 +234,9 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
   const hired = item.statusCounts.find((s) => s.status === 'Hired')?.count ?? 0
   const approved = item.statusCounts.find((s) => s.status === 'Approved by client')?.count ?? 0
   const successPct = Math.round(((hired + approved) / total) * 100)
+
+  // ── Deadline color (volume-based when hiringTarget is set)
+  const deadline = getDeadlineInfo(item.closingDate, item.dateOpened, item.hiringTarget ?? null, hired + approved)
 
   const allStatuses = item.statusCounts.filter((sc) => sc.count > 0)
   const stackTotal = allStatuses.reduce((s, sc) => s + sc.count, 0) || 1

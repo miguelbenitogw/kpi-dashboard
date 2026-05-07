@@ -50,6 +50,8 @@ const STATUS_GROUPS = [
       'On Hold',
       'Check Interest',
       'Next Project',
+      'First Call',
+      'Second Call',
     ],
   },
   {
@@ -78,8 +80,6 @@ const STATUS_GROUPS = [
     statuses: [
       'Associated',
       'Not Valid',
-      'First Call',
-      'Second Call',
       'New',
     ],
   },
