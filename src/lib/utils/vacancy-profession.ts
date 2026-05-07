@@ -25,6 +25,7 @@ export function deriveProfesionTipo(title: string | null | undefined): string {
   if (/ingenier|engineer/.test(t)) return 'ingeniero'
   if (/electric/.test(t)) return 'electricista'
   if (/conductor|driver|chauf/.test(t)) return 'conductor'
+  if (/veterina/.test(t)) return 'veterinario'
   return 'otro'
 }
 
@@ -39,6 +40,7 @@ export const PROFESION_LABELS: Record<string, string> = {
   ingeniero:           'Ingeniero/a',
   electricista:        'Electricista',
   conductor:           'Conductor/a',
+  veterinario:         'Veterinario/a',
   otro:                'Otro',
 }
 
@@ -56,5 +58,6 @@ export const PROFESION_COLORS: Record<
   ingeniero:           { bg: '#fff7ed', text: '#9a3412', border: '#fed7aa' },
   electricista:        { bg: '#fef2f2', text: '#991b1b', border: '#fecaca' },
   conductor:           { bg: '#f1f5f9', text: '#334155', border: '#cbd5e1' },
+  veterinario:         { bg: '#ecfdf5', text: '#065f46', border: '#6ee7b7' },
   otro:                { bg: '#f3f4f6', text: '#374151', border: '#e5e7eb' },
 }

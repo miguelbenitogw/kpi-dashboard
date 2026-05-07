@@ -23,6 +23,7 @@ const ALL_STATUSES = [
 const DEFAULT_COLS = [
   'Approved by client', 'Hired', 'Interview in Progress', 'Interview-Scheduled',
   'First Call', 'Second Call', 'Check Interest', 'No Answer', 'On Hold', 'Rejected',
+  'Associated',
 ]
 
 function statusColor(status: string): string {
