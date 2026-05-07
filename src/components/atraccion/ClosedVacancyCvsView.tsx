@@ -1149,6 +1149,20 @@ export default function ClosedVacancyCvsView({ profesionFilter = 'todos' }: Prop
   const [weeksWindow, setWeeksWindow] = useState<WeeksWindow>(26)
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<ClosedVacanciesUnifiedData | null>(null)
+  const [backfillState, setBackfillState] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
+  const [backfillResult, setBackfillResult] = useState<{ updated: number; skipped: number; errors: number; total: number } | null>(null)
+
+  async function runBackfill() {
+    setBackfillState('running')
+    try {
+      const res = await fetch('/api/admin/run-backfill')
+      const json = await res.json()
+      setBackfillResult(json)
+      setBackfillState('done')
+    } catch {
+      setBackfillState('error')
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -1193,6 +1207,32 @@ export default function ClosedVacancyCvsView({ profesionFilter = 'todos' }: Prop
         weeksWindow={weeksWindow}
         onSetWeeks={setWeeksWindow}
       />
+
+      {/* TEMPORAL — backfill hired_count desde Zoho */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', background: '#fef9ec', border: '1px solid #fde68a', borderRadius: 10 }}>
+        <span style={{ fontSize: 12, color: '#92400e' }}>
+          🔧 <strong>Admin:</strong> Repoblar <code>hired_count</code> desde Zoho para vacantes cerradas con 0
+        </span>
+        <button
+          onClick={runBackfill}
+          disabled={backfillState === 'running' || backfillState === 'done'}
+          style={{
+            padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: backfillState === 'running' || backfillState === 'done' ? 'not-allowed' : 'pointer',
+            background: backfillState === 'done' ? '#16a34a' : backfillState === 'error' ? '#dc2626' : '#1e4b9e',
+            color: '#fff', border: 'none', flexShrink: 0,
+          }}
+        >
+          {backfillState === 'idle' && '▶ Ejecutar backfill'}
+          {backfillState === 'running' && '⏳ Ejecutando (~50s)…'}
+          {backfillState === 'done' && `✓ Hecho — ${backfillResult?.updated} actualizadas`}
+          {backfillState === 'error' && '✗ Error — ver consola'}
+        </button>
+        {backfillState === 'done' && backfillResult && (
+          <span style={{ fontSize: 11, color: '#78716c' }}>
+            Total: {backfillResult.total} · Actualizadas: {backfillResult.updated} · Sin dato en Zoho: {backfillResult.skipped} · Errores: {backfillResult.errors}
+          </span>
+        )}
+      </div>
 
       {/* D — vacancy table */}
       <VacancyTable vacancies={data.vacancies} profesionFilter={profesionFilter} />
