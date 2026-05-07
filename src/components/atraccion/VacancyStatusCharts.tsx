@@ -6,7 +6,7 @@ import {
   ResponsiveContainer, Cell,
 } from 'recharts'
 import { getVacancyRecruitmentStats, getVacancyTagCountsMap, type VacancyRecruitmentStats } from '@/lib/queries/atraccion'
-import { tagColor, TAG_LEGEND } from '@/lib/utils/tags'
+import { tagColor, tagPrefix } from '@/lib/utils/tags'
 import { getVacancyCountry, type VacancyCountry } from '@/lib/utils/vacancy-country'
 
 // ---------------------------------------------------------------------------
@@ -812,72 +812,52 @@ export default function VacancyStatusCharts({
       {/* ── Tags chart ── */}
       {tagData.length > 0 && (
         <div style={{ borderTop: '1px solid #e7e2d8', paddingTop: 16 }}>
-          <p
-            style={{
-              margin: '0 0 6px',
-              fontSize: 11,
-              fontWeight: 600,
-              color: '#78716c',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
+          <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 600, color: '#78716c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Etiquetas de candidatos
           </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', marginBottom: 10 }}>
-            {TAG_LEGEND.map((l) => (
-              <span key={l.prefix} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#78716c' }}>
-                <span className={`h-2 w-2 rounded-full ${l.dotColor}`} />
-                <span className={l.color} style={{ fontSize: 10 }}>{l.prefix}</span>
-                <span style={{ fontSize: 10, color: '#a8a29e' }}>{l.label}</span>
-              </span>
-            ))}
-          </div>
-          <div style={{ height: 260 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={tagData}
-                layout="vertical"
-                margin={{ left: 0, right: 40, top: 4, bottom: 4 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0ece4" vertical={false} />
-                <XAxis
-                  type="number"
-                  tick={{ fill: '#a8a29e', fontSize: 10 }}
-                  axisLine={{ stroke: '#e7e2d8' }}
-                  tickLine={false}
-                  allowDecimals={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="tag"
-                  width={180}
-                  tick={{ fill: '#78716c', fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  {...TOOLTIP_STYLE}
-                  formatter={((v: number) => [v.toLocaleString('es-AR'), 'Candidatos']) as never}
-                />
-                <Bar
-                  dataKey="count"
-                  radius={[0, 4, 4, 0]}
-                  label={{
-                    position: 'right',
-                    fontSize: 10,
-                    fill: '#a8a29e',
-                    formatter: ((v: string | number | null | undefined) =>
-                      (typeof v === 'number' && v > 0) ? v : '') as never,
-                  }}
-                >
-                  {tagData.map((entry) => (
-                    <Cell key={entry.tag} fill={tagColor(entry.tag)} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {(() => {
+            const TAG_CATS = [
+              { prefix: 'FR',       label: 'Canal llegada CV',      color: '#6366f1' },
+              { prefix: 'CP',       label: 'Cómo nos conocieron',   color: '#10b981' },
+              { prefix: 'GW',       label: 'Reclutador',            color: '#a855f7' },
+              { prefix: 'MODALIDAD',label: 'Modalidad',             color: '#f59e0b' },
+            ] as const
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12 }}>
+                {TAG_CATS.map(cat => {
+                  const rows = tagData
+                    .filter(d => tagPrefix(d.tag) === cat.prefix)
+                    .sort((a, b) => b.count - a.count)
+                  if (rows.length === 0) return null
+                  const max = rows[0].count
+                  const total = rows.reduce((s, r) => s + r.count, 0)
+                  return (
+                    <div key={cat.prefix} style={{ background: '#faf9f7', border: '1px solid #e7e2d8', borderRadius: 10, padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: cat.color }}>{cat.prefix} — {cat.label}</span>
+                        <span style={{ fontSize: 10, color: '#a8a29e' }}>{total.toLocaleString('es-AR')} total</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {rows.map(row => (
+                          <div key={row.tag} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                            <div style={{ width: 130, fontSize: 10, color: '#78716c', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={row.tag}>
+                              {row.tag}
+                            </div>
+                            <div style={{ flex: 1, height: 6, borderRadius: 99, background: '#ede9e4', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${Math.max(2, Math.round((row.count / max) * 100))}%`, borderRadius: 99, background: cat.color, transition: 'width 0.3s ease' }} />
+                            </div>
+                            <div style={{ width: 36, fontSize: 10, fontWeight: 700, color: '#1c1917', textAlign: 'right', flexShrink: 0 }}>
+                              {row.count.toLocaleString('es-AR')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
         </div>
       )}
 
