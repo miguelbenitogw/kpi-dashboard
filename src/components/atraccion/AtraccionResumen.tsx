@@ -22,7 +22,7 @@ type StatusPalette = { bar: string; text: string; bg: string }
 
 const STATUS_PALETTE: Record<string, StatusPalette> = {
   'Hired':                    { bar: '#16a34a', text: '#15803d', bg: '#dcfce7' },
-  'Approved by client':       { bar: '#1d4ed8', text: '#1e40af', bg: '#dbeafe' },
+  'Approved by client':       { bar: '#16a34a', text: '#15803d', bg: '#dcfce7' },
   'In Training':              { bar: '#16a34a', text: '#15803d', bg: '#dcfce7' },
   'Interview in Progress':    { bar: '#7c3aed', text: '#6d28d9', bg: '#ede9fe' },
   'Interview-Scheduled':      { bar: '#7c3aed', text: '#6d28d9', bg: '#ede9fe' },
@@ -258,7 +258,9 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {displayStatuses.map((sc) => {
-              const pct = Math.max(2, Math.round((sc.count / total) * 100))
+              const rawPct = (sc.count / total) * 100
+              const barPct = Math.max(2, Math.round(rawPct))
+              const labelPct = rawPct < 1 ? '<1' : Math.round(rawPct).toString()
               const pal = statusPalette(sc.status)
               return (
                 <div key={sc.status} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -267,10 +269,11 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
                     {sc.status}
                   </div>
                   <div style={{ flex: 1, height: 5, borderRadius: 99, background: P.divider, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, borderRadius: 99, background: pal.bar, transition: 'width 0.4s ease' }} />
+                    <div style={{ height: '100%', width: `${barPct}%`, borderRadius: 99, background: pal.bar, transition: 'width 0.4s ease' }} />
                   </div>
-                  <div style={{ width: 30, fontSize: 11, fontWeight: 700, color: pal.text, textAlign: 'right', flexShrink: 0 }}>
-                    {sc.count}
+                  <div style={{ width: 52, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: pal.text }}>{sc.count}</span>
+                    <span style={{ fontSize: 9, fontWeight: 500, color: P.muted }}>{labelPct}%</span>
                   </div>
                 </div>
               )
