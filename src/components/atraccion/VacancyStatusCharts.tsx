@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import { getVacancyRecruitmentStats, getVacancyTagCountsMap, type VacancyRecruitmentStats } from '@/lib/queries/atraccion'
 import { tagColor, TAG_LEGEND } from '@/lib/utils/tags'
+import { getVacancyCountry, type VacancyCountry } from '@/lib/utils/vacancy-country'
 
 // ---------------------------------------------------------------------------
 // Status groups — based on Manual de Atracción, Reclutamiento y Selección
@@ -342,7 +343,15 @@ function StatusDetailLegend({ byStatus }: { byStatus: Map<string, number> }) {
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function VacancyStatusCharts() {
+interface VacancyStatusChartsProps {
+  profesionFilter?: string
+  countryFilter?: VacancyCountry | 'todos'
+}
+
+export default function VacancyStatusCharts({
+  profesionFilter,
+  countryFilter,
+}: VacancyStatusChartsProps = {}) {
   const [data, setData] = useState<VacancyRecruitmentStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [tagData, setTagData] = useState<{ tag: string; count: number }[]>([])
@@ -392,10 +401,25 @@ export default function VacancyStatusCharts() {
     )
   }
 
+  // ── Apply filters (client-side, no re-fetch needed) ──
+  const filteredRows = data.rows.filter(row => {
+    if (profesionFilter && profesionFilter !== 'todos' && row.tipoProfesional !== profesionFilter) return false
+    if (countryFilter && countryFilter !== 'todos' && getVacancyCountry(row.title) !== countryFilter) return false
+    return true
+  })
+
+  if (filteredRows.length === 0) {
+    return (
+      <div style={{ border: '1px solid #e7e2d8', borderRadius: 12, padding: 20, background: '#fff', textAlign: 'center' }}>
+        <p style={{ fontSize: 13, color: '#a8a29e' }}>Sin vacantes para los filtros seleccionados</p>
+      </div>
+    )
+  }
+
   // ── Aggregate totals ──
   const totalByStatus = new Map<string, number>()
   let totalCandidates = 0
-  for (const row of data.rows) {
+  for (const row of filteredRows) {
     for (const [status, count] of Object.entries(row.byStatus)) {
       totalByStatus.set(status, (totalByStatus.get(status) ?? 0) + count)
       totalCandidates += count
@@ -434,7 +458,7 @@ export default function VacancyStatusCharts() {
       {/* ── KPI strip ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
         {[
-          { label: 'Vacantes activas', value: data.rows.length, color: '#1e4b9e', sub: 'en atracción' },
+          { label: 'Vacantes activas', value: filteredRows.length, color: '#1e4b9e', sub: 'en atracción' },
           { label: 'Candidatos totales', value: totalCandidates.toLocaleString('es-AR'), color: '#1c1917', sub: 'en pipeline' },
           { label: 'En entrevista', value: inProgressTotal.toLocaleString('es-AR'), color: '#3B82F6', sub: `${totalCandidates > 0 ? Math.round(inProgressTotal / totalCandidates * 100) : 0}% del pipeline` },
           { label: 'Positivos', value: positiveTotal.toLocaleString('es-AR'), color: '#059669', sub: `${totalCandidates > 0 ? Math.round(positiveTotal / totalCandidates * 100) : 0}% conversión` },
@@ -567,7 +591,7 @@ export default function VacancyStatusCharts() {
               overflowY: 'auto',
             }}
           >
-            {data.rows
+            {filteredRows
               .map(row => {
                 const total = Object.values(row.byStatus).reduce((s, n) => s + n, 0)
                 const rowPositive = (STATUS_GROUPS.find(g => g.key === 'positive')!.statuses as readonly string[]).reduce(

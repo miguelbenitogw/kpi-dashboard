@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import VacancyRecruitmentTable from '@/components/atraccion/VacancyRecruitmentTable'
 import VacancyStatusCharts from '@/components/atraccion/VacancyStatusCharts'
 import ReceivedCvsByVacancyView from '@/components/atraccion/ReceivedCvsByVacancyView'
 import ClosedVacancyCvsView from '@/components/atraccion/ClosedVacancyCvsView'
 import AtraccionResumen from '@/components/atraccion/AtraccionResumen'
 import { type TipoProfesional, PROFESION_LABELS } from '@/lib/utils/vacancy-profession'
+import { type VacancyCountry } from '@/lib/utils/vacancy-country'
 
 type Tab = 'resumen' | 'vacantes' | 'cvs' | 'cerradas'
 
@@ -19,9 +20,25 @@ const TABS: { id: Tab; label: string }[] = [
 
 const ALL_PROFESIONES = Object.keys(PROFESION_LABELS) as TipoProfesional[]
 
+const ALL_COUNTRIES: VacancyCountry[] = [
+  'Noruega', 'Alemania', 'Bélgica', 'Holanda', 'Francia', 'España', 'Suiza', 'Italia', 'Interno', 'Otros',
+]
+
+const SELECT_STYLE: CSSProperties = {
+  background: '#ffffff',
+  border: '1px solid #e7e2d8',
+  borderRadius: 8,
+  color: '#1c1917',
+  fontSize: 12,
+  padding: '6px 12px',
+  cursor: 'pointer',
+  appearance: 'auto',
+}
+
 export default function AtraccionPage() {
   const [tab, setTab] = useState<Tab>('resumen')
   const [profesionFilter, setProfesionFilter] = useState<TipoProfesional | 'todos'>('todos')
+  const [countryFilter, setCountryFilter] = useState<VacancyCountry | 'todos'>('todos')
 
   return (
     <div className="space-y-4">
@@ -62,50 +79,70 @@ export default function AtraccionPage() {
         })}
       </div>
 
-      {/* Profesion filter — shared across all tabs */}
+      {/* Filters bar — profesión pills + país select */}
       {tab !== 'resumen' && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: '#a8a29e', fontWeight: 500, marginRight: 2 }}>Profesión:</span>
-          <button
-            type="button"
-            onClick={() => setProfesionFilter('todos')}
-            style={{
-              padding: '3px 10px',
-              fontSize: 11,
-              fontWeight: profesionFilter === 'todos' ? 600 : 400,
-              color: profesionFilter === 'todos' ? '#ffffff' : '#78716c',
-              background: profesionFilter === 'todos' ? '#1e4b9e' : '#ffffff',
-              border: `1px solid ${profesionFilter === 'todos' ? '#1e4b9e' : '#e7e2d8'}`,
-              borderRadius: 99,
-              cursor: 'pointer',
-              lineHeight: 1.5,
-            }}
-          >
-            Todos
-          </button>
-          {ALL_PROFESIONES.map((prof) => {
-            const active = profesionFilter === prof
-            return (
-              <button
-                key={prof}
-                type="button"
-                onClick={() => setProfesionFilter(active ? 'todos' : prof)}
-                style={{
-                  padding: '3px 10px',
-                  fontSize: 11,
-                  fontWeight: active ? 600 : 400,
-                  color: active ? '#ffffff' : '#78716c',
-                  background: active ? '#1e4b9e' : '#ffffff',
-                  border: `1px solid ${active ? '#1e4b9e' : '#e7e2d8'}`,
-                  borderRadius: 99,
-                  cursor: 'pointer',
-                  lineHeight: 1.5,
-                }}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Profesión pills */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: '#a8a29e', fontWeight: 500, marginRight: 2 }}>Profesión:</span>
+            <button
+              type="button"
+              onClick={() => setProfesionFilter('todos')}
+              style={{
+                padding: '3px 10px',
+                fontSize: 11,
+                fontWeight: profesionFilter === 'todos' ? 600 : 400,
+                color: profesionFilter === 'todos' ? '#ffffff' : '#78716c',
+                background: profesionFilter === 'todos' ? '#1e4b9e' : '#ffffff',
+                border: `1px solid ${profesionFilter === 'todos' ? '#1e4b9e' : '#e7e2d8'}`,
+                borderRadius: 99,
+                cursor: 'pointer',
+                lineHeight: 1.5,
+              }}
+            >
+              Todos
+            </button>
+            {ALL_PROFESIONES.map((prof) => {
+              const active = profesionFilter === prof
+              return (
+                <button
+                  key={prof}
+                  type="button"
+                  onClick={() => setProfesionFilter(active ? 'todos' : prof)}
+                  style={{
+                    padding: '3px 10px',
+                    fontSize: 11,
+                    fontWeight: active ? 600 : 400,
+                    color: active ? '#ffffff' : '#78716c',
+                    background: active ? '#1e4b9e' : '#ffffff',
+                    border: `1px solid ${active ? '#1e4b9e' : '#e7e2d8'}`,
+                    borderRadius: 99,
+                    cursor: 'pointer',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {PROFESION_LABELS[prof]}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* País select — only shown in vacantes tab where charts live */}
+          {tab === 'vacantes' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, color: '#a8a29e', fontWeight: 500 }}>País:</span>
+              <select
+                value={countryFilter}
+                onChange={e => setCountryFilter(e.target.value as VacancyCountry | 'todos')}
+                style={SELECT_STYLE}
               >
-                {PROFESION_LABELS[prof]}
-              </button>
-            )
-          })}
+                <option value="todos">Todos los países</option>
+                {ALL_COUNTRIES.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       )}
 
@@ -115,7 +152,10 @@ export default function AtraccionPage() {
       {/* ─── VACANTES ─── */}
       {tab === 'vacantes' && (
         <div className="space-y-4">
-          <VacancyStatusCharts />
+          <VacancyStatusCharts
+            profesionFilter={profesionFilter}
+            countryFilter={countryFilter}
+          />
           <VacancyRecruitmentTable profesionFilter={profesionFilter} />
         </div>
       )}
