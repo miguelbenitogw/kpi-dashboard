@@ -28,7 +28,7 @@
           "parameters": [
             {
               "name": "fields",
-              "value": "Job_Opening_Name,Job_Opening_Status,Date_Opened,Client_Name,Account_Manager"
+              "value": "Job_Opening_Name,Job_Opening_Status,Date_Opened,Client_Name,Account_Manager,No_of_Candidates_Associated,No_of_Candidates_Hired"
             },
             {
               "name": "per_page",
@@ -55,7 +55,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Transform Zoho Recruit response to dashboard API format\nconst responseBody = $input.first().json.body;\nconst items = responseBody.data || [];\n\nconst job_openings = items.map(item => ({\n  id: item.id,\n  title: item.Job_Opening_Name || null,\n  status: item.Job_Opening_Status || null,\n  date_opened: item.Date_Opened || null,\n  client_name: item.Client_Name || null,\n  owner: item.Account_Manager ? item.Account_Manager.name : null\n}));\n\nconst moreRecords = responseBody.info ? responseBody.info.more_records : false;\nconst page = responseBody.info ? responseBody.info.page : 1;\n\nreturn [{\n  json: {\n    job_openings,\n    more_records: moreRecords,\n    page,\n    total_fetched: job_openings.length\n  }\n}];"
+        "jsCode": "// Transform Zoho Recruit response to dashboard API format\nconst responseBody = $input.first().json.body;\nconst items = responseBody.data || [];\n\nconst job_openings = items.map(item => ({\n  id: item.id,\n  title: item.Job_Opening_Name || null,\n  status: item.Job_Opening_Status || null,\n  date_opened: item.Date_Opened || null,\n  client_name: item.Client_Name || null,\n  owner: item.Account_Manager ? item.Account_Manager.name : null,\n  total_candidates: item.No_of_Candidates_Associated != null ? Number(item.No_of_Candidates_Associated) : null,\n  hired_count: item.No_of_Candidates_Hired != null ? Number(item.No_of_Candidates_Hired) : null\n}));\n\nconst moreRecords = responseBody.info ? responseBody.info.more_records : false;\nconst page = responseBody.info ? responseBody.info.page : 1;\n\nreturn [{\n  json: {\n    job_openings,\n    more_records: moreRecords,\n    page,\n    total_fetched: job_openings.length\n  }\n}];"
       },
       "id": "transform-openings",
       "name": "Transform Response",
@@ -140,7 +140,7 @@
           "parameters": [
             {
               "name": "fields",
-              "value": "Job_Opening_Name,Job_Opening_Status,Date_Opened,Client_Name,Account_Manager"
+              "value": "Job_Opening_Name,Job_Opening_Status,Date_Opened,Client_Name,Account_Manager,No_of_Candidates_Associated,No_of_Candidates_Hired"
             },
             {
               "name": "per_page",
