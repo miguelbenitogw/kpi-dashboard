@@ -75,6 +75,60 @@ function gwColor(tag: string): string {
 function gwName(tag: string): string { return tag.replace(/^GW/i, '') }
 function gwInitials(tag: string): string { return (gwName(tag)[0] ?? '?').toUpperCase() }
 
+// ─── Deadline color logic ─────────────────────────────────────────────────────
+const DEADLINE_COLORS = {
+  green:   '#16a34a',
+  amber:   '#d97706',
+  orange:  '#ea580c',
+  red:     '#dc2626',
+  neutral: '#e7e2d8',
+}
+
+interface DeadlineInfo {
+  color: string
+  tint: string        // color + '18' for header tint
+  isExpired: boolean
+  label: string | null
+}
+
+function getDeadlineInfo(
+  closingDate: string | null,
+  dateOpened: string | null,
+): DeadlineInfo {
+  const neutral: DeadlineInfo = { color: DEADLINE_COLORS.neutral, tint: 'transparent', isExpired: false, label: null }
+
+  if (!closingDate) return neutral
+
+  const now = Date.now()
+  const closing = new Date(closingDate).getTime()
+
+  // Already past closing date
+  if (now > closing) {
+    return { color: DEADLINE_COLORS.red, tint: `${DEADLINE_COLORS.red}18`, isExpired: true, label: 'Cerrada' }
+  }
+
+  const opened = dateOpened ? new Date(dateOpened).getTime() : null
+  if (!opened || opened >= closing) {
+    // Can't compute progress — use neutral
+    return neutral
+  }
+
+  const progress = (now - opened) / (closing - opened)
+
+  let color: string
+  if (progress <= 0.50) {
+    color = DEADLINE_COLORS.green
+  } else if (progress <= 0.75) {
+    color = DEADLINE_COLORS.amber
+  } else if (progress <= 0.90) {
+    color = DEADLINE_COLORS.orange
+  } else {
+    color = DEADLINE_COLORS.red
+  }
+
+  return { color, tint: `${color}18`, isExpired: false, label: null }
+}
+
 // ─── Misc helpers ─────────────────────────────────────────────────────────────
 const DAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 function todayIso(): string { return new Date().toISOString().split('T')[0] }
@@ -132,6 +186,9 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
   const cc = COUNTRY_COLORS[country]
   const today = todayIso()
 
+  // ── Deadline color
+  const deadline = getDeadlineInfo(item.closingDate, item.dateOpened)
+
   // ── CVs
   const delta = item.cvsThisWeek - item.cvsLastWeek
   const deltaColor = delta > 0 ? P.green : delta < 0 ? P.orange : P.muted
@@ -159,20 +216,34 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
   const maxGw = Math.max(1, ...item.gwTags.map((t) => t.count))
 
   return (
-    <div style={{ background: P.card, border: `1px solid ${P.border}`, borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: P.card, border: `2px solid ${deadline.color}`, borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
       {/* ── Header ── */}
-      <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${P.divider}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+      <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${P.divider}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, background: deadline.tint }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: P.text, lineHeight: 1.35 }} title={item.title}>
             {item.title}
           </div>
-          <div style={{ fontSize: 11, color: P.muted, marginTop: 4 }}>
-            {item.totalCandidates} candidatos
-            {' · '}
+          <div style={{ fontSize: 11, color: P.muted, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span>{item.totalCandidates} candidatos</span>
+            <span>·</span>
             <span style={{ color: successPct >= 20 ? P.green : successPct >= 5 ? P.accent : P.orange, fontWeight: 600 }}>
               {successPct}% Hired+Approved
             </span>
+            {item.closingDate && (
+              <>
+                <span>·</span>
+                <span style={{ color: deadline.color, fontWeight: 600 }}>
+                  {deadline.isExpired ? '⚠ Cerrada' : `Cierre: ${new Date(item.closingDate).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+                </span>
+              </>
+            )}
+            {item.hiringTarget != null && (
+              <>
+                <span>·</span>
+                <span style={{ color: P.muted }}>Obj. {item.hiringTarget}</span>
+              </>
+            )}
           </div>
         </div>
         <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 99, background: cc.bg, color: cc.text, border: `1px solid ${cc.border}` }}>
