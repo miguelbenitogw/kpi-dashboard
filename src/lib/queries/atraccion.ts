@@ -1462,6 +1462,10 @@ export interface ClosedVacancyUnified {
   /** Alias for series — used by newer components */
   points: ClosedVacancyHistoryPoint[]
   tags: Record<string, number>
+  ratioExitoContactados: number | null
+  ratioDescarte: number | null
+  ratioExitoThreshold: number | null
+  ratioDescarteThreshold: number | null
 }
 
 export interface ClosedVacanciesUnifiedData {
@@ -1497,15 +1501,29 @@ export async function getClosedVacanciesUnified(
 
   const vacancyIds = entries.map(e => e.vacancyId)
 
-  // Step 2: fetch date_opened and status for those vacancies
+  // Step 2: fetch date_opened, status and ratio fields for those vacancies
   const { data: metaRows } = await (supabase as any)
     .from('job_openings_kpi')
-    .select('id, date_opened, status')
+    .select('id, date_opened, status, ratio_exito_contactados, ratio_descarte, ratio_exito_threshold, ratio_descarte_threshold')
     .in('id', vacancyIds)
 
-  const metaMap = new Map<string, { date_opened: string | null; status: string | null }>()
+  const metaMap = new Map<string, {
+    date_opened: string | null
+    status: string | null
+    ratio_exito_contactados: number | null
+    ratio_descarte: number | null
+    ratio_exito_threshold: number | null
+    ratio_descarte_threshold: number | null
+  }>()
   for (const row of metaRows ?? []) {
-    metaMap.set(row.id, { date_opened: row.date_opened ?? null, status: row.status ?? null })
+    metaMap.set(row.id, {
+      date_opened: row.date_opened ?? null,
+      status: row.status ?? null,
+      ratio_exito_contactados: row.ratio_exito_contactados ?? null,
+      ratio_descarte: row.ratio_descarte ?? null,
+      ratio_exito_threshold: row.ratio_exito_threshold ?? null,
+      ratio_descarte_threshold: row.ratio_descarte_threshold ?? null,
+    })
   }
 
   // Step 3: fetch tag counts
@@ -1586,6 +1604,10 @@ export async function getClosedVacanciesUnified(
       series: historyPoints,
       points: historyPoints,
       tags,
+      ratioExitoContactados: meta?.ratio_exito_contactados ?? null,
+      ratioDescarte: meta?.ratio_descarte ?? null,
+      ratioExitoThreshold: meta?.ratio_exito_threshold ?? null,
+      ratioDescarteThreshold: meta?.ratio_descarte_threshold ?? null,
     })
   }
 

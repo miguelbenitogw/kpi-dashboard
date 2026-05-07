@@ -832,6 +832,18 @@ function VacancyTable({
                 onSort={handleSort}
                 minWidth={100}
               />
+              <th
+                style={{ padding: '7px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: '#78716c', whiteSpace: 'nowrap', minWidth: 100 }}
+                title="Éxito sobre candidatos realmente contactados"
+              >
+                % Éxito real
+              </th>
+              <th
+                style={{ padding: '7px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: '#78716c', whiteSpace: 'nowrap', minWidth: 100 }}
+                title="Tasa de descarte / ruido del pipeline"
+              >
+                % Descarte
+              </th>
               <SortableHeader
                 label="Pico"
                 sortKey="peakWeekLabel"
@@ -846,7 +858,7 @@ function VacancyTable({
             {displayed.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={9}
                   style={{
                     padding: '24px',
                     textAlign: 'center',
@@ -947,6 +959,30 @@ function VacancyTable({
                     {/* % Éxito */}
                     <td style={{ padding: '7px 12px', textAlign: 'right' }}>
                       <SuccessRateBar rate={v.successRate} />
+                    </td>
+
+                    {/* % Éxito real */}
+                    <td style={{ padding: '7px 12px', textAlign: 'right' }}>
+                      {v.ratioExitoContactados == null ? (
+                        <span style={{ fontSize: 10, color: '#c8c4bb' }}>n/d</span>
+                      ) : (() => {
+                        const pct = Math.round(v.ratioExitoContactados * 100 * 10) / 10
+                        const T = (v.ratioExitoThreshold ?? 0.06) * 100
+                        const color = pct >= T ? '#16a34a' : pct >= T * 0.5 ? '#d97706' : '#dc2626'
+                        return <span style={{ fontSize: 12, fontWeight: 600, color }}>{pct.toLocaleString('es-AR')}%</span>
+                      })()}
+                    </td>
+
+                    {/* % Descarte */}
+                    <td style={{ padding: '7px 12px', textAlign: 'right' }}>
+                      {v.ratioDescarte == null ? (
+                        <span style={{ fontSize: 10, color: '#c8c4bb' }}>n/d</span>
+                      ) : (() => {
+                        const pct = Math.round(v.ratioDescarte * 100 * 10) / 10
+                        const TD = (v.ratioDescarteThreshold ?? 0.50) * 100
+                        const color = pct > TD ? '#dc2626' : pct > TD * 0.6 ? '#d97706' : '#9ca3af'
+                        return <span style={{ fontSize: 12, fontWeight: pct > TD * 0.6 ? 600 : 400, color }}>{pct.toLocaleString('es-AR')}%</span>
+                      })()}
                     </td>
 
                     {/* Pico */}
