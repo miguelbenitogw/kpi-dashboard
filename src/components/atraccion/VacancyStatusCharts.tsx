@@ -9,47 +9,128 @@ import { getVacancyRecruitmentStats, getVacancyTagCountsMap, type VacancyRecruit
 import { tagColor, TAG_LEGEND } from '@/lib/utils/tags'
 
 // ---------------------------------------------------------------------------
-// Status colour + stage grouping
+// Status groups — based on Manual de Atracción, Reclutamiento y Selección
+// Orden en la barra: positivos → en progreso → en espera → negativos → neutros
 // ---------------------------------------------------------------------------
 
-const STATUS_COLORS: Record<string, string> = {
-  'Hired':                       '#10B981',
-  'Approved by client':          '#34D399',
-  'Interview in Progress':       '#3B82F6',
-  'Interview-Scheduled':         '#60A5FA',
-  'Interview to be Scheduled':   '#93C5FD',
-  'First Call':                  '#8B5CF6',
-  'Second Call':                 '#A78BFA',
-  'Check Interest':              '#C4B5FD',
-  'Associated':                  '#9CA3AF',
-  'No Answer':                   '#EF4444',
-  'Rejected':                    '#F87171',
-  'Rejected by client':          '#DC2626',
-  'On Hold':                     '#F59E0B',
-  'Not Valid':                   '#6B7280',
-  'Waiting for Evaluation':      '#7C3AED',
-  'Offer-Declined':              '#F97316',
-  'Offer-Withdrawn':             '#EA580C',
-  'Next Project':                '#06B6D4',
-  'In Training out of GW':       '#14B8A6',
-  'Expelled':                    '#991B1B',
-  'To Place':                    '#0EA5E9',
-}
+const STATUS_GROUPS = [
+  {
+    key: 'positive',
+    label: 'Positivos',
+    color: '#10B981',
+    colorLight: '#d1fae5',
+    statuses: [
+      'Hired',
+      'Approved by client',
+      'In Training',
+      'To Place',
+      'Assigned',
+      'Training Finished',
+      'Stand-by',
+    ],
+  },
+  {
+    key: 'inprogress',
+    label: 'En entrevista',
+    color: '#3B82F6',
+    colorLight: '#dbeafe',
+    statuses: [
+      'Interview to be Scheduled',
+      'Interview-Scheduled',
+      'Waiting for Consensus',
+      'Waiting for Evaluation',
+    ],
+  },
+  {
+    key: 'hold',
+    label: 'En espera',
+    color: '#F59E0B',
+    colorLight: '#fef3c7',
+    statuses: [
+      'On Hold',
+      'Check Interest',
+      'Next Project',
+    ],
+  },
+  {
+    key: 'negative',
+    label: 'Descartados',
+    color: '#EF4444',
+    colorLight: '#fee2e2',
+    statuses: [
+      'Rejected',
+      'Rejected by client',
+      'No Answer',
+      'No Show',
+      'Offer-Declined',
+      'Offer-Withdrawn',
+      'Expelled',
+      'Transferred',
+      'Not in Norway/Germany',
+      'In Training out of GW',
+    ],
+  },
+  {
+    key: 'neutral',
+    label: 'Sin contactar',
+    color: '#9CA3AF',
+    colorLight: '#f3f4f6',
+    statuses: [
+      'Associated',
+      'Not Valid',
+      'First Call',
+      'Second Call',
+      'New',
+    ],
+  },
+] as const
 
-// Stages for the stacked mini-bar per vacancy
-const STAGE_GROUPS = [
-  { key: 'hired',    label: 'Contratado',  color: '#10B981', statuses: ['Hired', 'Approved by client'] },
-  { key: 'active',  label: 'En proceso',  color: '#3B82F6', statuses: ['Interview in Progress', 'Interview-Scheduled', 'Interview to be Scheduled', 'First Call', 'Second Call', 'Check Interest', 'Waiting for Evaluation'] },
-  { key: 'hold',    label: 'En espera',   color: '#F59E0B', statuses: ['On Hold', 'Next Project', 'Associated', 'To Place'] },
-  { key: 'ko',      label: 'Descartado',  color: '#EF4444', statuses: ['Rejected', 'Rejected by client', 'No Answer', 'Not Valid', 'Offer-Declined', 'Offer-Withdrawn', 'Expelled', 'No Show', 'In Training out of GW'] },
-]
+type GroupKey = (typeof STATUS_GROUPS)[number]['key']
+
+// Individual status colors (used in the "Por estado" chart)
+const STATUS_COLORS: Record<string, string> = {
+  // Positivos
+  'Hired':                       '#059669',
+  'Approved by client':          '#10B981',
+  'In Training':                 '#34D399',
+  'To Place':                    '#6EE7B7',
+  'Assigned':                    '#A7F3D0',
+  'Training Finished':           '#D1FAE5',
+  'Stand-by':                    '#99F6E4',
+  // En entrevista
+  'Interview to be Scheduled':   '#93C5FD',
+  'Interview-Scheduled':         '#60A5FA',
+  'Waiting for Consensus':       '#3B82F6',
+  'Waiting for Evaluation':      '#1D4ED8',
+  // En espera
+  'On Hold':                     '#FCD34D',
+  'Check Interest':              '#F59E0B',
+  'Next Project':                '#D97706',
+  // Negativos
+  'No Answer':                   '#FCA5A5',
+  'No Show':                     '#F87171',
+  'Offer-Declined':              '#EF4444',
+  'Offer-Withdrawn':             '#DC2626',
+  'Rejected':                    '#B91C1C',
+  'Rejected by client':          '#991B1B',
+  'Expelled':                    '#7F1D1D',
+  'Transferred':                 '#C2410C',
+  'Not in Norway/Germany':       '#EA580C',
+  'In Training out of GW':       '#F97316',
+  // Neutros
+  'First Call':                  '#D1D5DB',
+  'Second Call':                 '#9CA3AF',
+  'Associated':                  '#6B7280',
+  'Not Valid':                   '#4B5563',
+  'New':                         '#E5E7EB',
+}
 
 function statusColor(s: string) {
-  return STATUS_COLORS[s] ?? '#6B7280'
+  return STATUS_COLORS[s] ?? '#9CA3AF'
 }
 
-function stageForStatus(status: string): typeof STAGE_GROUPS[number] | null {
-  return STAGE_GROUPS.find(g => g.statuses.includes(status)) ?? null
+function groupForStatus(status: string): typeof STATUS_GROUPS[number] | null {
+  return STATUS_GROUPS.find(g => (g.statuses as readonly string[]).includes(status)) ?? null
 }
 
 // ---------------------------------------------------------------------------
@@ -70,30 +151,189 @@ const TOOLTIP_STYLE = {
 }
 
 // ---------------------------------------------------------------------------
-// Mini proportional bar per vacancy
+// Segmented horizontal bar — shows all status groups proportionally
+// ---------------------------------------------------------------------------
+
+function SegmentedStatusBar({
+  byStatus,
+  height = 14,
+  showLabels = false,
+}: {
+  byStatus: Record<string, number>
+  height?: number
+  showLabels?: boolean
+}) {
+  const groupTotals = STATUS_GROUPS.map(g => ({
+    ...g,
+    total: (g.statuses as readonly string[]).reduce((sum, s) => sum + (byStatus[s] ?? 0), 0),
+  }))
+  const grand = groupTotals.reduce((s, g) => s + g.total, 0)
+
+  if (grand === 0) {
+    return <span style={{ fontSize: 10, color: '#c8c4bb' }}>—</span>
+  }
+
+  return (
+    <div>
+      <div
+        style={{
+          display: 'flex',
+          height,
+          borderRadius: 99,
+          overflow: 'hidden',
+          width: '100%',
+          background: '#f0ece4',
+        }}
+      >
+        {groupTotals.filter(g => g.total > 0).map(g => (
+          <div
+            key={g.key}
+            title={`${g.label}: ${g.total} (${Math.round((g.total / grand) * 100)}%)`}
+            style={{
+              width: `${(g.total / grand) * 100}%`,
+              background: g.color,
+              transition: 'width 400ms ease',
+            }}
+          />
+        ))}
+      </div>
+      {showLabels && (
+        <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+          {groupTotals.filter(g => g.total > 0).map(g => (
+            <span
+              key={g.key}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#78716c' }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 2,
+                  background: g.color,
+                  display: 'inline-block',
+                  flexShrink: 0,
+                }}
+              />
+              <span>{g.label}</span>
+              <strong style={{ color: '#1c1917' }}>{g.total}</strong>
+              <span style={{ color: '#a8a29e' }}>({Math.round((g.total / grand) * 100)}%)</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Per-vacancy mini bar (compact, no labels)
 // ---------------------------------------------------------------------------
 
 function VacancyMiniBar({ byStatus }: { byStatus: Record<string, number> }) {
-  const stageTotals = STAGE_GROUPS.map(g => ({
-    ...g,
-    total: g.statuses.reduce((sum, s) => sum + (byStatus[s] ?? 0), 0),
-  }))
-  const grand = stageTotals.reduce((s, g) => s + g.total, 0)
-  if (grand === 0) return <span style={{ fontSize: 10, color: '#c8c4bb' }}>—</span>
+  return <SegmentedStatusBar byStatus={byStatus} height={8} showLabels={false} />
+}
 
+// ---------------------------------------------------------------------------
+// Status detail legend — grouped by category
+// Shows all statuses that have count > 0, grouped and colored
+// ---------------------------------------------------------------------------
+
+function StatusDetailLegend({ byStatus }: { byStatus: Map<string, number> }) {
   return (
-    <div style={{ display: 'flex', height: 8, borderRadius: 99, overflow: 'hidden', width: '100%', background: '#f0ece4' }}>
-      {stageTotals.filter(g => g.total > 0).map(g => (
-        <div
-          key={g.key}
-          title={`${g.label}: ${g.total}`}
-          style={{
-            width: `${(g.total / grand) * 100}%`,
-            background: g.color,
-            transition: 'width 400ms ease',
-          }}
-        />
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {STATUS_GROUPS.map(g => {
+        const items = (g.statuses as readonly string[])
+          .map(s => ({ status: s, count: byStatus.get(s) ?? 0 }))
+          .filter(item => item.count > 0)
+          .sort((a, b) => b.count - a.count)
+
+        if (items.length === 0) return null
+
+        const groupTotal = items.reduce((s, i) => s + i.count, 0)
+
+        return (
+          <div key={g.key}>
+            {/* Group header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                marginBottom: 6,
+                paddingBottom: 4,
+                borderBottom: `2px solid ${g.colorLight}`,
+              }}
+            >
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 3,
+                  background: g.color,
+                  display: 'inline-block',
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: '#78716c',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                }}
+              >
+                {g.label}
+              </span>
+              <span
+                style={{
+                  marginLeft: 'auto',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: g.color,
+                }}
+              >
+                {groupTotal}
+              </span>
+            </div>
+
+            {/* Status items */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {items.map(item => (
+                <div
+                  key={item.status}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    padding: '3px 6px',
+                    borderRadius: 5,
+                    background: g.colorLight,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: statusColor(item.status),
+                        display: 'inline-block',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span style={{ fontSize: 10, color: '#44403c' }}>{item.status}</span>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: '#1c1917', flexShrink: 0 }}>
+                    {item.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -138,6 +378,7 @@ export default function VacancyStatusCharts() {
             <div key={i} style={{ height: 72, borderRadius: 10, background: '#f5f1ea', animation: 'pulse 1.5s ease-in-out infinite' }} />
           ))}
         </div>
+        <div style={{ height: 18, borderRadius: 99, background: '#f5f1ea', marginBottom: 12, animation: 'pulse 1.5s ease-in-out infinite' }} />
         <div style={{ height: 260, borderRadius: 10, background: '#f5f1ea', animation: 'pulse 1.5s ease-in-out infinite' }} />
       </div>
     )
@@ -151,7 +392,7 @@ export default function VacancyStatusCharts() {
     )
   }
 
-  // ── Aggregate ──
+  // ── Aggregate totals ──
   const totalByStatus = new Map<string, number>()
   let totalCandidates = 0
   for (const row of data.rows) {
@@ -161,83 +402,108 @@ export default function VacancyStatusCharts() {
     }
   }
 
-  // KPI: hired, in-process, discarded
-  const hired      = STAGE_GROUPS.find(g => g.key === 'hired')!.statuses.reduce((s, st) => s + (totalByStatus.get(st) ?? 0), 0)
-  const active     = STAGE_GROUPS.find(g => g.key === 'active')!.statuses.reduce((s, st) => s + (totalByStatus.get(st) ?? 0), 0)
-  const discarded  = STAGE_GROUPS.find(g => g.key === 'ko')!.statuses.reduce((s, st) => s + (totalByStatus.get(st) ?? 0), 0)
+  // KPI values by group
+  const groupTotals = STATUS_GROUPS.map(g => ({
+    ...g,
+    total: (g.statuses as readonly string[]).reduce((s, st) => s + (totalByStatus.get(st) ?? 0), 0),
+  }))
 
-  // Chart A: top 12 statuses
-  const chartAData = [...totalByStatus.entries()]
+  const positiveTotal = groupTotals.find(g => g.key === 'positive')?.total ?? 0
+  const inProgressTotal = groupTotals.find(g => g.key === 'inprogress')?.total ?? 0
+  const negativeTotal = groupTotals.find(g => g.key === 'negative')?.total ?? 0
+
+  // Chart: top 12 statuses by count
+  const chartData = [...totalByStatus.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 12)
     .map(([status, count]) => ({ status, count }))
 
   return (
-    <div style={{ border: '1px solid #e7e2d8', borderRadius: 12, padding: '18px 20px', background: '#fff', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div
+      style={{
+        border: '1px solid #e7e2d8',
+        borderRadius: 12,
+        padding: '18px 20px',
+        background: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 20,
+      }}
+    >
 
       {/* ── KPI strip ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
         {[
           { label: 'Vacantes activas', value: data.rows.length, color: '#1e4b9e', sub: 'en atracción' },
           { label: 'Candidatos totales', value: totalCandidates.toLocaleString('es-AR'), color: '#1c1917', sub: 'en pipeline' },
-          { label: 'En proceso', value: active.toLocaleString('es-AR'), color: '#3B82F6', sub: `${totalCandidates > 0 ? Math.round(active/totalCandidates*100) : 0}% del pipeline` },
-          { label: 'Contratados', value: hired.toLocaleString('es-AR'), color: '#10B981', sub: `${totalCandidates > 0 ? Math.round(hired/totalCandidates*100) : 0}% conversión` },
+          { label: 'En entrevista', value: inProgressTotal.toLocaleString('es-AR'), color: '#3B82F6', sub: `${totalCandidates > 0 ? Math.round(inProgressTotal / totalCandidates * 100) : 0}% del pipeline` },
+          { label: 'Positivos', value: positiveTotal.toLocaleString('es-AR'), color: '#059669', sub: `${totalCandidates > 0 ? Math.round(positiveTotal / totalCandidates * 100) : 0}% conversión` },
         ].map(kpi => (
           <div key={kpi.label} style={{ border: '1px solid #e7e2d8', borderRadius: 10, padding: '12px 14px' }}>
-            <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: '#a8a29e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{kpi.label}</p>
-            <p style={{ margin: '4px 0 2px', fontSize: '1.375rem', fontWeight: 700, color: kpi.color, lineHeight: 1 }}>{kpi.value}</p>
+            <p style={{ margin: 0, fontSize: 10, fontWeight: 600, color: '#a8a29e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {kpi.label}
+            </p>
+            <p style={{ margin: '4px 0 2px', fontSize: '1.375rem', fontWeight: 700, color: kpi.color, lineHeight: 1 }}>
+              {kpi.value}
+            </p>
             <p style={{ margin: 0, fontSize: 10, color: '#c8c4bb' }}>{kpi.sub}</p>
           </div>
         ))}
       </div>
 
-      {/* ── Etapas del pipeline (proporción global) ── */}
+      {/* ── Global pipeline bar (segmented) ── */}
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#78716c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pipeline global</span>
-          <div style={{ display: 'flex', gap: 12 }}>
-            {STAGE_GROUPS.map(g => {
-              const tot = g.statuses.reduce((s, st) => s + (totalByStatus.get(st) ?? 0), 0)
-              return (
-                <span key={g.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#78716c' }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 2, background: g.color, display: 'inline-block' }} />
-                  {g.label} · <strong>{tot}</strong>
-                </span>
-              )
-            })}
-          </div>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            marginBottom: 8,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#78716c',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            Pipeline global · {totalCandidates.toLocaleString('es-AR')} candidatos
+          </span>
         </div>
-        {/* Global proportional bar */}
-        {(() => {
-          const grand = STAGE_GROUPS.reduce((s, g) => s + g.statuses.reduce((ss, st) => ss + (totalByStatus.get(st) ?? 0), 0), 0)
-          return (
-            <div style={{ display: 'flex', height: 12, borderRadius: 99, overflow: 'hidden', background: '#f0ece4' }}>
-              {STAGE_GROUPS.map(g => {
-                const tot = g.statuses.reduce((s, st) => s + (totalByStatus.get(st) ?? 0), 0)
-                return tot > 0 ? (
-                  <div
-                    key={g.key}
-                    title={`${g.label}: ${tot}`}
-                    style={{ width: `${(tot / grand) * 100}%`, background: g.color }}
-                  />
-                ) : null
-              })}
-            </div>
-          )
-        })()}
+        <SegmentedStatusBar
+          byStatus={Object.fromEntries(totalByStatus)}
+          height={14}
+          showLabels
+        />
       </div>
 
-      {/* ── Two-column: Chart A + Per-vacancy table ── */}
+      {/* ── Two-column: chart + per-vacancy table ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
-        {/* Chart A: distribución por estado */}
+        {/* Left: top statuses bar chart */}
         <div>
-          <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 600, color: '#78716c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Por estado
+          <p
+            style={{
+              margin: '0 0 10px',
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#78716c',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            Top estados (ranking)
           </p>
           <div style={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartAData} layout="vertical" margin={{ left: 0, right: 40, top: 4, bottom: 4 }}>
+              <BarChart
+                data={chartData}
+                layout="vertical"
+                margin={{ left: 0, right: 40, top: 4, bottom: 4 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0ece4" vertical={false} />
                 <XAxis
                   type="number"
@@ -249,7 +515,7 @@ export default function VacancyStatusCharts() {
                 <YAxis
                   type="category"
                   dataKey="status"
-                  width={170}
+                  width={175}
                   tick={{ fill: '#78716c', fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
@@ -258,8 +524,18 @@ export default function VacancyStatusCharts() {
                   {...TOOLTIP_STYLE}
                   formatter={((v: number) => [v.toLocaleString('es-AR'), 'Candidatos']) as never}
                 />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 10, fill: '#a8a29e', formatter: ((v: string | number | null | undefined) => (typeof v === 'number' && v > 0) ? v : '') as never }}>
-                  {chartAData.map(entry => (
+                <Bar
+                  dataKey="count"
+                  radius={[0, 4, 4, 0]}
+                  label={{
+                    position: 'right',
+                    fontSize: 10,
+                    fill: '#a8a29e',
+                    formatter: ((v: string | number | null | undefined) =>
+                      (typeof v === 'number' && v > 0) ? v : '') as never,
+                  }}
+                >
+                  {chartData.map(entry => (
                     <Cell key={entry.status} fill={statusColor(entry.status)} />
                   ))}
                 </Bar>
@@ -268,48 +544,111 @@ export default function VacancyStatusCharts() {
           </div>
         </div>
 
-        {/* Per-vacancy mini table */}
+        {/* Right: per-vacancy mini bars */}
         <div>
-          <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 600, color: '#78716c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <p
+            style={{
+              margin: '0 0 10px',
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#78716c',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
             Por vacante
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+              maxHeight: 280,
+              overflowY: 'auto',
+            }}
+          >
             {data.rows
               .map(row => {
                 const total = Object.values(row.byStatus).reduce((s, n) => s + n, 0)
-                const rowHired   = STAGE_GROUPS.find(g => g.key === 'hired')!.statuses.reduce((s, st) => s + (row.byStatus[st] ?? 0), 0)
-                const rowActive  = STAGE_GROUPS.find(g => g.key === 'active')!.statuses.reduce((s, st) => s + (row.byStatus[st] ?? 0), 0)
-                return { ...row, total, rowHired, rowActive }
+                const rowPositive = (STATUS_GROUPS.find(g => g.key === 'positive')!.statuses as readonly string[]).reduce(
+                  (s, st) => s + (row.byStatus[st] ?? 0),
+                  0,
+                )
+                const rowProgress = (STATUS_GROUPS.find(g => g.key === 'inprogress')!.statuses as readonly string[]).reduce(
+                  (s, st) => s + (row.byStatus[st] ?? 0),
+                  0,
+                )
+                return { ...row, total, rowPositive, rowProgress }
               })
               .sort((a, b) => b.total - a.total)
               .map(row => (
-                <div key={row.id} style={{ padding: '8px 10px', border: '1px solid #f0ece4', borderRadius: 8, background: '#faf9f7' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                    <span style={{ fontSize: 11, fontWeight: 500, color: '#1c1917', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+                <div
+                  key={row.id}
+                  style={{
+                    padding: '8px 10px',
+                    border: '1px solid #f0ece4',
+                    borderRadius: 8,
+                    background: '#faf9f7',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 5,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 500,
+                        color: '#1c1917',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '70%',
+                      }}
+                    >
                       {row.title.length > 35 ? row.title.slice(0, 35) + '…' : row.title}
                     </span>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                       <span style={{ fontSize: 10, color: '#78716c' }}>
-                        <strong style={{ color: '#1c1917' }}>{row.total}</strong> total
+                        <strong style={{ color: '#1c1917' }}>{row.total}</strong>
                       </span>
-                      {row.rowHired > 0 && (
-                        <span style={{ fontSize: 10, color: '#10B981', fontWeight: 600 }}>✓ {row.rowHired}</span>
+                      {row.rowPositive > 0 && (
+                        <span style={{ fontSize: 10, color: '#059669', fontWeight: 600 }}>
+                          ✓ {row.rowPositive}
+                        </span>
                       )}
-                      {row.rowActive > 0 && (
-                        <span style={{ fontSize: 10, color: '#3B82F6' }}>● {row.rowActive}</span>
+                      {row.rowProgress > 0 && (
+                        <span style={{ fontSize: 10, color: '#3B82F6' }}>
+                          ● {row.rowProgress}
+                        </span>
                       )}
                     </div>
                   </div>
                   <VacancyMiniBar byStatus={row.byStatus} />
                 </div>
-              ))
-            }
+              ))}
           </div>
-          {/* Legend */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-            {STAGE_GROUPS.map(g => (
-              <span key={g.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: '#a8a29e' }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: g.color, display: 'inline-block' }} />
+
+          {/* Compact legend */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+            {STATUS_GROUPS.map(g => (
+              <span
+                key={g.key}
+                style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 9, color: '#a8a29e' }}
+              >
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: 2,
+                    background: g.color,
+                    display: 'inline-block',
+                  }}
+                />
                 {g.label}
               </span>
             ))}
@@ -318,10 +657,147 @@ export default function VacancyStatusCharts() {
 
       </div>
 
-      {/* ── Chart C: Tags ── */}
+      {/* ── Status detail by group (accordion-style legend) ── */}
+      <div style={{ borderTop: '1px solid #e7e2d8', paddingTop: 16 }}>
+        <p
+          style={{
+            margin: '0 0 12px',
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#78716c',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+          }}
+        >
+          Desglose por estado
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+          {STATUS_GROUPS.map(g => {
+            const items = (g.statuses as readonly string[])
+              .map(s => ({ status: s, count: totalByStatus.get(s) ?? 0 }))
+              .filter(item => item.count > 0)
+              .sort((a, b) => b.count - a.count)
+
+            if (items.length === 0) return null
+
+            const groupTotal = items.reduce((s, i) => s + i.count, 0)
+
+            return (
+              <div
+                key={g.key}
+                style={{
+                  border: '1px solid #e7e2d8',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  background: '#faf9f7',
+                }}
+              >
+                {/* Group header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    marginBottom: 8,
+                    paddingBottom: 6,
+                    borderBottom: `2px solid ${g.colorLight}`,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 3,
+                      background: g.color,
+                      display: 'inline-block',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: '#78716c',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                    }}
+                  >
+                    {g.label}
+                  </span>
+                  <span
+                    style={{
+                      marginLeft: 'auto',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: g.color,
+                    }}
+                  >
+                    {groupTotal}
+                  </span>
+                </div>
+
+                {/* Status rows */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {items.map(item => (
+                    <div
+                      key={item.status}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 6,
+                        padding: '2px 4px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, overflow: 'hidden' }}>
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: statusColor(item.status),
+                            display: 'inline-block',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontSize: 10,
+                            color: '#57534e',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {item.status}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#1c1917', flexShrink: 0 }}>
+                        {item.count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Tags chart ── */}
       {tagData.length > 0 && (
         <div style={{ borderTop: '1px solid #e7e2d8', paddingTop: 16 }}>
-          <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 600, color: '#78716c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <p
+            style={{
+              margin: '0 0 6px',
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#78716c',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
             Etiquetas de candidatos
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', marginBottom: 10 }}>
@@ -335,12 +811,42 @@ export default function VacancyStatusCharts() {
           </div>
           <div style={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={tagData} layout="vertical" margin={{ left: 0, right: 40, top: 4, bottom: 4 }}>
+              <BarChart
+                data={tagData}
+                layout="vertical"
+                margin={{ left: 0, right: 40, top: 4, bottom: 4 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0ece4" vertical={false} />
-                <XAxis type="number" tick={{ fill: '#a8a29e', fontSize: 10 }} axisLine={{ stroke: '#e7e2d8' }} tickLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="tag" width={180} tick={{ fill: '#78716c', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip {...TOOLTIP_STYLE} formatter={((v: number) => [v.toLocaleString('es-AR'), 'Candidatos']) as never} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} label={{ position: 'right', fontSize: 10, fill: '#a8a29e', formatter: ((v: string | number | null | undefined) => (typeof v === 'number' && v > 0) ? v : '') as never }}>
+                <XAxis
+                  type="number"
+                  tick={{ fill: '#a8a29e', fontSize: 10 }}
+                  axisLine={{ stroke: '#e7e2d8' }}
+                  tickLine={false}
+                  allowDecimals={false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="tag"
+                  width={180}
+                  tick={{ fill: '#78716c', fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  {...TOOLTIP_STYLE}
+                  formatter={((v: number) => [v.toLocaleString('es-AR'), 'Candidatos']) as never}
+                />
+                <Bar
+                  dataKey="count"
+                  radius={[0, 4, 4, 0]}
+                  label={{
+                    position: 'right',
+                    fontSize: 10,
+                    fill: '#a8a29e',
+                    formatter: ((v: string | number | null | undefined) =>
+                      (typeof v === 'number' && v > 0) ? v : '') as never,
+                  }}
+                >
                   {tagData.map((entry) => (
                     <Cell key={entry.tag} fill={tagColor(entry.tag)} />
                   ))}
@@ -350,6 +856,7 @@ export default function VacancyStatusCharts() {
           </div>
         </div>
       )}
+
     </div>
   )
 }
