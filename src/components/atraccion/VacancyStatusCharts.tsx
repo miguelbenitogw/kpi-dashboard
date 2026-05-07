@@ -893,19 +893,25 @@ export default function VacancyStatusCharts({
                         <div style={{ fontSize: 11, color: '#a8a29e', textAlign: 'center', padding: '12px 0' }}>Sin datos</div>
                       )}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                        {rows.map(row => (
-                          <div key={row.tag} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                            <div style={{ width: 130, fontSize: 10, color: '#78716c', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={row.tag}>
-                              {row.tag}
+                        {rows.map(row => {
+                          const pct = total > 0 ? Math.round((row.count / total) * 100) : 0
+                          return (
+                            <div key={row.tag} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                              <div style={{ width: 130, fontSize: 10, color: '#78716c', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }} title={row.tag}>
+                                {row.tag}
+                              </div>
+                              <div style={{ flex: 1, height: 6, borderRadius: 99, background: '#ede9e4', overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: `${Math.max(2, Math.round((row.count / max) * 100))}%`, borderRadius: 99, background: cat.color, transition: 'width 0.3s ease' }} />
+                              </div>
+                              <div style={{ width: 36, fontSize: 10, fontWeight: 700, color: '#1c1917', textAlign: 'right', flexShrink: 0 }}>
+                                {row.count.toLocaleString('es-AR')}
+                              </div>
+                              <div style={{ width: 30, fontSize: 9, color: '#a8a29e', textAlign: 'right', flexShrink: 0 }}>
+                                {pct}%
+                              </div>
                             </div>
-                            <div style={{ flex: 1, height: 6, borderRadius: 99, background: '#ede9e4', overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${Math.max(2, Math.round((row.count / max) * 100))}%`, borderRadius: 99, background: cat.color, transition: 'width 0.3s ease' }} />
-                            </div>
-                            <div style={{ width: 36, fontSize: 10, fontWeight: 700, color: '#1c1917', textAlign: 'right', flexShrink: 0 }}>
-                              {row.count.toLocaleString('es-AR')}
-                            </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   )
