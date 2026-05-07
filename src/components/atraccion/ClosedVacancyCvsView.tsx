@@ -21,7 +21,7 @@ import {
   type ClosedVacancyUnified,
   type ClosedVacanciesUnifiedData,
 } from '@/lib/queries/atraccion'
-import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
+import { getVacancyCountry, COUNTRY_COLORS, type VacancyCountry } from '@/lib/utils/vacancy-country'
 import { type TipoProfesional, deriveProfesionTipo } from '@/lib/utils/vacancy-profession'
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -668,9 +668,11 @@ function SuccessRateBar({ rate }: { rate: number | null }) {
 function VacancyTable({
   vacancies,
   profesionFilter,
+  countryFilter = 'todos',
 }: {
   vacancies: ClosedVacancyUnified[]
   profesionFilter: TipoProfesional | 'todos'
+  countryFilter?: VacancyCountry | 'todos'
 }) {
   const [sortKey, setSortKey] = useState<SortKey>('totalCandidates')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -678,11 +680,12 @@ function VacancyTable({
   const PAGE = 20
 
   const filtered = useMemo(
-    () =>
-      profesionFilter === 'todos'
-        ? vacancies
-        : vacancies.filter((v) => deriveProfesionTipo(v.title) === profesionFilter),
-    [vacancies, profesionFilter],
+    () => vacancies.filter((v) => {
+      if (profesionFilter !== 'todos' && deriveProfesionTipo(v.title) !== profesionFilter) return false
+      if (countryFilter !== 'todos' && getVacancyCountry(v.title) !== countryFilter) return false
+      return true
+    }),
+    [vacancies, profesionFilter, countryFilter],
   )
 
   const sorted = useMemo(() => {
@@ -1143,9 +1146,10 @@ function LoadingSkeleton() {
 
 interface Props {
   profesionFilter?: TipoProfesional | 'todos'
+  countryFilter?: VacancyCountry | 'todos'
 }
 
-export default function ClosedVacancyCvsView({ profesionFilter = 'todos' }: Props) {
+export default function ClosedVacancyCvsView({ profesionFilter = 'todos', countryFilter = 'todos' }: Props) {
   const [weeksWindow, setWeeksWindow] = useState<WeeksWindow>(26)
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<ClosedVacanciesUnifiedData | null>(null)
@@ -1186,11 +1190,12 @@ export default function ClosedVacancyCvsView({ profesionFilter = 'todos' }: Prop
   if (loading) return <LoadingSkeleton />
   if (!data) return null
 
-  // Apply profesion filter for the table and line chart
-  const filteredVacancies =
-    profesionFilter === 'todos'
-      ? data.vacancies
-      : data.vacancies.filter((v) => deriveProfesionTipo(v.title) === profesionFilter)
+  // Apply profesion + country filters for the table and line chart
+  const filteredVacancies = data.vacancies.filter((v) => {
+    if (profesionFilter !== 'todos' && deriveProfesionTipo(v.title) !== profesionFilter) return false
+    if (countryFilter !== 'todos' && getVacancyCountry(v.title) !== countryFilter) return false
+    return true
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1235,7 +1240,7 @@ export default function ClosedVacancyCvsView({ profesionFilter = 'todos' }: Prop
       </div>
 
       {/* D — vacancy table */}
-      <VacancyTable vacancies={data.vacancies} profesionFilter={profesionFilter} />
+      <VacancyTable vacancies={data.vacancies} profesionFilter={profesionFilter} countryFilter={countryFilter} />
     </div>
   )
 }

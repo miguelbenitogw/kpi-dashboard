@@ -127,8 +127,8 @@ export default function AtraccionPage() {
             })}
           </div>
 
-          {/* País select — only shown in vacantes tab where charts live */}
-          {tab === 'vacantes' && (
+          {/* País select — shown in vacantes and cerradas tabs */}
+          {(tab === 'vacantes' || tab === 'cerradas') && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, color: '#a8a29e', fontWeight: 500 }}>País:</span>
               <select
@@ -167,7 +167,7 @@ export default function AtraccionPage() {
 
       {/* ─── CVS CERRADAS ─── */}
       {tab === 'cerradas' && (
-        <ClosedVacancyCvsView profesionFilter={profesionFilter} />
+        <ClosedVacancyCvsView profesionFilter={profesionFilter} countryFilter={countryFilter} />
       )}
     </div>
   )
