@@ -1159,7 +1159,7 @@ export default function ClosedVacancyCvsView({ profesionFilter = 'todos', countr
   async function runBackfill() {
     setBackfillState('running')
     try {
-      const res = await fetch('/api/admin/run-backfill')
+      const res = await fetch('/api/admin/do-backfill')
       const json = await res.json()
       setBackfillResult(json)
       setBackfillState('done')
