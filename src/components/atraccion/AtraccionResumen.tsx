@@ -371,7 +371,7 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
           <SegmentedStatusBar
             byStatus={Object.fromEntries(allStatuses.map(sc => [sc.status, sc.count]))}
             height={7}
-            showLabels={false}
+            hoverLabels
           />
         )}
 

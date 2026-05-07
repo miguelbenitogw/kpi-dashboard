@@ -159,11 +159,16 @@ export function SegmentedStatusBar({
   byStatus,
   height = 14,
   showLabels = false,
+  hoverLabels = false,
 }: {
   byStatus: Record<string, number>
   height?: number
   showLabels?: boolean
+  /** Show a floating breakdown popup on hover (for compact contexts) */
+  hoverLabels?: boolean
 }) {
+  const [hovered, setHovered] = useState(false)
+
   const groupTotals = STATUS_GROUPS.map(g => ({
     ...g,
     total: (g.statuses as readonly string[]).reduce((sum, s) => sum + (byStatus[s] ?? 0), 0),
@@ -174,8 +179,10 @@ export function SegmentedStatusBar({
     return <span style={{ fontSize: 10, color: '#c8c4bb' }}>—</span>
   }
 
+  const visibleGroups = groupTotals.filter(g => g.total > 0)
+
   return (
-    <div>
+    <div style={{ position: 'relative' }}>
       <div
         style={{
           display: 'flex',
@@ -184,12 +191,15 @@ export function SegmentedStatusBar({
           overflow: 'hidden',
           width: '100%',
           background: '#f0ece4',
+          cursor: hoverLabels ? 'pointer' : 'default',
         }}
+        onMouseEnter={hoverLabels ? () => setHovered(true) : undefined}
+        onMouseLeave={hoverLabels ? () => setHovered(false) : undefined}
       >
-        {groupTotals.filter(g => g.total > 0).map(g => (
+        {visibleGroups.map(g => (
           <div
             key={g.key}
-            title={`${g.label}: ${g.total} (${Math.round((g.total / grand) * 100)}%)`}
+            title={!hoverLabels ? `${g.label}: ${g.total} (${Math.round((g.total / grand) * 100)}%)` : undefined}
             style={{
               width: `${(g.total / grand) * 100}%`,
               background: g.color,
@@ -198,9 +208,53 @@ export function SegmentedStatusBar({
           />
         ))}
       </div>
+
+      {/* Hover tooltip — floating breakdown */}
+      {hoverLabels && hovered && (
+        <div
+          style={{
+            position: 'absolute',
+            top: height + 6,
+            left: 0,
+            right: 0,
+            background: '#fff',
+            border: '1px solid #e7e2d8',
+            borderRadius: 10,
+            padding: '10px 12px',
+            zIndex: 20,
+            boxShadow: '0 6px 18px rgba(0,0,0,0.10)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          {/* mini segmented bar inside tooltip */}
+          <div style={{ display: 'flex', height: 5, borderRadius: 99, overflow: 'hidden', marginBottom: 4 }}>
+            {visibleGroups.map(g => (
+              <div key={g.key} style={{ width: `${(g.total / grand) * 100}%`, background: g.color }} />
+            ))}
+          </div>
+          {visibleGroups.map(g => {
+            const pct = Math.round((g.total / grand) * 100)
+            return (
+              <div key={g.key} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 9, height: 9, borderRadius: 3, background: g.color, display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 11, color: '#44403c', fontWeight: 500 }}>{g.label}</span>
+                {/* inline pct bar */}
+                <div style={{ width: 60, height: 4, borderRadius: 99, background: '#f0ece4', overflow: 'hidden' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: g.color, borderRadius: 99 }} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#1c1917', width: 28, textAlign: 'right', flexShrink: 0 }}>{g.total}</span>
+                <span style={{ fontSize: 10, color: '#a8a29e', width: 30, textAlign: 'right', flexShrink: 0 }}>{pct}%</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {showLabels && (
         <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
-          {groupTotals.filter(g => g.total > 0).map(g => (
+          {visibleGroups.map(g => (
             <span
               key={g.key}
               style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#78716c' }}
