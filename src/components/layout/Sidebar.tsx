@@ -12,7 +12,6 @@ import {
   Tag,
   Menu,
   X,
-  Archive,
   Settings2,
   Briefcase,
   Globe,
@@ -41,7 +40,6 @@ const navSections: NavSection[] = [
     title: "OPERACIÓN · ATRACCIÓN",
     items: [
       { href: "/dashboard/atraccion", label: "Atracción", icon: Users },
-      { href: "/dashboard/atraccion/cerradas", label: "Vacantes cerradas", icon: Archive },
     ],
   },
   {
