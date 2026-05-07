@@ -1737,12 +1737,16 @@ export interface VacancyForConfig {
   tipoProfesionalRegex: TipoProfesional
   isActive: boolean
   isVacantePrincipal: boolean
+  /** Numeric hiring target for this vacancy (null = no target set) */
+  hiringTarget: number | null
+  /** Recruitment closing date in ISO format (null = no deadline set) */
+  closingDate: string | null
 }
 
 export async function getVacanciesForProfessionConfig(): Promise<VacancyForConfig[]> {
   const { data, error } = await (supabase as any)
     .from('job_openings_kpi')
-    .select('id, title, tipo_profesional, es_proceso_atraccion_actual, zoho_job_number, is_vacante_principal')
+    .select('id, title, tipo_profesional, es_proceso_atraccion_actual, zoho_job_number, is_vacante_principal, hiring_target, closing_date')
     .order('es_proceso_atraccion_actual', { ascending: false })
     .order('title', { ascending: true })
 
@@ -1760,6 +1764,8 @@ export async function getVacanciesForProfessionConfig(): Promise<VacancyForConfi
     tipoProfesionalRegex: deriveProfesionTipo(r.title ?? ''),
     isActive: r.es_proceso_atraccion_actual ?? false,
     isVacantePrincipal: r.is_vacante_principal ?? false,
+    hiringTarget: r.hiring_target ?? null,
+    closingDate: r.closing_date ?? null,
   }))
 }
 
@@ -1774,6 +1780,26 @@ export async function updateVacancyTipoProfesional(
 
   if (error) {
     console.error('[atraccion] updateVacancyTipoProfesional error:', error)
+    return { error: error.message }
+  }
+  return { error: null }
+}
+
+export async function updateVacancyHiringFields(
+  vacancyId: string,
+  fields: { hiringTarget?: number | null; closingDate?: string | null },
+): Promise<{ error: string | null }> {
+  const payload: Record<string, unknown> = {}
+  if ('hiringTarget' in fields) payload.hiring_target = fields.hiringTarget ?? null
+  if ('closingDate' in fields) payload.closing_date = fields.closingDate ?? null
+
+  const { error } = await (supabase as any)
+    .from('job_openings_kpi')
+    .update(payload)
+    .eq('id', vacancyId)
+
+  if (error) {
+    console.error('[atraccion] updateVacancyHiringFields error:', error)
     return { error: error.message }
   }
   return { error: null }
@@ -1959,13 +1985,19 @@ export interface ResumenVacanteItem {
   totalCandidates: number
   /** GW worker tag counts for this vacancy, sorted by count desc */
   gwTags: GwTagCount[]
+  /** Numeric hiring target (null = no target set) */
+  hiringTarget: number | null
+  /** Recruitment closing date in ISO format (null = no deadline) */
+  closingDate: string | null
+  /** Date the vacancy was opened in ISO format (null = unknown) */
+  dateOpened: string | null
 }
 
 export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[]> {
   // 1. Starred vacancies
   const { data: vacancies, error: vacError } = await (supabase as any)
     .from('job_openings_kpi')
-    .select('id, title, tipo_profesional, total_candidates')
+    .select('id, title, tipo_profesional, total_candidates, hiring_target, closing_date, date_opened')
     .eq('is_vacante_principal', true)
     .order('tipo_profesional', { ascending: true })
 
@@ -1974,7 +2006,7 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
     return []
   }
 
-  const rows = vacancies as { id: string; title: string | null; tipo_profesional: string | null; total_candidates: number | null }[]
+  const rows = vacancies as { id: string; title: string | null; tipo_profesional: string | null; total_candidates: number | null; hiring_target: number | null; closing_date: string | null; date_opened: string | null }[]
   const ids = rows.map((r) => r.id)
 
   // 2. Weekly CVs — this week + last week
@@ -2061,5 +2093,8 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
     statusCounts: statusMap.get(v.id) ?? [],
     totalCandidates: v.total_candidates ?? 0,
     gwTags: gwTagMap.get(v.id) ?? [],
+    hiringTarget: v.hiring_target ?? null,
+    closingDate: v.closing_date ?? null,
+    dateOpened: v.date_opened ?? null,
   }))
 }

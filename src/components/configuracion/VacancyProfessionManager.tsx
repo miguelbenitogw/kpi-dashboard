@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import {
   getVacanciesForProfessionConfig,
   updateVacancyTipoProfesional,
+  updateVacancyHiringFields,
   type VacancyForConfig,
   type TipoProfesionalRow,
 } from '@/lib/queries/atraccion'
@@ -48,6 +49,10 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
   const [search, setSearch] = useState('')
   // draft values per vacancy id
   const [drafts, setDrafts] = useState<Record<string, TipoProfesional>>({})
+  // hiring target drafts per vacancy id (string for input value)
+  const [targetDrafts, setTargetDrafts] = useState<Record<string, string>>({})
+  // closing date drafts per vacancy id (ISO string or '')
+  const [closingDrafts, setClosingDrafts] = useState<Record<string, string>>({})
   // row-level save state
   const [rowStates, setRowStates] = useState<Record<string, RowState>>({})
   // star state per vacancy id
@@ -67,8 +72,16 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
       if (cancelled) return
       setVacancies(data)
       const init: Record<string, TipoProfesional> = {}
-      for (const v of data) init[v.id] = v.tipoProfesionalDb
+      const initTargets: Record<string, string> = {}
+      const initClosing: Record<string, string> = {}
+      for (const v of data) {
+        init[v.id] = v.tipoProfesionalDb
+        initTargets[v.id] = v.hiringTarget != null ? String(v.hiringTarget) : ''
+        initClosing[v.id] = v.closingDate ?? ''
+      }
       setDrafts(init)
+      setTargetDrafts(initTargets)
+      setClosingDrafts(initClosing)
       setLoading(false)
     })
     return () => { cancelled = true }
@@ -106,6 +119,43 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
         item.id === v.id ? { ...item, tipoProfesionalDb: draft } : item,
       ),
     )
+    setRowStates((prev) => ({ ...prev, [v.id]: 'saved' }))
+    setTimeout(() => setRowStates((prev) => ({ ...prev, [v.id]: 'idle' })), 2000)
+  }
+
+  async function handleSaveHiringTarget(v: VacancyForConfig) {
+    const raw = targetDrafts[v.id] ?? ''
+    const parsed = raw === '' ? null : parseInt(raw, 10)
+    if (raw !== '' && (Number.isNaN(parsed) || (parsed as number) < 0)) return
+
+    const original = v.hiringTarget != null ? String(v.hiringTarget) : ''
+    if (raw === original) return
+
+    setRowStates((prev) => ({ ...prev, [v.id]: 'saving' }))
+    const { error } = await updateVacancyHiringFields(v.id, { hiringTarget: parsed })
+    if (error) {
+      setRowStates((prev) => ({ ...prev, [v.id]: 'error' }))
+      setTimeout(() => setRowStates((prev) => ({ ...prev, [v.id]: 'idle' })), 3000)
+      return
+    }
+    setVacancies((prev) => prev.map((item) => item.id === v.id ? { ...item, hiringTarget: parsed } : item))
+    setRowStates((prev) => ({ ...prev, [v.id]: 'saved' }))
+    setTimeout(() => setRowStates((prev) => ({ ...prev, [v.id]: 'idle' })), 2000)
+  }
+
+  async function handleSaveClosingDate(v: VacancyForConfig) {
+    const raw = closingDrafts[v.id] ?? ''
+    const original = v.closingDate ?? ''
+    if (raw === original) return
+
+    setRowStates((prev) => ({ ...prev, [v.id]: 'saving' }))
+    const { error } = await updateVacancyHiringFields(v.id, { closingDate: raw || null })
+    if (error) {
+      setRowStates((prev) => ({ ...prev, [v.id]: 'error' }))
+      setTimeout(() => setRowStates((prev) => ({ ...prev, [v.id]: 'idle' })), 3000)
+      return
+    }
+    setVacancies((prev) => prev.map((item) => item.id === v.id ? { ...item, closingDate: raw || null } : item))
     setRowStates((prev) => ({ ...prev, [v.id]: 'saved' }))
     setTimeout(() => setRowStates((prev) => ({ ...prev, [v.id]: 'idle' })), 2000)
   }
@@ -366,6 +416,32 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
                   color: C.thColor,
                   fontSize: 11,
                   fontWeight: 500,
+                  width: 80,
+                }}
+                title="Objetivo numérico de contrataciones"
+              >
+                Objetivo
+              </th>
+              <th
+                style={{
+                  padding: '7px 10px',
+                  textAlign: 'center',
+                  color: C.thColor,
+                  fontSize: 11,
+                  fontWeight: 500,
+                  width: 130,
+                }}
+                title="Fecha de cierre del reclutamiento"
+              >
+                Cierre
+              </th>
+              <th
+                style={{
+                  padding: '7px 10px',
+                  textAlign: 'center',
+                  color: C.thColor,
+                  fontSize: 11,
+                  fontWeight: 500,
                   width: 90,
                 }}
               >
@@ -377,7 +453,7 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
             {filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={9}
                   style={{
                     padding: '24px',
                     textAlign: 'center',
@@ -582,6 +658,50 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
                       >
                         {getLabelForTipo(v.tipoProfesionalRegex)}
                       </span>
+                    </td>
+
+                    {/* Objetivo (hiring_target) — inline editable */}
+                    <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={targetDrafts[v.id] ?? ''}
+                        placeholder="—"
+                        onChange={(e) => setTargetDrafts((prev) => ({ ...prev, [v.id]: e.target.value }))}
+                        onBlur={() => handleSaveHiringTarget(v)}
+                        style={{
+                          width: 72,
+                          border: `1px solid ${C.selectBorder}`,
+                          borderRadius: 6,
+                          fontSize: 12,
+                          padding: '3px 6px',
+                          background: '#fff',
+                          color: C.text,
+                          outline: 'none',
+                          textAlign: 'center',
+                        }}
+                      />
+                    </td>
+
+                    {/* Cierre (closing_date) — inline editable */}
+                    <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                      <input
+                        type="date"
+                        value={closingDrafts[v.id] ?? ''}
+                        onChange={(e) => setClosingDrafts((prev) => ({ ...prev, [v.id]: e.target.value }))}
+                        onBlur={() => handleSaveClosingDate(v)}
+                        style={{
+                          width: 122,
+                          border: `1px solid ${C.selectBorder}`,
+                          borderRadius: 6,
+                          fontSize: 12,
+                          padding: '3px 6px',
+                          background: '#fff',
+                          color: C.text,
+                          outline: 'none',
+                        }}
+                      />
                     </td>
 
                     {/* Acción */}
