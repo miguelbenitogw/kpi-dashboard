@@ -752,6 +752,8 @@ export default function ClosedVacanciesView() {
                   <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>Candidatos</th>
                   <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>Contratados</th>
                   <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }}>% Éxito</th>
+                  <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }} title="Éxito sobre contactados reales">% Éxito real</th>
+                  <th className="px-3 py-1.5 text-right font-medium text-gray-400 whitespace-nowrap" style={{ fontSize: 13 }} title="Tasa de descarte/ruido">% Descarte</th>
                   {activeStatusCols.map((col) => (
                     <th
                       key={col.key}
@@ -842,6 +844,26 @@ export default function ClosedVacanciesView() {
                               {rate.toLocaleString('es-AR')}%
                             </span>
                           )
+                        })()}
+                      </td>
+                      {/* % Éxito real */}
+                      <td className="px-3 py-1.5 text-right tabular-nums" style={{ fontSize: 13 }}>
+                        {(() => {
+                          if (v.ratioExitoContactados == null) return <span className="text-gray-600 text-[10px]">n/d</span>
+                          const pct = Math.round(v.ratioExitoContactados * 100 * 10) / 10
+                          const T = (v.ratioExitoThreshold ?? 0.06) * 100
+                          const color = pct >= T ? '#16a34a' : pct >= T * 0.5 ? '#d97706' : '#dc2626'
+                          return <span style={{ color, fontWeight: 600 }}>{pct.toLocaleString('es-AR')}%</span>
+                        })()}
+                      </td>
+                      {/* % Descarte */}
+                      <td className="px-3 py-1.5 text-right tabular-nums" style={{ fontSize: 13 }}>
+                        {(() => {
+                          if (v.ratioDescarte == null) return <span className="text-gray-600 text-[10px]">n/d</span>
+                          const pct = Math.round(v.ratioDescarte * 100 * 10) / 10
+                          const TD = (v.ratioDescarteThreshold ?? 0.50) * 100
+                          const color = pct > TD ? '#dc2626' : pct > TD * 0.6 ? '#d97706' : '#9ca3af'
+                          return <span style={{ color, fontWeight: pct > TD * 0.6 ? 600 : 400 }}>{pct.toLocaleString('es-AR')}%</span>
                         })()}
                       </td>
                       {activeStatusCols.map((col) => {

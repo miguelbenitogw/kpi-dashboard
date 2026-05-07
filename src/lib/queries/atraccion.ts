@@ -714,8 +714,12 @@ export interface VacancyStatusRow {
   tipoProfesional: TipoProfesional
   hired_count: number
   zohoJobNumber: number | null
-  byStatus: Record<string, number>   // candidate_status_in_jo â†’ count
+  byStatus: Record<string, number>   // candidate_status_in_jo → count
   total: number
+  ratioExitoContactados: number | null
+  ratioDescarte: number | null
+  ratioExitoThreshold: number | null
+  ratioDescarteThreshold: number | null
 }
 
 export interface VacancyRecruitmentStats {
@@ -728,7 +732,7 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
   // 1. Fetch active vacancies
   const { data: vacancies, error: vacError } = await supabase
     .from('job_openings_kpi')
-    .select('id, title, client_name, owner, status, date_opened, total_candidates, hired_count, tipo_profesional')
+    .select('id, title, client_name, owner, status, date_opened, total_candidates, hired_count, tipo_profesional, ratio_exito_contactados, ratio_descarte, ratio_exito_threshold, ratio_descarte_threshold')
     .eq('es_proceso_atraccion_actual', true)
     .order('total_candidates', { ascending: false })
 
@@ -787,6 +791,10 @@ export async function getVacancyRecruitmentStats(): Promise<VacancyRecruitmentSt
       byStatus: countMap.get(v.id) ?? {},
       total: v.total_candidates ?? 0,
       tipoProfesional,
+      ratioExitoContactados: (v as any).ratio_exito_contactados ?? null,
+      ratioDescarte: (v as any).ratio_descarte ?? null,
+      ratioExitoThreshold: (v as any).ratio_exito_threshold ?? null,
+      ratioDescarteThreshold: (v as any).ratio_descarte_threshold ?? null,
     }
   })
 
@@ -975,6 +983,10 @@ export interface ClosedVacancy {
   tags: Record<string, number>
   /** Candidate counts by status from vacancy_status_counts_kpi (empty if not synced yet) */
   byStatus: Record<string, number>
+  ratioExitoContactados: number | null
+  ratioDescarte: number | null
+  ratioExitoThreshold: number | null
+  ratioDescarteThreshold: number | null
 }
 
 export interface ClosedVacanciesData {
@@ -989,7 +1001,7 @@ export async function getClosedVacanciesData(): Promise<ClosedVacanciesData> {
   // 1. Fetch all closed vacancies
   const { data: vacancies, error } = await supabase
     .from('job_openings_kpi')
-    .select('id, title, status, date_opened, total_candidates, hired_count')
+    .select('id, title, status, date_opened, total_candidates, hired_count, ratio_exito_contactados, ratio_descarte, ratio_exito_threshold, ratio_descarte_threshold')
     .eq('is_active', false)
     .order('date_opened', { ascending: false, nullsFirst: false })
 
@@ -1057,6 +1069,10 @@ export async function getClosedVacanciesData(): Promise<ClosedVacanciesData> {
       hired_count: v.hired_count ?? 0,
       tags,
       byStatus,
+      ratioExitoContactados: (v as any).ratio_exito_contactados ?? null,
+      ratioDescarte: (v as any).ratio_descarte ?? null,
+      ratioExitoThreshold: (v as any).ratio_exito_threshold ?? null,
+      ratioDescarteThreshold: (v as any).ratio_descarte_threshold ?? null,
     }
 
     if (year > 0) {

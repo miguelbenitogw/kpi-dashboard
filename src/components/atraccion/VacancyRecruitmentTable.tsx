@@ -559,8 +559,9 @@ export default function VacancyRecruitmentTable({
                         const denom = row.total_candidates - (associated + notValid + noAnswer + rejectedClient + newStatus)
                         if (denom <= 0) return <span className="text-gray-600">—</span>
                         const rate = Math.round(((hired + approved + inTraining) / denom) * 1000) / 10
-                        const color = rate >= 30 ? '#16a34a' : rate >= 15 ? '#d97706' : '#9ca3af'
-                        return <span style={{ color, fontWeight: rate >= 15 ? 600 : 400 }}>{rate.toLocaleString('es-AR')}%</span>
+                        const T = (row.ratioExitoThreshold ?? 0.06) * 100
+                        const color = rate >= T ? '#16a34a' : rate >= T * 0.5 ? '#d97706' : '#dc2626'
+                        return <span style={{ color, fontWeight: rate >= T * 0.5 ? 600 : 400 }}>{rate.toLocaleString('es-AR')}%</span>
                       })()}
                     </td>
                     {/* % Descarte — ratio 2 calculado inline desde byStatus */}
@@ -572,8 +573,9 @@ export default function VacancyRecruitmentTable({
                         const rejectedClient = row.byStatus['Rejected by client'] ?? 0
                         const rejected = row.byStatus['Rejected'] ?? 0
                         const rate = Math.round(((noAnswer + notValid + rejectedClient + rejected) / row.total_candidates) * 1000) / 10
-                        const color = rate >= 50 ? '#dc2626' : rate >= 30 ? '#d97706' : '#9ca3af'
-                        return <span style={{ color, fontWeight: rate >= 30 ? 600 : 400 }}>{rate.toLocaleString('es-AR')}%</span>
+                        const TD = (row.ratioDescarteThreshold ?? 0.50) * 100
+                        const color = rate > TD ? '#dc2626' : rate > TD * 0.6 ? '#d97706' : '#9ca3af'
+                        return <span style={{ color, fontWeight: rate > TD * 0.6 ? 600 : 400 }}>{rate.toLocaleString('es-AR')}%</span>
                       })()}
                     </td>
                     <td className="px-2 py-2 text-gray-500">
