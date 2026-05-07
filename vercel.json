@@ -5,28 +5,36 @@
       "schedule": "0 2 * * *"
     },
     {
+      "path": "/api/cron/sync-madre",
+      "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/cron/sync-vacancy-cvs",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/sync-social",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/cron/sync-full",
       "schedule": "0 3 * * 0"
     },
     {
-      "path": "/api/cron/sync-madre",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/sync-social",
+      "path": "/api/cron/sync-atraccion-history",
       "schedule": "0 4 * * *"
     },
     {
-      "path": "/api/cron/sync-vacancy-cvs",
-      "schedule": "15 3 * * 1"
-    },
-    {
       "path": "/api/cron/sync-placement",
-      "schedule": "0 8 * * 1"
+      "schedule": "30 4 * * *"
     },
     {
-      "path": "/api/cron/sync-atraccion-history",
-      "schedule": "0 5 * * 1"
+      "path": "/api/cron/sync-germany",
+      "schedule": "0 4 * * 0"
+    },
+    {
+      "path": "/api/cron/sync-germany-candidates",
+      "schedule": "0 5 * * 0"
     }
   ]
 }
