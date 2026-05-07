@@ -155,7 +155,7 @@ const TOOLTIP_STYLE = {
 // Segmented horizontal bar — shows all status groups proportionally
 // ---------------------------------------------------------------------------
 
-function SegmentedStatusBar({
+export function SegmentedStatusBar({
   byStatus,
   height = 14,
   showLabels = false,
@@ -370,7 +370,6 @@ export default function VacancyStatusCharts({
         }
         const sorted = [...totals.entries()]
           .sort((a, b) => b[1] - a[1])
-          .slice(0, 15)
           .map(([tag, count]) => ({ tag, count }))
         setTagData(sorted)
       }

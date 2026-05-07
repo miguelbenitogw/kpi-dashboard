@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { getResumenAtraccionVacantes, type ResumenVacanteItem } from '@/lib/queries/atraccion'
 import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
+import { SegmentedStatusBar } from '@/components/atraccion/VacancyStatusCharts'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const P = {
@@ -239,7 +240,6 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
   const deadline = getDeadlineInfo(item.closingDate, item.dateOpened, item.hiringTarget ?? null, hired + approved)
 
   const allStatuses = item.statusCounts.filter((sc) => sc.count > 0)
-  const stackTotal = allStatuses.reduce((s, sc) => s + sc.count, 0) || 1
 
   // Ordered display: known order first, then unknowns by count
   const keyed = STATUS_KEY_ORDER
@@ -366,17 +366,13 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
       <div style={{ padding: '14px 20px', borderBottom: `1px solid ${P.divider}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: P.muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Estado</div>
 
-        {/* Stacked bar */}
+        {/* Grouped segmented bar — 5 semantic groups */}
         {allStatuses.length > 0 && (
-          <div style={{ display: 'flex', height: 7, borderRadius: 99, overflow: 'hidden', gap: 1 }}>
-            {allStatuses.map((sc) => (
-              <div
-                key={sc.status}
-                style={{ flex: `0 0 ${Math.max(1, Math.round((sc.count / stackTotal) * 100))}%`, background: statusPalette(sc.status).bar }}
-                title={`${sc.status}: ${sc.count}`}
-              />
-            ))}
-          </div>
+          <SegmentedStatusBar
+            byStatus={Object.fromEntries(allStatuses.map(sc => [sc.status, sc.count]))}
+            height={7}
+            showLabels={false}
+          />
         )}
 
         {/* All status rows */}
