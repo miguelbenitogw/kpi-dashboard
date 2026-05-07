@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import ConfiguracionClient from './ConfiguracionClient'
 import VacancyProfessionManagerWrapper from '@/components/configuracion/VacancyProfessionManagerWrapper'
+import KpiQualityDocs from '@/components/configuracion/KpiQualityDocs'
 
 export const metadata = {
   title: 'Configuración | KPI Dashboard',
@@ -58,6 +59,16 @@ export default function ConfiguracionPage() {
         <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 20, overflow: 'hidden' }}>
           <VacancyProfessionManagerWrapper />
         </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold" style={{ color: '#1c1917' }}>KPIs de calidad de atracción</h2>
+          <p className="mt-0.5 text-sm" style={{ color: '#78716c' }}>
+            Documentación de referencia sobre cómo se calculan los ratios de éxito real y descarte por vacante.
+          </p>
+        </div>
+        <KpiQualityDocs />
       </section>
     </div>
   )

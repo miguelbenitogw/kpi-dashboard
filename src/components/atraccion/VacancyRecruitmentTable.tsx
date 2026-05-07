@@ -472,6 +472,12 @@ export default function VacancyRecruitmentTable({
               <th className="sticky top-0 z-20 bg-gray-800 px-3 py-2 text-right font-medium text-gray-400 whitespace-nowrap">
                 % Éxito
               </th>
+              <th className="sticky top-0 z-20 bg-gray-800 px-3 py-2 text-right font-medium text-gray-400 whitespace-nowrap" title="Éxito sobre contactados reales: (Hired+Approved+InTraining) / (total − excluded)">
+                % Éxito real
+              </th>
+              <th className="sticky top-0 z-20 bg-gray-800 px-3 py-2 text-right font-medium text-gray-400 whitespace-nowrap" title="Tasa de descarte: (NoAnswer+NotValid+RejectedByClient+Rejected) / total">
+                % Descarte
+              </th>
               <th className="sticky top-0 z-20 bg-gray-800 w-8" />
             </tr>
           </thead>
@@ -539,6 +545,37 @@ export default function VacancyRecruitmentTable({
                         )
                       })()}
                     </td>
+                    {/* % Éxito real — ratio 1 calculado inline desde byStatus */}
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {(() => {
+                        const hired = row.hired_count ?? 0
+                        const approved = row.byStatus['Approved by client'] ?? 0
+                        const inTraining = row.byStatus['In Training'] ?? 0
+                        const associated = row.byStatus['Associated'] ?? 0
+                        const notValid = row.byStatus['Not Valid'] ?? 0
+                        const noAnswer = row.byStatus['No Answer'] ?? 0
+                        const rejectedClient = row.byStatus['Rejected by client'] ?? 0
+                        const newStatus = row.byStatus['New'] ?? 0
+                        const denom = row.total_candidates - (associated + notValid + noAnswer + rejectedClient + newStatus)
+                        if (denom <= 0) return <span className="text-gray-600">—</span>
+                        const rate = Math.round(((hired + approved + inTraining) / denom) * 1000) / 10
+                        const color = rate >= 30 ? '#16a34a' : rate >= 15 ? '#d97706' : '#9ca3af'
+                        return <span style={{ color, fontWeight: rate >= 15 ? 600 : 400 }}>{rate.toLocaleString('es-AR')}%</span>
+                      })()}
+                    </td>
+                    {/* % Descarte — ratio 2 calculado inline desde byStatus */}
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {(() => {
+                        if (row.total_candidates === 0) return <span className="text-gray-600">—</span>
+                        const noAnswer = row.byStatus['No Answer'] ?? 0
+                        const notValid = row.byStatus['Not Valid'] ?? 0
+                        const rejectedClient = row.byStatus['Rejected by client'] ?? 0
+                        const rejected = row.byStatus['Rejected'] ?? 0
+                        const rate = Math.round(((noAnswer + notValid + rejectedClient + rejected) / row.total_candidates) * 1000) / 10
+                        const color = rate >= 50 ? '#dc2626' : rate >= 30 ? '#d97706' : '#9ca3af'
+                        return <span style={{ color, fontWeight: rate >= 30 ? 600 : 400 }}>{rate.toLocaleString('es-AR')}%</span>
+                      })()}
+                    </td>
                     <td className="px-2 py-2 text-gray-500">
                       {isExpanded
                         ? <ChevronDown className="h-3.5 w-3.5" />
@@ -549,7 +586,7 @@ export default function VacancyRecruitmentTable({
                     <VacancyTagRow
                       vacancyId={row.id}
                       vacancyTitle={row.title}
-                      colSpan={cols.length + 4}
+                      colSpan={cols.length + 6}
                     />
                   )}
                 </Fragment>
@@ -586,6 +623,37 @@ export default function VacancyRecruitmentTable({
                     )
                     const rate = Math.round((totalSuccess / totalCands) * 1000) / 10
                     const color = rate >= 15 ? '#16a34a' : rate >= 8 ? '#d97706' : '#9ca3af'
+                    return <span style={{ color }}>{rate.toLocaleString('es-AR')}%</span>
+                  })()}
+                </td>
+                {/* % Éxito real — total footer */}
+                <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                  {(() => {
+                    const totalCands = filtered.reduce((s, r) => s + r.total_candidates, 0)
+                    if (totalCands === 0) return <span className="text-gray-600">—</span>
+                    const totalNumerator = filtered.reduce((s, r) => {
+                      return s + (r.hired_count ?? 0) + (r.byStatus['Approved by client'] ?? 0) + (r.byStatus['In Training'] ?? 0)
+                    }, 0)
+                    const totalExcluded = filtered.reduce((s, r) => {
+                      return s + (r.byStatus['Associated'] ?? 0) + (r.byStatus['Not Valid'] ?? 0) + (r.byStatus['No Answer'] ?? 0) + (r.byStatus['Rejected by client'] ?? 0) + (r.byStatus['New'] ?? 0)
+                    }, 0)
+                    const denom = totalCands - totalExcluded
+                    if (denom <= 0) return <span className="text-gray-600">—</span>
+                    const rate = Math.round((totalNumerator / denom) * 1000) / 10
+                    const color = rate >= 30 ? '#16a34a' : rate >= 15 ? '#d97706' : '#9ca3af'
+                    return <span style={{ color }}>{rate.toLocaleString('es-AR')}%</span>
+                  })()}
+                </td>
+                {/* % Descarte — total footer */}
+                <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                  {(() => {
+                    const totalCands = filtered.reduce((s, r) => s + r.total_candidates, 0)
+                    if (totalCands === 0) return <span className="text-gray-600">—</span>
+                    const totalDescarte = filtered.reduce((s, r) => {
+                      return s + (r.byStatus['No Answer'] ?? 0) + (r.byStatus['Not Valid'] ?? 0) + (r.byStatus['Rejected by client'] ?? 0) + (r.byStatus['Rejected'] ?? 0)
+                    }, 0)
+                    const rate = Math.round((totalDescarte / totalCands) * 1000) / 10
+                    const color = rate >= 50 ? '#dc2626' : rate >= 30 ? '#d97706' : '#9ca3af'
                     return <span style={{ color }}>{rate.toLocaleString('es-AR')}%</span>
                   })()}
                 </td>

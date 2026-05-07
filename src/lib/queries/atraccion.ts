@@ -1991,13 +1991,25 @@ export interface ResumenVacanteItem {
   closingDate: string | null
   /** Date the vacancy was opened in ISO format (null = unknown) */
   dateOpened: string | null
+  /**
+   * Ratio 1 — Éxito sobre contactados reales:
+   * (Hired + Approved by client + In Training) / (total − excluded)
+   * null when denominator is 0
+   */
+  ratioExitoContactados: number | null
+  /**
+   * Ratio 2 — Descarte/ruido:
+   * (No Answer + Not Valid + Rejected by client + Rejected) / total
+   * null when total is 0
+   */
+  ratioDescarte: number | null
 }
 
 export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[]> {
   // 1. Starred vacancies
   const { data: vacancies, error: vacError } = await (supabase as any)
     .from('job_openings_kpi')
-    .select('id, title, tipo_profesional, total_candidates, hiring_target, closing_date, date_opened')
+    .select('id, title, tipo_profesional, total_candidates, hiring_target, closing_date, date_opened, ratio_exito_contactados, ratio_descarte')
     .eq('is_vacante_principal', true)
     .order('tipo_profesional', { ascending: true })
 
@@ -2006,7 +2018,7 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
     return []
   }
 
-  const rows = vacancies as { id: string; title: string | null; tipo_profesional: string | null; total_candidates: number | null; hiring_target: number | null; closing_date: string | null; date_opened: string | null }[]
+  const rows = vacancies as { id: string; title: string | null; tipo_profesional: string | null; total_candidates: number | null; hiring_target: number | null; closing_date: string | null; date_opened: string | null; ratio_exito_contactados: number | null; ratio_descarte: number | null }[]
   const ids = rows.map((r) => r.id)
 
   // 2. Weekly CVs — this week + last week
@@ -2096,5 +2108,7 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
     hiringTarget: v.hiring_target ?? null,
     closingDate: v.closing_date ?? null,
     dateOpened: v.date_opened ?? null,
+    ratioExitoContactados: v.ratio_exito_contactados ?? null,
+    ratioDescarte: v.ratio_descarte ?? null,
   }))
 }
