@@ -266,7 +266,8 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
             <span>{item.totalCandidates} candidatos</span>
             {item.ratioExitoContactados != null && (() => {
               const pct = Math.round(item.ratioExitoContactados! * 100)
-              const color = pct >= 30 ? '#16a34a' : pct >= 15 ? '#d97706' : '#dc2626'
+              const T = (item.ratioExitoThreshold ?? 0.06) * 100
+              const color = pct >= T ? '#16a34a' : pct >= T * 0.5 ? '#d97706' : '#dc2626'
               return (
                 <>
                   <span>·</span>
@@ -276,7 +277,8 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
             })()}
             {item.ratioDescarte != null && (() => {
               const pct = Math.round(item.ratioDescarte! * 100)
-              const color = pct >= 50 ? '#dc2626' : pct >= 30 ? '#d97706' : '#78716c'
+              const T = (item.ratioDescarteThreshold ?? 0.50) * 100
+              const color = pct <= T * 0.6 ? '#78716c' : pct <= T ? '#d97706' : '#dc2626'
               return (
                 <>
                   <span>·</span>

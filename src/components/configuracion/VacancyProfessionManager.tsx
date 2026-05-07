@@ -5,6 +5,7 @@ import {
   getVacanciesForProfessionConfig,
   updateVacancyTipoProfesional,
   updateVacancyHiringFields,
+  updateVacancyRatioThresholds,
   type VacancyForConfig,
   type TipoProfesionalRow,
 } from '@/lib/queries/atraccion'
@@ -53,6 +54,10 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
   const [targetDrafts, setTargetDrafts] = useState<Record<string, string>>({})
   // closing date drafts per vacancy id (ISO string or '')
   const [closingDrafts, setClosingDrafts] = useState<Record<string, string>>({})
+  // ratio éxito threshold drafts per vacancy id (string in %, e.g. '6')
+  const [exitoDrafts, setExitoDrafts] = useState<Record<string, string>>({})
+  // ratio descarte threshold drafts per vacancy id (string in %, e.g. '50')
+  const [descarteDrafts, setDescarteDrafts] = useState<Record<string, string>>({})
   // row-level save state
   const [rowStates, setRowStates] = useState<Record<string, RowState>>({})
   // star state per vacancy id
@@ -74,14 +79,20 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
       const init: Record<string, TipoProfesional> = {}
       const initTargets: Record<string, string> = {}
       const initClosing: Record<string, string> = {}
+      const initExito: Record<string, string> = {}
+      const initDescarte: Record<string, string> = {}
       for (const v of data) {
         init[v.id] = v.tipoProfesionalDb
         initTargets[v.id] = v.hiringTarget != null ? String(v.hiringTarget) : ''
         initClosing[v.id] = v.closingDate ?? ''
+        initExito[v.id] = v.ratioExitoThreshold != null ? String(Math.round(v.ratioExitoThreshold * 100)) : ''
+        initDescarte[v.id] = v.ratioDescarteThreshold != null ? String(Math.round(v.ratioDescarteThreshold * 100)) : ''
       }
       setDrafts(init)
       setTargetDrafts(initTargets)
       setClosingDrafts(initClosing)
+      setExitoDrafts(initExito)
+      setDescarteDrafts(initDescarte)
       setLoading(false)
     })
     return () => { cancelled = true }
@@ -156,6 +167,46 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
       return
     }
     setVacancies((prev) => prev.map((item) => item.id === v.id ? { ...item, closingDate: raw || null } : item))
+    setRowStates((prev) => ({ ...prev, [v.id]: 'saved' }))
+    setTimeout(() => setRowStates((prev) => ({ ...prev, [v.id]: 'idle' })), 2000)
+  }
+
+  async function handleSaveRatioExito(v: VacancyForConfig) {
+    const raw = exitoDrafts[v.id] ?? ''
+    const parsed = raw === '' ? null : parseFloat(raw) / 100
+    if (raw !== '' && (Number.isNaN(parsed) || (parsed as number) < 0 || (parsed as number) > 1)) return
+
+    const originalPct = v.ratioExitoThreshold != null ? String(Math.round(v.ratioExitoThreshold * 100)) : ''
+    if (raw === originalPct) return
+
+    setRowStates((prev) => ({ ...prev, [v.id]: 'saving' }))
+    const { error } = await updateVacancyRatioThresholds(v.id, { ratioExitoThreshold: parsed })
+    if (error) {
+      setRowStates((prev) => ({ ...prev, [v.id]: 'error' }))
+      setTimeout(() => setRowStates((prev) => ({ ...prev, [v.id]: 'idle' })), 3000)
+      return
+    }
+    setVacancies((prev) => prev.map((item) => item.id === v.id ? { ...item, ratioExitoThreshold: parsed } : item))
+    setRowStates((prev) => ({ ...prev, [v.id]: 'saved' }))
+    setTimeout(() => setRowStates((prev) => ({ ...prev, [v.id]: 'idle' })), 2000)
+  }
+
+  async function handleSaveRatioDescarte(v: VacancyForConfig) {
+    const raw = descarteDrafts[v.id] ?? ''
+    const parsed = raw === '' ? null : parseFloat(raw) / 100
+    if (raw !== '' && (Number.isNaN(parsed) || (parsed as number) < 0 || (parsed as number) > 1)) return
+
+    const originalPct = v.ratioDescarteThreshold != null ? String(Math.round(v.ratioDescarteThreshold * 100)) : ''
+    if (raw === originalPct) return
+
+    setRowStates((prev) => ({ ...prev, [v.id]: 'saving' }))
+    const { error } = await updateVacancyRatioThresholds(v.id, { ratioDescarteThreshold: parsed })
+    if (error) {
+      setRowStates((prev) => ({ ...prev, [v.id]: 'error' }))
+      setTimeout(() => setRowStates((prev) => ({ ...prev, [v.id]: 'idle' })), 3000)
+      return
+    }
+    setVacancies((prev) => prev.map((item) => item.id === v.id ? { ...item, ratioDescarteThreshold: parsed } : item))
     setRowStates((prev) => ({ ...prev, [v.id]: 'saved' }))
     setTimeout(() => setRowStates((prev) => ({ ...prev, [v.id]: 'idle' })), 2000)
   }
@@ -442,6 +493,32 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
                   color: C.thColor,
                   fontSize: 11,
                   fontWeight: 500,
+                  width: 80,
+                }}
+                title="Umbral mínimo de ratio éxito sobre contactados (en %)"
+              >
+                % Éxito mín.
+              </th>
+              <th
+                style={{
+                  padding: '7px 10px',
+                  textAlign: 'center',
+                  color: C.thColor,
+                  fontSize: 11,
+                  fontWeight: 500,
+                  width: 80,
+                }}
+                title="Umbral máximo de ratio descarte (en %)"
+              >
+                % Desc. máx.
+              </th>
+              <th
+                style={{
+                  padding: '7px 10px',
+                  textAlign: 'center',
+                  color: C.thColor,
+                  fontSize: 11,
+                  fontWeight: 500,
                   width: 90,
                 }}
               >
@@ -453,7 +530,7 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
             {filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={11}
                   style={{
                     padding: '24px',
                     textAlign: 'center',
@@ -700,6 +777,56 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
                           background: '#fff',
                           color: C.text,
                           outline: 'none',
+                        }}
+                      />
+                    </td>
+
+                    {/* % Éxito mín. (ratio_exito_threshold) — inline editable */}
+                    <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={exitoDrafts[v.id] ?? ''}
+                        placeholder="6"
+                        onChange={(e) => setExitoDrafts((prev) => ({ ...prev, [v.id]: e.target.value }))}
+                        onBlur={() => handleSaveRatioExito(v)}
+                        style={{
+                          width: 72,
+                          border: `1px solid ${C.selectBorder}`,
+                          borderRadius: 6,
+                          fontSize: 12,
+                          padding: '3px 6px',
+                          background: '#fff',
+                          color: C.text,
+                          outline: 'none',
+                          textAlign: 'center',
+                        }}
+                      />
+                    </td>
+
+                    {/* % Desc. máx. (ratio_descarte_threshold) — inline editable */}
+                    <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={descarteDrafts[v.id] ?? ''}
+                        placeholder="50"
+                        onChange={(e) => setDescarteDrafts((prev) => ({ ...prev, [v.id]: e.target.value }))}
+                        onBlur={() => handleSaveRatioDescarte(v)}
+                        style={{
+                          width: 72,
+                          border: `1px solid ${C.selectBorder}`,
+                          borderRadius: 6,
+                          fontSize: 12,
+                          padding: '3px 6px',
+                          background: '#fff',
+                          color: C.text,
+                          outline: 'none',
+                          textAlign: 'center',
                         }}
                       />
                     </td>

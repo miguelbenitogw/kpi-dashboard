@@ -1741,12 +1741,16 @@ export interface VacancyForConfig {
   hiringTarget: number | null
   /** Recruitment closing date in ISO format (null = no deadline set) */
   closingDate: string | null
+  /** Color threshold for ratio éxito (decimal, e.g. 0.06 = 6%) */
+  ratioExitoThreshold: number | null
+  /** Color threshold for ratio descarte (decimal, e.g. 0.50 = 50%) */
+  ratioDescarteThreshold: number | null
 }
 
 export async function getVacanciesForProfessionConfig(): Promise<VacancyForConfig[]> {
   const { data, error } = await (supabase as any)
     .from('job_openings_kpi')
-    .select('id, title, tipo_profesional, es_proceso_atraccion_actual, zoho_job_number, is_vacante_principal, hiring_target, closing_date')
+    .select('id, title, tipo_profesional, es_proceso_atraccion_actual, zoho_job_number, is_vacante_principal, hiring_target, closing_date, ratio_exito_threshold, ratio_descarte_threshold')
     .order('es_proceso_atraccion_actual', { ascending: false })
     .order('title', { ascending: true })
 
@@ -1766,6 +1770,8 @@ export async function getVacanciesForProfessionConfig(): Promise<VacancyForConfi
     isVacantePrincipal: r.is_vacante_principal ?? false,
     hiringTarget: r.hiring_target ?? null,
     closingDate: r.closing_date ?? null,
+    ratioExitoThreshold: r.ratio_exito_threshold ?? null,
+    ratioDescarteThreshold: r.ratio_descarte_threshold ?? null,
   }))
 }
 
@@ -1800,6 +1806,26 @@ export async function updateVacancyHiringFields(
 
   if (error) {
     console.error('[atraccion] updateVacancyHiringFields error:', error)
+    return { error: error.message }
+  }
+  return { error: null }
+}
+
+export async function updateVacancyRatioThresholds(
+  vacancyId: string,
+  fields: { ratioExitoThreshold?: number | null; ratioDescarteThreshold?: number | null },
+): Promise<{ error: string | null }> {
+  const payload: Record<string, unknown> = {}
+  if ('ratioExitoThreshold' in fields) payload.ratio_exito_threshold = fields.ratioExitoThreshold ?? null
+  if ('ratioDescarteThreshold' in fields) payload.ratio_descarte_threshold = fields.ratioDescarteThreshold ?? null
+
+  const { error } = await (supabase as any)
+    .from('job_openings_kpi')
+    .update(payload)
+    .eq('id', vacancyId)
+
+  if (error) {
+    console.error('[atraccion] updateVacancyRatioThresholds error:', error)
     return { error: error.message }
   }
   return { error: null }
@@ -2003,13 +2029,17 @@ export interface ResumenVacanteItem {
    * null when total is 0
    */
   ratioDescarte: number | null
+  /** Configurable color threshold for ratio éxito (default 0.06 = 6%) */
+  ratioExitoThreshold: number | null
+  /** Configurable color threshold for ratio descarte (default 0.50 = 50%) */
+  ratioDescarteThreshold: number | null
 }
 
 export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[]> {
   // 1. Starred vacancies
   const { data: vacancies, error: vacError } = await (supabase as any)
     .from('job_openings_kpi')
-    .select('id, title, tipo_profesional, total_candidates, hiring_target, closing_date, date_opened, ratio_exito_contactados, ratio_descarte')
+    .select('id, title, tipo_profesional, total_candidates, hiring_target, closing_date, date_opened, ratio_exito_contactados, ratio_descarte, ratio_exito_threshold, ratio_descarte_threshold')
     .eq('is_vacante_principal', true)
     .order('tipo_profesional', { ascending: true })
 
@@ -2018,7 +2048,7 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
     return []
   }
 
-  const rows = vacancies as { id: string; title: string | null; tipo_profesional: string | null; total_candidates: number | null; hiring_target: number | null; closing_date: string | null; date_opened: string | null; ratio_exito_contactados: number | null; ratio_descarte: number | null }[]
+  const rows = vacancies as { id: string; title: string | null; tipo_profesional: string | null; total_candidates: number | null; hiring_target: number | null; closing_date: string | null; date_opened: string | null; ratio_exito_contactados: number | null; ratio_descarte: number | null; ratio_exito_threshold: number | null; ratio_descarte_threshold: number | null }[]
   const ids = rows.map((r) => r.id)
 
   // 2. Weekly CVs — this week + last week
@@ -2110,5 +2140,7 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
     dateOpened: v.date_opened ?? null,
     ratioExitoContactados: v.ratio_exito_contactados ?? null,
     ratioDescarte: v.ratio_descarte ?? null,
+    ratioExitoThreshold: v.ratio_exito_threshold ?? null,
+    ratioDescarteThreshold: v.ratio_descarte_threshold ?? null,
   }))
 }
