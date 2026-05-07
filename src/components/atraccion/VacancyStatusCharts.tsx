@@ -828,8 +828,7 @@ export default function VacancyStatusCharts({
                   const rows = tagData
                     .filter(d => tagPrefix(d.tag) === cat.prefix)
                     .sort((a, b) => b.count - a.count)
-                  if (rows.length === 0) return null
-                  const max = rows[0].count
+                  const max = rows.length > 0 ? rows[0].count : 1
                   const total = rows.reduce((s, r) => s + r.count, 0)
                   return (
                     <div key={cat.prefix} style={{ background: '#faf9f7', border: '1px solid #e7e2d8', borderRadius: 10, padding: '12px 14px' }}>
@@ -837,6 +836,9 @@ export default function VacancyStatusCharts({
                         <span style={{ fontSize: 11, fontWeight: 700, color: cat.color }}>{cat.prefix} — {cat.label}</span>
                         <span style={{ fontSize: 10, color: '#a8a29e' }}>{total.toLocaleString('es-AR')} total</span>
                       </div>
+                      {rows.length === 0 && (
+                        <div style={{ fontSize: 11, color: '#a8a29e', textAlign: 'center', padding: '12px 0' }}>Sin datos</div>
+                      )}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                         {rows.map(row => (
                           <div key={row.tag} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
