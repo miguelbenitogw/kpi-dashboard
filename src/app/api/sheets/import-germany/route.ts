@@ -56,6 +56,8 @@ export async function POST(request: NextRequest) {
           upserted: result.pagos.upserted,
           skipped: result.pagos.skipped,
           errors: result.pagos.errors,
+          headers_found: result.pagos.headers_found ?? [],
+          fields_mapped: result.pagos.fields_mapped ?? [],
         },
         errors: result.errors,
       },

@@ -408,11 +408,45 @@ const PAGOS_COLUMN_MAP: Record<string, string[]> = {
   fecha_inicio_contrato: ['inicio contrato laborar', 'fecha de inicio contrato', 'fecha inicio contrato', 'contrato laborar'],
   opcion_financiacion: ['opcion de financiacion', 'opcion financiacion', 'opción de financiación', 'financiacion'],
   fecha_inicio_pago: ['de pago del alumno', 'fecha inicio de pago', 'inicio pago del alumno', 'fecha inicio pago', 'inicio pago'],
-  importe_formacion: ['importe de formacion', 'importe formacion'],
-  importe_piso_gw: ['importe piso gw', 'piso gw'],
-  ayuda_kilometraje: ['ayuda kilometraje', 'kilometraje'],
-  importe_total: ['importe total'],
-  importe_pendiente: ['importe pendiente de pago', 'importe pendiente', 'pendiente de pago'],
+  importe_formacion: [
+    'importe de formacion',
+    'importe formacion',
+    'importe de la formacion',
+    'coste formacion',
+    'coste de formacion',
+    'precio formacion',
+    'total formacion',
+    'formacion importe',
+    'importe curso',
+    'coste curso',
+  ],
+  importe_piso_gw: ['importe piso gw', 'piso gw', 'importe piso', 'piso globalworking', 'piso gw importe'],
+  ayuda_kilometraje: ['ayuda kilometraje', 'kilometraje', 'ayuda km', 'km'],
+  importe_total: [
+    'importe total',
+    'total a pagar',
+    'total importe',
+    'importe total a pagar',
+    'total general',
+    'suma total',
+    'total deuda',
+    'deuda total',
+  ],
+  // NOTE: 'importe pendiente' must come AFTER 'importe total' in the map so that
+  // pass-2 substring on "importe total" doesn't accidentally match "importe pendiente".
+  // Do NOT add short variants like 'pendiente' (4+ chars triggers substring) or
+  // 'total pendiente' (would be substring-matched against "importe total pendiente"
+  // BEFORE importe_total gets a chance — but importe_total comes first so actually
+  // importe_total would steal it; keep 'total pendiente' out to be safe).
+  importe_pendiente: [
+    'importe pendiente de pago',
+    'importe pendiente',
+    'pendiente de pago',
+    'pendiente pago',
+    'saldo pendiente',
+    'resta pendiente',
+    'falta pagar',
+  ],
   enviar_abogado: ['enviar abogado'],
   correo: ['email', 'correo', 'e-mail'],
 }
@@ -421,6 +455,10 @@ export interface GermanyPagosResult {
   upserted: number
   skipped: number
   errors: string[]
+  /** Raw headers found in the sheet — useful for debugging column mapping issues */
+  headers_found?: string[]
+  /** Which canonical fields were successfully mapped to a sheet column */
+  fields_mapped?: string[]
 }
 
 /**
@@ -519,6 +557,11 @@ export async function importGermanyPagos(sheetId: string): Promise<GermanyPagosR
   const headers = Object.keys(rows[0]!)
   const headerMap = buildHeaderMap(headers, PAGOS_COLUMN_MAP)
   const { cuotaHeaders, cuotaSimpleHeaders } = parseCuotaHeaders(headers)
+
+  // Expose raw headers and mapped fields for debugging — lets callers see
+  // exactly what column names the sheet has so mismatches can be diagnosed.
+  result.headers_found = headers
+  result.fields_mapped = Array.from(new Set(headerMap.values()))
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!
