@@ -8,7 +8,7 @@ import GPStatusView from '@/components/colocacion/GPStatusView'
 import { getGPPromotions, type PromoGPSummary } from '@/lib/queries/colocacion'
 
 export default function ColocacionPage() {
-  const [promos, setPromos]             = useState<PromoGPSummary[]>([])
+  const [promos, setPromos]               = useState<PromoGPSummary[]>([])
   const [selectedPromo, setSelectedPromo] = useState('')
 
   useEffect(() => {
@@ -18,37 +18,57 @@ export default function ColocacionPage() {
   return (
     <div className="space-y-8 pb-10">
 
-      {/* ── Heading ── */}
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: '#1c1917' }}>Colocación</h1>
-        <p className="mt-1 text-sm" style={{ color: '#78716c' }}>
-          Global Placement — seguimiento de candidatos noruegos: readiness, solicitudes y estado de colocación.
-        </p>
-      </div>
-
-      {/* ── Promo selector (shared between both sections) ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <label style={{ fontSize: 13, color: '#78716c', fontWeight: 500 }}>Promoción:</label>
-        <select
-          value={selectedPromo}
-          onChange={(e) => setSelectedPromo(e.target.value)}
+      {/* ── Promo pill selector ── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+        {/* "Todas" pill */}
+        <button
+          onClick={() => setSelectedPromo('')}
           style={{
-            padding: '6px 12px',
-            fontSize: 13,
-            border: '1px solid #e7e2d8',
-            borderRadius: 8,
-            background: '#fff',
-            color: '#1c1917',
-            outline: 'none',
+            borderRadius: 99,
+            padding: '4px 12px',
+            fontSize: 12,
+            fontWeight: selectedPromo === '' ? 600 : 500,
+            border: selectedPromo === '' ? '1px solid #1e4b9e' : '1px solid #e7e2d8',
+            background: selectedPromo === '' ? '#eff6ff' : '#fff',
+            color: selectedPromo === '' ? '#1e4b9e' : '#78716c',
+            cursor: 'pointer',
+            transition: 'all 120ms',
+            whiteSpace: 'nowrap',
           }}
         >
-          <option value="">Todas ({promos.reduce((s, p) => s + p.count, 0)})</option>
-          {promos.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.name} ({p.count})
-            </option>
-          ))}
-        </select>
+          Todas
+        </button>
+
+        {/* divider */}
+        <span style={{ width: 1, height: 16, background: '#e7e2d8', flexShrink: 0 }} />
+
+        {/* One pill per promo */}
+        {promos.map((p) => {
+          const active = selectedPromo === p.name
+          return (
+            <button
+              key={p.name}
+              onClick={() => setSelectedPromo(active ? '' : p.name)}
+              style={{
+                borderRadius: 99,
+                padding: '4px 12px',
+                fontSize: 12,
+                fontWeight: active ? 600 : 500,
+                border: active ? '1px solid #1e4b9e' : '1px solid #e7e2d8',
+                background: active ? '#eff6ff' : '#fff',
+                color: active ? '#1e4b9e' : '#78716c',
+                cursor: 'pointer',
+                transition: 'all 120ms',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {p.name}
+              <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.7 }}>
+                {p.count}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* ── Readiness table ── */}

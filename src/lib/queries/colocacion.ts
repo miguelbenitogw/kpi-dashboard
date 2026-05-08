@@ -298,7 +298,7 @@ export async function getGPKPIStats(promoNombre?: string | null): Promise<GPKPIS
   const pending   = active.filter((r) => GP_PENDING.has(r.gp_training_status)).length
   const total     = active.length
 
-  const pct = (n: number) => total > 0 ? Math.round((n / total) * 10) / 10 : 0
+  const pct = (n: number) => total > 0 ? Math.round((n / total) * 1000) / 10 : 0
 
   return {
     total_active:  total,
