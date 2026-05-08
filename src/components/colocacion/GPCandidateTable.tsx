@@ -11,27 +11,38 @@ import {
 
 // ── KPI summary cards ─────────────────────────────────────────────────────────
 
-function KPICard({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0
+function KPICard({
+  label, value, pct, color, bg, sublabel,
+}: {
+  label: string
+  value: number
+  pct?: number
+  color: string
+  bg: string
+  sublabel?: string
+}) {
   return (
     <div
       style={{
-        background: '#ffffff',
-        border: '1px solid #e7e2d8',
+        background: bg,
+        border: `1px solid ${color}30`,
         borderRadius: 12,
         padding: '14px 18px',
         flex: 1,
-        minWidth: 120,
+        minWidth: 130,
       }}
     >
-      <div style={{ fontSize: 22, fontWeight: 700, color, lineHeight: 1 }}>
+      <div style={{ fontSize: 26, fontWeight: 700, color, lineHeight: 1 }}>
         {value}
+        {pct !== undefined && (
+          <span style={{ fontSize: 13, fontWeight: 500, color, opacity: 0.7, marginLeft: 6 }}>
+            {pct}%
+          </span>
+        )}
       </div>
-      <div style={{ fontSize: 11, color: '#78716c', marginTop: 4, fontWeight: 500 }}>{label}</div>
-      {total > 0 && (
-        <div style={{ fontSize: 10, color: '#a8a29e', marginTop: 2 }}>
-          {pct}% del total
-        </div>
+      <div style={{ fontSize: 12, color: '#1c1917', marginTop: 5, fontWeight: 600 }}>{label}</div>
+      {sublabel && (
+        <div style={{ fontSize: 10, color: '#a8a29e', marginTop: 2 }}>{sublabel}</div>
       )}
     </div>
   )
@@ -208,14 +219,76 @@ export default function GPCandidateTable({ promoFilter }: { promoFilter: string 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-      {/* KPI cards */}
+      {/* KPI cards — placement funnel */}
       {stats && (
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <KPICard label="Total en GP" value={stats.total}         total={stats.total} color="#1e4b9e" />
-          <KPICard label="HPR Nummer"  value={stats.with_hpr}      total={stats.total} color="#15803d" />
-          <KPICard label="Solicitudes enviadas" value={stats.app_sent} total={stats.total} color="#b45309" />
-          <KPICard label="Talent Portal" value={stats.talent_portal} total={stats.total} color="#7c3aed" />
-          <KPICard label="CV Norsk"    value={stats.with_cv_norsk} total={stats.total} color="#0e7490" />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Row 1: the 3 funnel states */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <KPICard
+              label="Pendiente de colocar"
+              value={stats.pending}
+              pct={stats.pct_pending}
+              color="#b45309"
+              bg="#fffbeb"
+              sublabel="Terminaron formación · sin plaza aún"
+            />
+            <KPICard
+              label="En formación"
+              value={stats.in_training}
+              pct={stats.pct_training}
+              color="#1d4ed8"
+              bg="#eff6ff"
+              sublabel="Aún en proceso de formación"
+            />
+            <KPICard
+              label="Colocados"
+              value={stats.placed}
+              pct={stats.pct_placed}
+              color="#15803d"
+              bg="#f0fdf4"
+              sublabel="Assigned · Approved · Hired"
+            />
+            <KPICard
+              label="Total activos"
+              value={stats.total_active}
+              color="#44403c"
+              bg="#f5f1ea"
+              sublabel="Sin Withdrawn / Expelled / NoShow"
+            />
+          </div>
+
+          {/* Progress bar: formación | pendiente | colocados */}
+          {stats.total_active > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  height: 8,
+                  borderRadius: 99,
+                  overflow: 'hidden',
+                  background: '#f0ece4',
+                }}
+              >
+                <div style={{ width: `${stats.pct_training}%`,  background: '#3b82f6', transition: 'width .4s' }} title={`En formación: ${stats.pct_training}%`} />
+                <div style={{ width: `${stats.pct_pending}%`,   background: '#f59e0b', transition: 'width .4s' }} title={`Pendiente: ${stats.pct_pending}%`} />
+                <div style={{ width: `${stats.pct_placed}%`,    background: '#22c55e', transition: 'width .4s' }} title={`Colocados: ${stats.pct_placed}%`} />
+              </div>
+              <div style={{ display: 'flex', gap: 14, fontSize: 10, color: '#a8a29e' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
+                  Formación
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
+                  Pendiente de plaza
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                  Colocados
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

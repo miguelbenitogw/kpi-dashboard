@@ -246,32 +246,63 @@ export async function getGPCandidatesFull(
   return (data ?? []) as GPCandidateFull[]
 }
 
-// ── KPI stats for header cards ────────────────────────────────────────────────
+// ── KPI stats — placement funnel ─────────────────────────────────────────────
+
+// Statuses that mean the candidate exited the pipeline (don't count in denominator)
+const GP_EXCLUDED = new Set([
+  'Offer Withdrawn', 'Offer Declined', 'Expelled', 'No Show',
+])
+
+// Successfully placed
+const GP_PLACED = new Set([
+  'Approved by client', 'Assigned', 'Hired', 'Transferred',
+])
+
+// Finished training but waiting for a placement
+const GP_PENDING = new Set([
+  'To Place', 'Rejected by client', 'Next Project', 'Waiting for consensus', 'Stand By',
+])
+
+// Still in training (not ready for placement yet)
+const GP_IN_TRAINING = new Set(['In Training'])
 
 export interface GPKPIStats {
-  total: number
-  with_hpr: number
-  app_sent: number
-  talent_portal: number
-  with_cv_norsk: number
+  total_active:  number   // all GP candidates excluding exited ones
+  placed:        number   // Approved + Assigned + Hired + Transferred
+  in_training:   number   // In Training
+  pending:       number   // finished but no placement yet
+  pct_placed:    number   // placed / total_active * 100
+  pct_pending:   number   // pending / total_active * 100
+  pct_training:  number   // in_training / total_active * 100
 }
 
 export async function getGPKPIStats(promoNombre?: string | null): Promise<GPKPIStats> {
   let query = (supabase as any)
     .from('candidates_kpi')
-    .select('gp_hpr_nummer, gp_application_sent, gp_profile_talent_portal, gp_cv_norsk')
+    .select('gp_training_status')
     .not('gp_training_status', 'is', null)
 
   if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
 
   const { data } = await query
-  const rows: GPCandidateFull[] = data ?? []
+  const rows: { gp_training_status: string }[] = data ?? []
+
+  const active    = rows.filter((r) => !GP_EXCLUDED.has(r.gp_training_status))
+  const placed    = active.filter((r) => GP_PLACED.has(r.gp_training_status)).length
+  const training  = active.filter((r) => GP_IN_TRAINING.has(r.gp_training_status)).length
+  const pending   = active.filter((r) => GP_PENDING.has(r.gp_training_status)).length
+  const total     = active.length
+
+  const pct = (n: number) => total > 0 ? Math.round((n / total) * 10) / 10 : 0
+
   return {
-    total:          rows.length,
-    with_hpr:       rows.filter((r: any) => r.gp_hpr_nummer && String(r.gp_hpr_nummer).trim()).length,
-    app_sent:       rows.filter((r: any) => r.gp_application_sent === true).length,
-    talent_portal:  rows.filter((r: any) => r.gp_profile_talent_portal === true).length,
-    with_cv_norsk:  rows.filter((r: any) => r.gp_cv_norsk === true).length,
+    total_active:  total,
+    placed,
+    in_training:   training,
+    pending,
+    pct_placed:    pct(placed),
+    pct_pending:   pct(pending),
+    pct_training:  pct(training),
   }
 }
 
