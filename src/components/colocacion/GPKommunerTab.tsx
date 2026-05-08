@@ -2,11 +2,53 @@
 
 import { useState, useEffect } from 'react'
 import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+} from 'recharts'
+import {
   getGPKommunerTabData,
   type GPKommunerTabData,
   type GPKommunerCandidateRow,
   type GPWantedKommunerRow,
 } from '@/lib/queries/colocacion'
+
+// ── chart helpers ─────────────────────────────────────────────────────────────
+
+const CHART_COLORS = ['#0e7490', '#0891b2', '#06b6d4', '#67e8f9', '#a5f3fc', '#cffafe']
+
+function countByField(rows: GPKommunerCandidateRow[], field: keyof GPKommunerCandidateRow) {
+  const counts: Record<string, number> = {}
+  for (const r of rows) {
+    const val = (r[field] as string | null) ?? '(sin estado)'
+    counts[val] = (counts[val] ?? 0) + 1
+  }
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, value]) => ({ name, value }))
+}
+
+function StatusChart({ title, data }: { title: string; data: { name: string; value: number }[] }) {
+  if (data.length === 0) return null
+  return (
+    <div style={{ flex: '1 1 260px', minWidth: 240 }}>
+      <p style={{ fontSize: 12, fontWeight: 600, color: '#1c1917', marginBottom: 8 }}>{title}</p>
+      <ResponsiveContainer width="100%" height={180}>
+        <BarChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+          <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
+          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+          <Tooltip
+            contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e7e2d8' }}
+            cursor={{ fill: '#f5f5f4' }}
+          />
+          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+            {data.map((_, i) => (
+              <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -80,39 +122,6 @@ function AppStatsBox({ stats, year }: {
       <span style={{ fontSize: 11, color: '#a8a29e', marginLeft: 'auto' }}>
         Cobertura: {stats.coverage}/{stats.total} candidatos ({coveragePct}%)
       </span>
-    </div>
-  )
-}
-
-function KommunerTable({ rows }: { rows: GPKommunerCandidateRow[] }) {
-  if (rows.length === 0) {
-    return <p style={{ fontSize: 13, color: '#78716c', textAlign: 'center', padding: 24 }}>Sin candidatos en Kommuner para este año.</p>
-  }
-
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid #e7e2d8' }}>
-            {['Nombre', 'Promo', 'Estado GP', 'Placement', 'Solicitudes'].map((h) => (
-              <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: '#78716c', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id} style={{ borderBottom: '1px solid #f5f5f4' }}>
-              <td style={{ padding: '7px 10px', fontWeight: 500, color: '#1c1917', whiteSpace: 'nowrap' }}>{r.full_name ?? '—'}</td>
-              <td style={{ padding: '7px 10px', color: '#78716c', whiteSpace: 'nowrap' }}>{r.promocion_nombre ?? '—'}</td>
-              <td style={{ padding: '7px 10px' }}>{statusBadge(r.gp_training_status)}</td>
-              <td style={{ padding: '7px 10px' }}>{statusBadge(r.placement_status)}</td>
-              <td style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600, color: r.gp_total_applications != null ? '#0e7490' : '#d1d5db' }}>
-                {r.gp_total_applications ?? '—'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   )
 }
@@ -203,18 +212,35 @@ export default function GPKommunerTab({ year }: { year: number }) {
       {/* Stats box */}
       <AppStatsBox stats={data.appStats} year={year} />
 
-      {/* Kommuner candidates table */}
-      <div>
-        <div style={{ marginBottom: 10, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <h3 style={{ fontSize: 13, fontWeight: 600, color: '#1c1917', margin: 0 }}>
-            Candidatos en Kommuner
-          </h3>
-          <span style={{ fontSize: 12, color: '#78716c' }}>{data.kommunerCandidates.length} candidatos</span>
+      {/* Status charts */}
+      {data.kommunerCandidates.length > 0 && (
+        <div>
+          <div style={{ marginBottom: 10, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 600, color: '#1c1917', margin: 0 }}>
+              Distribución de estados
+            </h3>
+            <span style={{ fontSize: 12, color: '#78716c' }}>{data.kommunerCandidates.length} candidatos presentados</span>
+          </div>
+          <div style={{
+            border: '1px solid #e7e2d8',
+            borderRadius: 12,
+            background: '#fff',
+            padding: '16px 20px',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 24,
+          }}>
+            <StatusChart
+              title="Placement Status"
+              data={countByField(data.kommunerCandidates, 'placement_status')}
+            />
+            <StatusChart
+              title="GP Training Status"
+              data={countByField(data.kommunerCandidates, 'gp_training_status')}
+            />
+          </div>
         </div>
-        <div style={{ border: '1px solid #e7e2d8', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
-          <KommunerTable rows={data.kommunerCandidates} />
-        </div>
-      </div>
+      )}
 
       {/* "Wanted Kommuner but in agency" section */}
       <WantedKommunerSection rows={data.wantedKommunerInAgency} year={year} />
