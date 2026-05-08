@@ -459,6 +459,221 @@ export async function getGPKommunerCandidates(
   ) as GPKommunerCandidate[]
 }
 
+// ── Year-based queries (Excel Madre year) ────────────────────────────────────
+
+/** Returns the years that have a Norway Excel Madre sheet, e.g. [2025, 2026] */
+export async function getGPAvailableYears(): Promise<number[]> {
+  const { data } = await (supabase as any)
+    .from('madre_sheets_kpi')
+    .select('year')
+    .eq('programa', 'noruega')
+    .order('year', { ascending: true })
+  return (data ?? []).map((r: any) => r.year as number)
+}
+
+/** Returns promotion IDs whose fecha_inicio falls within the given calendar year */
+async function getPromotionIdsByYear(year: number): Promise<string[]> {
+  const { data } = await (supabase as any)
+    .from('promotions_kpi')
+    .select('id')
+    .gte('fecha_inicio', `${year}-01-01`)
+    .lt('fecha_inicio', `${year + 1}-01-01`)
+    .not('fecha_inicio', 'is', null)
+  return (data ?? []).map((r: any) => r.id as string)
+}
+
+// ── Kommuner tab ──────────────────────────────────────────────────────────────
+
+export interface GPKommunerCandidateRow {
+  id: string
+  full_name: string | null
+  promocion_nombre: string | null
+  placement_status: string | null
+  gp_training_status: string | null
+  gp_open_to: string | null
+  gp_total_applications: number | null
+  presentations_kommuner: number
+}
+
+export interface GPWantedKommunerRow {
+  id: string
+  full_name: string | null
+  promocion_nombre: string | null
+  gp_open_to: string | null
+  assigned_agency: string | null
+  placement_status: string | null
+  gp_training_status: string | null
+  presentations_kommuner: number
+}
+
+export interface GPAppStats {
+  mean: number
+  median: number
+  stddev: number
+  coverage: number   // candidates with data
+  total: number      // total Kommuner candidates
+}
+
+export interface GPKommunerTabData {
+  kommunerCandidates: GPKommunerCandidateRow[]
+  appStats: GPAppStats | null
+  wantedKommunerInAgency: GPWantedKommunerRow[]
+}
+
+export async function getGPKommunerTabData(year: number): Promise<GPKommunerTabData> {
+  const promoIds = await getPromotionIdsByYear(year)
+  if (!promoIds.length) return { kommunerCandidates: [], appStats: null, wantedKommunerInAgency: [] }
+
+  const EXCLUDED_STATUSES = '("Offer Withdrawn","Offer Declined","Expelled","No Show")'
+
+  const [kommunerRes, wantedRes, appsRes] = await Promise.all([
+    // Kommuner-placed candidates
+    (supabase as any)
+      .from('candidates_kpi')
+      .select('id, full_name, promocion_nombre, placement_status, gp_training_status, gp_open_to, gp_total_applications')
+      .eq('assigned_agency', 'GP - Kommuner')
+      .not('gp_training_status', 'is', null)
+      .not('gp_training_status', 'in', EXCLUDED_STATUSES)
+      .in('promotion_id', promoIds)
+      .order('full_name', { ascending: true }),
+
+    // Wanted Kommuner but ended up with a Vikar agency
+    (supabase as any)
+      .from('candidates_kpi')
+      .select('id, full_name, promocion_nombre, placement_status, gp_training_status, gp_open_to, assigned_agency')
+      .or('gp_open_to.ilike.%kommuner%,gp_open_to.ilike.%Komunner%')
+      .not('assigned_agency', 'is', null)
+      .neq('assigned_agency', 'GP - Kommuner')
+      .neq('assigned_agency', 'Not applicable')
+      .not('gp_training_status', 'is', null)
+      .not('gp_training_status', 'in', EXCLUDED_STATUSES)
+      .in('promotion_id', promoIds)
+      .order('full_name', { ascending: true }),
+
+    // GP applications for this year (to count Kommuner presentations)
+    (supabase as any)
+      .from('norway_gp_applications_kpi')
+      .select('candidate_id, job_title')
+      .eq('sheet_year', year),
+  ])
+
+  // Build map: candidate_id → Kommuner presentation count
+  // (exclude hospital / vikar-agency job titles)
+  const kommunerPresentations = new Map<string, number>()
+  for (const app of (appsRes.data ?? []) as { candidate_id: string; job_title: string | null }[]) {
+    if (!app.job_title) continue
+    const t = app.job_title.toLowerCase()
+    const isVikarOrHospital =
+      t.includes('sykehuset') || t.includes('klinikk') ||
+      t.includes('vikar')     || t.includes('randstad') ||
+      t.includes('adecco')    || t.includes('helseekspress')
+    if (!isVikarOrHospital) {
+      kommunerPresentations.set(app.candidate_id, (kommunerPresentations.get(app.candidate_id) ?? 0) + 1)
+    }
+  }
+
+  // Kommuner candidates + their stats
+  const kommunerData: any[] = kommunerRes.data ?? []
+  const kommunerCandidates: GPKommunerCandidateRow[] = kommunerData.map((r) => ({
+    id:                   r.id,
+    full_name:            r.full_name,
+    promocion_nombre:     r.promocion_nombre,
+    placement_status:     r.placement_status,
+    gp_training_status:   r.gp_training_status,
+    gp_open_to:           r.gp_open_to,
+    gp_total_applications: r.gp_total_applications,
+    presentations_kommuner: kommunerPresentations.get(r.id) ?? 0,
+  }))
+
+  // Application stats (mean / median / stddev)
+  const appValues = kommunerData
+    .filter((r) => r.gp_total_applications != null)
+    .map((r) => r.gp_total_applications as number)
+
+  let appStats: GPAppStats | null = null
+  if (appValues.length > 0) {
+    const n      = appValues.length
+    const mean   = appValues.reduce((a, b) => a + b, 0) / n
+    const sorted = [...appValues].sort((a, b) => a - b)
+    const median = n % 2 === 0
+      ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2
+      : sorted[Math.floor(n / 2)]
+    const variance = appValues.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / n
+    appStats = {
+      mean:     Math.round(mean   * 10) / 10,
+      median:   Math.round(median * 10) / 10,
+      stddev:   Math.round(Math.sqrt(variance) * 10) / 10,
+      coverage: n,
+      total:    kommunerData.length,
+    }
+  }
+
+  // "Wanted Kommuner but in agency"
+  const wantedKommunerInAgency: GPWantedKommunerRow[] = ((wantedRes.data ?? []) as any[]).map((r) => ({
+    id:                   r.id,
+    full_name:            r.full_name,
+    promocion_nombre:     r.promocion_nombre,
+    gp_open_to:           r.gp_open_to,
+    assigned_agency:      r.assigned_agency,
+    placement_status:     r.placement_status,
+    gp_training_status:   r.gp_training_status,
+    presentations_kommuner: kommunerPresentations.get(r.id) ?? 0,
+  }))
+
+  return { kommunerCandidates, appStats, wantedKommunerInAgency }
+}
+
+// ── Agencias tab ──────────────────────────────────────────────────────────────
+
+export interface GPAgenciaCandidateRow {
+  id: string
+  full_name: string | null
+  promocion_nombre: string | null
+  placement_status: string | null
+  gp_training_status: string | null
+  gp_open_to: string | null
+}
+
+export interface GPAgenciaRow {
+  agency: string
+  count: number
+  candidates: GPAgenciaCandidateRow[]
+}
+
+export async function getGPAgenciaTabData(year: number): Promise<GPAgenciaRow[]> {
+  const promoIds = await getPromotionIdsByYear(year)
+  if (!promoIds.length) return []
+
+  const { data } = await (supabase as any)
+    .from('candidates_kpi')
+    .select('id, full_name, promocion_nombre, placement_status, gp_training_status, gp_open_to, assigned_agency')
+    .not('assigned_agency', 'is', null)
+    .neq('assigned_agency', 'GP - Kommuner')
+    .neq('assigned_agency', 'Not applicable')
+    .not('gp_training_status', 'is', null)
+    .not('gp_training_status', 'in', '("Offer Withdrawn","Offer Declined","Expelled","No Show")')
+    .in('promotion_id', promoIds)
+    .order('full_name', { ascending: true })
+
+  const agencyMap = new Map<string, GPAgenciaCandidateRow[]>()
+  for (const r of (data ?? []) as any[]) {
+    const agency = (r.assigned_agency as string).trim()
+    if (!agencyMap.has(agency)) agencyMap.set(agency, [])
+    agencyMap.get(agency)!.push({
+      id:                 r.id,
+      full_name:          r.full_name,
+      promocion_nombre:   r.promocion_nombre,
+      placement_status:   r.placement_status,
+      gp_training_status: r.gp_training_status,
+      gp_open_to:         r.gp_open_to,
+    })
+  }
+
+  return Array.from(agencyMap.entries())
+    .map(([agency, candidates]) => ({ agency, count: candidates.length, candidates }))
+    .sort((a, b) => b.count - a.count)
+}
+
 // ── Legacy (kept for backward compat with other components) ──────────────────
 
 export interface PlacementPreferenceCount {
