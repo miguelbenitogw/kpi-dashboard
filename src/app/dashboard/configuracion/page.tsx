@@ -2,6 +2,7 @@ import Link from 'next/link'
 import ConfiguracionClient from './ConfiguracionClient'
 import VacancyProfessionManagerWrapper from '@/components/configuracion/VacancyProfessionManagerWrapper'
 import KpiQualityDocs from '@/components/configuracion/KpiQualityDocs'
+import SyncAllButton from '@/components/configuracion/SyncAllButton'
 
 export const metadata = {
   title: 'Configuración | KPI Dashboard',
@@ -16,6 +17,19 @@ export default function ConfiguracionPage() {
           Gestioná las fuentes de datos y los umbrales del sistema.
         </p>
       </div>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold" style={{ color: '#1c1917' }}>Sincronización manual</h2>
+          <p className="mt-0.5 text-sm" style={{ color: '#78716c' }}>
+            Lanza el pipeline completo de sync: Excel Madre (Base Datos + Resumen), todas las promo sheets y el Global Placement de Noruega.
+            El cron diario lo corre automáticamente a las 06:00 UTC.
+          </p>
+        </div>
+        <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 20 }}>
+          <SyncAllButton />
+        </div>
+      </section>
 
       <section className="space-y-4">
         <div>
