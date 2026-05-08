@@ -131,9 +131,9 @@ type SortDir = 'asc' | 'desc'
 // Main view
 // ---------------------------------------------------------------------------
 
-export default function AlemaniaPagosView() {
-  const [loading, setLoading] = useState(true)
-  const [rows, setRows] = useState<GermanyPagoFullRow[]>([])
+export default function AlemaniaPagosView({ initialData }: { initialData?: GermanyPagoFullRow[] }) {
+  const [loading, setLoading] = useState(!initialData)
+  const [rows, setRows] = useState<GermanyPagoFullRow[]>(initialData ?? [])
   const [search, setSearch] = useState('')
   const [promoFilter, setPromoFilter] = useState<number | 'todas'>('todas')
   const [onlyPendiente, setOnlyPendiente] = useState(false)
@@ -142,8 +142,9 @@ export default function AlemaniaPagosView() {
   const [expandedCuotas, setExpandedCuotas] = useState<Set<number>>(new Set())
 
   useEffect(() => {
+    if (initialData) return   // datos ya disponibles desde el server
     getGermanyPagosFull().then(data => { setRows(data); setLoading(false) })
-  }, [])
+  }, [initialData])
 
   // Available promos
   const availablePromos = useMemo(() => {
