@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type CSSProperties } from 'react'
+import { RefreshCw, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import VacancyRecruitmentTable from '@/components/atraccion/VacancyRecruitmentTable'
 import VacancyStatusCharts from '@/components/atraccion/VacancyStatusCharts'
 import ReceivedCvsByVacancyView from '@/components/atraccion/ReceivedCvsByVacancyView'
@@ -33,6 +34,70 @@ const SELECT_STYLE: CSSProperties = {
   padding: '6px 12px',
   cursor: 'pointer',
   appearance: 'auto',
+}
+
+// ─── Sync all active vacancies button (for Vacantes tab) ─────────────────────
+
+function SyncAllActiveVacanciesButton() {
+  const [phase1, setPhase1] = useState<'idle'|'running'|'done'|'error'>('idle')
+  const [phase2, setPhase2] = useState<'idle'|'running'|'done'|'error'>('idle')
+  const [detail1, setDetail1] = useState<string|null>(null)
+  const [detail2, setDetail2] = useState<string|null>(null)
+  const running = phase1 === 'running' || phase2 === 'running'
+
+  async function handleSync() {
+    setPhase1('running'); setPhase2('idle'); setDetail1(null); setDetail2(null)
+    try {
+      const r1 = await fetch('/api/admin/sync-zoho-vacancies', { method: 'POST' })
+      const d1 = await r1.json()
+      if (!r1.ok || d1.error) { setPhase1('error'); setDetail1(d1.error ?? `HTTP ${r1.status}`); return }
+      setPhase1('done'); setDetail1(d1.synced != null ? `${d1.synced} vacantes` : null)
+    } catch(e) { setPhase1('error'); setDetail1(String(e)); return }
+
+    setPhase2('running')
+    try {
+      const r2 = await fetch('/api/admin/sync-vacancy-stats-session', { method: 'POST' })
+      const d2 = await r2.json()
+      if (!r2.ok || d2.error) { setPhase2('error'); setDetail2(d2.error ?? `HTTP ${r2.status}`); return }
+      setPhase2('done'); setDetail2(d2.vacancies_processed != null ? `${d2.vacancies_processed} vacantes` : null)
+    } catch(e) { setPhase2('error'); setDetail2(String(e)) }
+  }
+
+  const phases = [
+    { key: 'p1', label: 'Metadatos', status: phase1, detail: detail1 },
+    { key: 'p2', label: 'Estados (~1 min)', status: phase2, detail: detail2 },
+  ] as const
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <button
+        onClick={handleSync} disabled={running}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '6px 14px', borderRadius: 7, fontWeight: 600, fontSize: 12,
+          border: `1px solid ${running ? '#cbd5e1' : '#c7d2fe'}`,
+          background: running ? '#f8fafc' : '#eff6ff',
+          color: running ? '#94a3b8' : '#1e4b9e',
+          cursor: running ? 'not-allowed' : 'pointer',
+        }}
+      >
+        {running ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={13} />}
+        {running ? 'Sincronizando…' : 'Sincronizar todas las vacantes activas'}
+      </button>
+      {phases.filter(p => p.status !== 'idle').map(p => {
+        const c = { running: { bg: '#eff6ff', border: '#bfdbfe', text: '#1e4b9e' }, done: { bg: '#f0fdf4', border: '#bbf7d0', text: '#16a34a' }, error: { bg: '#fef2f2', border: '#fecaca', text: '#dc2626' }, idle: { bg: '#f8fafc', border: '#e2e8f0', text: '#94a3b8' } }[p.status]
+        return (
+          <span key={p.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, border: `1px solid ${c.border}`, background: c.bg, fontSize: 11, fontWeight: 500, color: c.text }}>
+            {p.status === 'running' && <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} />}
+            {p.status === 'done'    && <CheckCircle2 size={11} />}
+            {p.status === 'error'   && <XCircle size={11} />}
+            {p.label}{p.detail ? ` · ${p.detail}` : ''}
+          </span>
+        )
+      })}
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
 }
 
 export default function AtraccionPage() {
@@ -152,6 +217,7 @@ export default function AtraccionPage() {
       {/* ─── VACANTES ─── */}
       {tab === 'vacantes' && (
         <div className="space-y-4">
+          <SyncAllActiveVacanciesButton />
           <VacancyStatusCharts
             profesionFilter={profesionFilter}
             countryFilter={countryFilter}

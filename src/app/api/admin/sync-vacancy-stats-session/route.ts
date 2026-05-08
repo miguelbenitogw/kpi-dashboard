@@ -30,17 +30,25 @@ async function requireAuth(): Promise<boolean> {
   }
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   if (!(await requireAuth())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const url = new URL(request.url)
+  const principalsOnly = url.searchParams.get('principalsOnly') === 'true'
+
   const startedAt = Date.now()
 
-  const { data: vacancies, error: vacError } = await supabaseAdmin
+  // principalsOnly=true → only sync is_vacante_principal vacancies (fast, for Resumen tab)
+  // default           → sync all es_proceso_atraccion_actual vacancies (slower, for Vacantes tab)
+  const query = supabaseAdmin
     .from('job_openings_kpi')
     .select('id, title')
-    .eq('es_proceso_atraccion_actual', true)
+
+  const { data: vacancies, error: vacError } = principalsOnly
+    ? await query.eq('is_vacante_principal', true)
+    : await query.eq('es_proceso_atraccion_actual', true)
 
   if (vacError) {
     return NextResponse.json(

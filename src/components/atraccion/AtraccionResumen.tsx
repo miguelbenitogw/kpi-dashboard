@@ -457,7 +457,7 @@ interface SyncPhase {
 
 const INITIAL_PHASES: SyncPhase[] = [
   { key: 'openings', label: 'Vacantes',      status: 'idle', detail: null },
-  { key: 'stats',    label: 'Estados (~1min)', status: 'idle', detail: null },
+  { key: 'stats',    label: 'Estados',         status: 'idle', detail: null },
 ]
 
 function SyncZohoVacanciesButton({ onSynced }: { onSynced: () => void }) {
@@ -497,7 +497,7 @@ function SyncZohoVacanciesButton({ onSynced }: { onSynced: () => void }) {
     setPhases(INITIAL_PHASES.map(p => ({ ...p })))
 
     const ok1 = await callPhase('openings', '/api/admin/sync-zoho-vacancies')
-    if (ok1) await callPhase('stats', '/api/admin/sync-vacancy-stats-session')
+    if (ok1) await callPhase('stats', '/api/admin/sync-vacancy-stats-session?principalsOnly=true')
 
     setRunning(false)
     setDone(true)

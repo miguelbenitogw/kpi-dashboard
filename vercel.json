@@ -40,6 +40,10 @@
     {
       "path": "/api/cron/sync-germany-candidates",
       "schedule": "0 5 * * 0"
+    },
+    {
+      "path": "/api/cron/sync-vacancy-stats",
+      "schedule": "0 5 * * *"
     }
   ]
 }
