@@ -210,6 +210,8 @@ export interface GPCandidateFull {
   gp_tipo_perfil: string | null
   gp_finish_date: string | null
   gp_assignment: string | null
+  assigned_agency: string | null
+  placement_status: string | null
   gp_hpr_nummer: string | null
   gp_webcruiter: boolean | null
   gp_application_sent: boolean | null
@@ -234,7 +236,7 @@ export async function getGPCandidatesFull(
     .select(
       'id, full_name, promocion_nombre,' +
       'gp_training_status, gp_open_to, gp_preferences, gp_tipo_perfil,' +
-      'gp_finish_date, gp_assignment,' +
+      'gp_finish_date, gp_assignment, assigned_agency, placement_status,' +
       'gp_hpr_nummer, gp_webcruiter, gp_application_sent, gp_profile_talent_portal,' +
       'gp_cv_norsk, gp_blind_cv_norsk,' +
       'gp_total_applications, gp_interviews_ratio, gp_applications_this_period,' +
@@ -272,42 +274,60 @@ const GP_PENDING = new Set([
 const GP_IN_TRAINING = new Set(['In Training'])
 
 export interface GPKPIStats {
-  total_active:  number   // all GP candidates excluding exited ones
-  placed:        number   // Approved + Assigned + Hired + Transferred
-  in_training:   number   // In Training
-  pending:       number   // finished but no placement yet
-  pct_placed:    number   // placed / total_active * 100
-  pct_pending:   number   // pending / total_active * 100
-  pct_training:  number   // in_training / total_active * 100
+  total_active:   number   // all GP candidates excluding exited ones
+  placed:         number   // Approved + Assigned + Hired + Transferred
+  in_training:    number   // In Training
+  pending:        number   // finished but no placement yet
+  kommuner:       number   // placed via GP - Kommuner
+  agencia:        number   // placed via Vikar agency
+  pct_placed:     number   // placed / total_active * 100
+  pct_pending:    number   // pending / total_active * 100
+  pct_training:   number   // in_training / total_active * 100
+  pct_kommuner:   number   // kommuner / placed * 100
+  pct_agencia:    number   // agencia / placed * 100
 }
 
 export async function getGPKPIStats(promoNombre?: string | null): Promise<GPKPIStats> {
   let query = (supabase as any)
     .from('candidates_kpi')
-    .select('gp_training_status')
+    .select('gp_training_status, assigned_agency')
     .not('gp_training_status', 'is', null)
 
   if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
 
   const { data } = await query
-  const rows: { gp_training_status: string }[] = data ?? []
+  const rows: { gp_training_status: string; assigned_agency: string | null }[] = data ?? []
 
-  const active    = rows.filter((r) => !GP_EXCLUDED.has(r.gp_training_status))
-  const placed    = active.filter((r) => GP_PLACED.has(r.gp_training_status)).length
-  const training  = active.filter((r) => GP_IN_TRAINING.has(r.gp_training_status)).length
-  const pending   = active.filter((r) => GP_PENDING.has(r.gp_training_status)).length
-  const total     = active.length
+  const active      = rows.filter((r) => !GP_EXCLUDED.has(r.gp_training_status))
+  const placedRows  = active.filter((r) => GP_PLACED.has(r.gp_training_status))
+  const placed      = placedRows.length
+  const training    = active.filter((r) => GP_IN_TRAINING.has(r.gp_training_status)).length
+  const pending     = active.filter((r) => GP_PENDING.has(r.gp_training_status)).length
+  const total       = active.length
 
-  const pct = (n: number) => total > 0 ? Math.round((n / total) * 1000) / 10 : 0
+  // Channel breakdown — only among placed candidates
+  const kommuner = placedRows.filter((r) => r.assigned_agency === 'GP - Kommuner').length
+  const agencia  = placedRows.filter(
+    (r) => r.assigned_agency != null &&
+           r.assigned_agency !== 'GP - Kommuner' &&
+           r.assigned_agency !== 'Not applicable',
+  ).length
+
+  const pct     = (n: number) => total   > 0 ? Math.round((n / total)   * 1000) / 10 : 0
+  const pctPlcd = (n: number) => placed  > 0 ? Math.round((n / placed)  * 1000) / 10 : 0
 
   return {
     total_active:  total,
     placed,
     in_training:   training,
     pending,
+    kommuner,
+    agencia,
     pct_placed:    pct(placed),
     pct_pending:   pct(pending),
     pct_training:  pct(training),
+    pct_kommuner:  pctPlcd(kommuner),
+    pct_agencia:   pctPlcd(agencia),
   }
 }
 

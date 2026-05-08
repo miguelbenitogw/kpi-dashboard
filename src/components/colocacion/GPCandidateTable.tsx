@@ -222,7 +222,7 @@ export default function GPCandidateTable({ promoFilter }: { promoFilter: string 
       {/* KPI cards — placement funnel */}
       {stats && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* Row 1: the 3 funnel states */}
+          {/* Row 1: funnel states */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <KPICard
               label="Pendiente de colocar"
@@ -256,6 +256,40 @@ export default function GPCandidateTable({ promoFilter }: { promoFilter: string 
               sublabel="Sin Withdrawn / Expelled / NoShow"
             />
           </div>
+
+          {/* Row 2: placement channel breakdown (only shown when placed > 0) */}
+          {stats.placed > 0 && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 11, color: '#a8a29e', alignSelf: 'center', whiteSpace: 'nowrap', paddingRight: 4 }}>
+                De los colocados:
+              </div>
+              <KPICard
+                label="En kommune"
+                value={stats.kommuner}
+                pct={stats.pct_kommuner}
+                color="#0e7490"
+                bg="#ecfeff"
+                sublabel="GP - Kommuner · colocación directa"
+              />
+              <KPICard
+                label="En agencia"
+                value={stats.agencia}
+                pct={stats.pct_agencia}
+                color="#6d28d9"
+                bg="#f5f3ff"
+                sublabel="Randstad · Eccera · Helsenor · otros"
+              />
+              {stats.placed - stats.kommuner - stats.agencia > 0 && (
+                <KPICard
+                  label="Sin canal registrado"
+                  value={stats.placed - stats.kommuner - stats.agencia}
+                  color="#78716c"
+                  bg="#f5f1ea"
+                  sublabel="Promos anteriores sin tracking"
+                />
+              )}
+            </div>
+          )}
 
           {/* Progress bar: formación | pendiente | colocados */}
           {stats.total_active > 0 && (
@@ -357,9 +391,11 @@ export default function GPCandidateTable({ promoFilter }: { promoFilter: string 
                 <TH label="Nombre"        sortKey="full_name"              {...thProps} />
                 <TH label="Promo"         sortKey="promocion_nombre"       {...thProps} />
                 <TH label="Tipo perfil"   sortKey="gp_tipo_perfil"         {...thProps} />
-                <TH label="Estado GP"     sortKey="gp_training_status"     {...thProps} />
-                <TH label="Open To"       sortKey="gp_open_to"             {...thProps} />
-                <TH label="Fin formación" sortKey="gp_finish_date"         {...thProps} />
+                <TH label="Estado GP"       sortKey="gp_training_status"     {...thProps} />
+                <TH label="Placement"       sortKey="placement_status"       {...thProps} />
+                <TH label="Canal"           sortKey="assigned_agency"         {...thProps} />
+                <TH label="Open To"         sortKey="gp_open_to"             {...thProps} />
+                <TH label="Fin formación"   sortKey="gp_finish_date"         {...thProps} />
                 <TH label="HPR #"         sortKey="gp_hpr_nummer"          {...thProps} />
                 <TH label="Webcruiter"    sortKey="gp_webcruiter"          {...thProps} />
                 <TH label="Solicitud"     sortKey="gp_application_sent"    {...thProps} />
@@ -391,6 +427,26 @@ export default function GPCandidateTable({ promoFilter }: { promoFilter: string 
                   </td>
                   <td style={{ padding: '7px 12px' }}>
                     <StatusBadge value={r.gp_training_status} />
+                  </td>
+                  <td style={{ padding: '7px 12px', color: '#78716c', whiteSpace: 'nowrap', fontSize: 11 }}>
+                    {r.placement_status ?? '—'}
+                  </td>
+                  <td style={{ padding: '7px 12px', whiteSpace: 'nowrap' }}>
+                    {r.assigned_agency
+                      ? (
+                        <span style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: '2px 7px',
+                          borderRadius: 6,
+                          background: r.assigned_agency === 'GP - Kommuner' ? '#ecfeff' : '#f5f3ff',
+                          color: r.assigned_agency === 'GP - Kommuner' ? '#0e7490' : '#6d28d9',
+                        }}>
+                          {r.assigned_agency === 'GP - Kommuner' ? 'Kommune' : r.assigned_agency}
+                        </span>
+                      )
+                      : <span style={{ color: '#d1d5db', fontSize: 12 }}>—</span>
+                    }
                   </td>
                   <td
                     style={{
