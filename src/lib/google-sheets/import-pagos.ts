@@ -132,6 +132,15 @@ function normalizeHeader(header: string): string {
 function mapPagosHeader(header: string): string | null {
   const lower = normalizeHeader(header)
 
+  // Special guard: headers that start with "comentarios" must never map to
+  // "coordinador" via substring match (they share the substring "coordinador").
+  // Resolve them directly before the generic loop.
+  if (lower.startsWith('comentarios')) {
+    if (lower.includes('coordinador') || lower.includes('coord')) return 'comentarios_coordinadores'
+    if (lower.includes('contabilidad')) return 'comentarios_contabilidad'
+    return null
+  }
+
   // Exact match first
   for (const [canonical, variants] of Object.entries(PAGOS_COLUMN_MAP)) {
     if (variants.some((v) => lower === v)) {
@@ -450,38 +459,52 @@ export async function importPagos(sheetId: string): Promise<PagosResult> {
       updated_at: new Date().toISOString(),
     }
 
-    // Check if a record already exists for this candidate
-    // Note: (supabaseAdmin as any) cast because pagos_candidato is added in migration 014
-    // and the generated types haven't been regenerated yet.
-    if (candidateId) {
-      const { data: existing, error: selectError } = await (supabaseAdmin as any)
+    // Find existing record — priority:
+    //   1. candidate_id + promocion_nombre  (most precise)
+    //   2. full_name   + promocion_nombre   (fallback when no Zoho match)
+    // Using BOTH dimensions (not just candidate_id) prevents duplicate rows when
+    // a candidate appears in the pagos sheet for multiple promotions.
+    let existingRowId: string | null = null
+
+    if (candidateId && promoNombre) {
+      const { data: byId } = await (supabaseAdmin as any)
         .from('pagos_candidato_kpi')
         .select('id')
         .eq('candidate_id', candidateId)
+        .eq('promocion_nombre', promoNombre)
         .maybeSingle()
+      existingRowId = byId?.id ?? null
+    }
 
-      if (selectError) {
-        result.errors.push(
-          `Row ${rowNum} (${rawName}): select error: ${selectError.message}`
-        )
+    if (!existingRowId) {
+      const nameQ = (supabaseAdmin as any)
+        .from('pagos_candidato_kpi')
+        .select('id')
+        .eq('full_name', rawName)
+      const nameQuery = promoNombre
+        ? nameQ.eq('promocion_nombre', promoNombre)
+        : nameQ.is('promocion_nombre', null)
+
+      const { data: byName, error: nameErr } = await nameQuery.maybeSingle()
+      if (nameErr && nameErr.code !== 'PGRST116') {
+        result.errors.push(`Row ${rowNum} (${rawName}): lookup error: ${nameErr.message}`)
         continue
       }
+      existingRowId = byName?.id ?? null
+    }
 
-      if (existing) {
-        const { error: updateError } = await (supabaseAdmin as any)
-          .from('pagos_candidato_kpi')
-          .update(payload)
-          .eq('id', existing.id)
+    if (existingRowId) {
+      const { error: updateError } = await (supabaseAdmin as any)
+        .from('pagos_candidato_kpi')
+        .update(payload)
+        .eq('id', existingRowId)
 
-        if (updateError) {
-          result.errors.push(
-            `Row ${rowNum} (${rawName}): update error: ${updateError.message}`
-          )
-        } else {
-          result.updated++
-        }
-        continue
+      if (updateError) {
+        result.errors.push(`Row ${rowNum} (${rawName}): update error: ${updateError.message}`)
+      } else {
+        result.updated++
       }
+      continue
     }
 
     // Insert new record
@@ -490,9 +513,7 @@ export async function importPagos(sheetId: string): Promise<PagosResult> {
       .insert(payload)
 
     if (insertError) {
-      result.errors.push(
-        `Row ${rowNum} (${rawName}): insert error: ${insertError.message}`
-      )
+      result.errors.push(`Row ${rowNum} (${rawName}): insert error: ${insertError.message}`)
     } else {
       result.inserted++
     }

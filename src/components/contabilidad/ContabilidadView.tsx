@@ -123,7 +123,6 @@ function PagoEstadoBadge({ estado }: { estado: PagoEstado }) {
 type SortKey =
   | 'full_name'
   | 'promocion_nombre'
-  | 'coordinador'
   | 'modalidad'
   | 'estado'
   | 'importe_total'
@@ -165,7 +164,6 @@ export default function ContabilidadView() {
   // Filters
   const [search, setSearch] = useState('')
   const [filterPromo, setFilterPromo] = useState<string>('__all__')
-  const [filterCoordinador, setFilterCoordinador] = useState<string>('__all__')
   const [soloPendiente, setSoloPendiente] = useState(false)
 
   // Sort
@@ -189,14 +187,6 @@ export default function ContabilidadView() {
       if (r.promocion_nombre) set.add(r.promocion_nombre)
     }
     return Array.from(set).sort((a, b) => b.localeCompare(a))
-  }, [rows])
-
-  const coordinadores = useMemo(() => {
-    const set = new Set<string>()
-    for (const r of rows) {
-      if (r.coordinador) set.add(r.coordinador)
-    }
-    return Array.from(set).sort()
   }, [rows])
 
   // ---------------------------------------------------------------------------
@@ -229,7 +219,6 @@ export default function ContabilidadView() {
         if (!(r.full_name ?? '').toLowerCase().includes(s)) return false
       }
       if (filterPromo !== '__all__' && r.promocion_nombre !== filterPromo) return false
-      if (filterCoordinador !== '__all__' && r.coordinador !== filterCoordinador) return false
       if (soloPendiente && (r.importe_pendiente ?? 0) <= 0) return false
       return true
     })
@@ -490,27 +479,6 @@ export default function ContabilidadView() {
           ))}
         </div>
 
-        {/* Coordinador */}
-        <select
-          value={filterCoordinador}
-          onChange={(e) => setFilterCoordinador(e.target.value)}
-          style={{
-            padding: '7px 12px',
-            borderRadius: 8,
-            border: `1px solid ${T.border}`,
-            fontSize: 13,
-            color: T.text,
-            background: T.bg,
-            cursor: 'pointer',
-            outline: 'none',
-          }}
-        >
-          <option value="__all__">Todos los coordinadores</option>
-          {coordinadores.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-
         {/* Toggle solo pendiente */}
         <button
           onClick={() => setSoloPendiente((v) => !v)}
@@ -544,7 +512,6 @@ export default function ContabilidadView() {
               <tr style={{ borderBottom: `2px solid ${T.border}`, background: T.strip }}>
                 <Th label="Nombre" sk="full_name" />
                 <Th label="Promo" sk="promocion_nombre" />
-                <Th label="Coordinador" sk="coordinador" />
                 <Th label="Modalidad" sk="modalidad" />
                 <Th label="Estado" sk="estado" />
                 <Th label="Importe total" sk="importe_total" align="right" />
@@ -561,7 +528,7 @@ export default function ContabilidadView() {
             <tbody>
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={12} style={{ padding: '32px', textAlign: 'center', color: T.muted }}>
+                  <td colSpan={11} style={{ padding: '32px', textAlign: 'center', color: T.muted }}>
                     Sin resultados
                   </td>
                 </tr>
@@ -582,9 +549,6 @@ export default function ContabilidadView() {
                     </td>
                     <td style={{ padding: '9px 12px', color: T.muted, whiteSpace: 'nowrap' }}>
                       {row.promocion_nombre ?? '—'}
-                    </td>
-                    <td style={{ padding: '9px 12px', color: T.muted, whiteSpace: 'nowrap' }}>
-                      {row.coordinador ?? '—'}
                     </td>
                     <td style={{ padding: '9px 12px', color: T.muted, whiteSpace: 'nowrap' }}>
                       {row.modalidad ?? '—'}
