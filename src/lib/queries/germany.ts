@@ -652,3 +652,46 @@ export async function getGermanyPaymentsSummary(): Promise<GermanyPaymentsSummar
 
   return { total_facturado, total_pendiente, rows }
 }
+
+// ---------------------------------------------------------------------------
+// Pagos completo (para vista detallada)
+// ---------------------------------------------------------------------------
+
+export interface GermanyPagoFullRow {
+  id: number
+  nombre: string | null
+  correo: string | null
+  promo_numero: number | null
+  profesion: string | null
+  empresa: string | null
+  estado: string | null
+  modalidad: string | null
+  coordinador: string | null
+  fecha_inicio_formacion: string | null
+  fecha_abandono_formacion: string | null
+  fecha_inicio_contrato: string | null
+  opcion_financiacion: string | null
+  fecha_inicio_pago: string | null
+  importe_formacion: number | null
+  importe_piso_gw: number | null
+  importe_total: number | null
+  cuotas: Array<{ numero: number; importe: number; fecha: string; pagado: boolean }> | null
+  importe_pendiente: number | null
+  enviar_abogado: string | null
+  comentarios_coordinadores: string | null
+  comentarios_contabilidad: string | null
+}
+
+export async function getGermanyPagosFull(): Promise<GermanyPagoFullRow[]> {
+  const { data, error } = await (supabase as any)
+    .from('germany_payments_kpi')
+    .select('*')
+    .order('promo_numero', { ascending: false })
+    .order('nombre', { ascending: true }) as { data: GermanyPagoFullRow[] | null; error: unknown }
+
+  if (error) {
+    console.error('Error fetching Germany pagos full:', error)
+    return []
+  }
+  return data ?? []
+}

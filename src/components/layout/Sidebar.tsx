@@ -49,6 +49,7 @@ const navSections: NavSection[] = [
       { href: "/dashboard/formacion", label: "Formación", icon: GraduationCap },
       { href: "/dashboard/formacion/abandonos", label: "Abandonos", icon: TrendingDown },
       { href: "/dashboard/colocacion", label: "Colocación", icon: Briefcase },
+      { href: "/dashboard/contabilidad", label: "Pagos", icon: Wallet },
     ],
   },
   {
@@ -56,12 +57,7 @@ const navSections: NavSection[] = [
     items: [
       { href: "/dashboard/alemania", label: "Alemania", icon: Globe },
       { href: "/dashboard/alemania/abandonos", label: "Abandonos", icon: TrendingDown },
-    ],
-  },
-  {
-    title: "CONTABILIDAD",
-    items: [
-      { href: "/dashboard/contabilidad", label: "Pagos", icon: Wallet },
+      { href: "/dashboard/alemania/pagos", label: "Pagos", icon: Wallet },
     ],
   },
   {
