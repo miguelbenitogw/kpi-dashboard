@@ -591,7 +591,10 @@ export async function importGermanyPagos(sheetId: string): Promise<GermanyPagosR
       continue
     }
 
-    const promoNumero = parseInteger(mapped['promo_numero'])
+    // "Nº Promoción" values look like "Promoción 12" — extractPromoNumber strips the prefix
+    const promoNumero = mapped['promo_numero']
+      ? extractPromoNumber(mapped['promo_numero'])
+      : null
 
     // Build cuotas JSONB
     let cuotas: CuotaEntry[] = []
