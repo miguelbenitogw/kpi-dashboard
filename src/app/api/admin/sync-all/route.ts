@@ -14,7 +14,7 @@ import { importExcelMadre } from '@/lib/google-sheets/import-madre'
 import { importPromoSheet } from '@/lib/google-sheets/import'
 import { importPlacement } from '@/lib/google-sheets/import-placement'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 // ---------------------------------------------------------------------------
 // Auth helper
@@ -81,7 +81,7 @@ async function runExcelMadre(): Promise<PhaseSummary> {
 async function runPromoSheets(): Promise<PhaseSummary> {
   const s: PhaseSummary = { phase: 'promo-sheets', duration_ms: 0, updated: 0, inserted: 0, errors: 0, skipped: 0, all_errors: [] }
   const t0 = Date.now()
-  const TIMEOUT_MS = 55_000
+  const TIMEOUT_MS = 270_000
 
   const { data: sheets, error } = await (supabaseAdmin as any)
     .from('promo_sheets_kpi')

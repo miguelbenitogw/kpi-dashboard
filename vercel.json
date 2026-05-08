@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "src/app/api/admin/**": { "maxDuration": 300 },
+    "src/app/api/cron/**":  { "maxDuration": 300 },
+    "src/app/api/sheets/**": { "maxDuration": 300 }
+  },
   "crons": [
     {
       "path": "/api/cron/sync",
