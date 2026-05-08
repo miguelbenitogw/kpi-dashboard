@@ -264,10 +264,11 @@ export async function importPagos(sheetId: string): Promise<PagosResult> {
     if (canonical) headerMap.set(h, canonical)
   }
 
-  // Build a name+promo → candidate_id lookup
+  // Build lookup tables for candidate matching.
+  // Priority: 1) email exact match  2) name+promo  3) name alone (unique)
   const { data: allCandidates, error: candError } = await supabaseAdmin
     .from('candidates_kpi')
-    .select('id, full_name, promocion_nombre')
+    .select('id, full_name, promocion_nombre, email')
     .not('full_name', 'is', null)
 
   if (candError) {
@@ -275,13 +276,16 @@ export async function importPagos(sheetId: string): Promise<PagosResult> {
     return result
   }
 
-  // Index by normalizedName|promoNombre for precise matching
+  // email (lowercase) → candidate_id  (most reliable key)
+  const emailToId = new Map<string, string>()
+  // normalizedName|promoNombre → candidate_id
   const namePromoToId = new Map<string, string>()
-  // Also index by name alone as fallback
+  // normalizedName → candidate_id[] (fallback when unique)
   const nameToIds = new Map<string, string[]>()
 
   for (const c of allCandidates ?? []) {
     if (!c.full_name) continue
+    if (c.email) emailToId.set(c.email.toLowerCase().trim(), c.id)
     const normName = normalizeName(c.full_name)
     const promoKey = c.promocion_nombre
       ? `${normName}|${c.promocion_nombre}`
@@ -328,14 +332,22 @@ export async function importPagos(sheetId: string): Promise<PagosResult> {
     const rawPromo = mapped['promocion_nombre']
     const promoNombre = rawPromo ? normalizePromoNombre(rawPromo) : null
 
-    // Match candidate by name + promo
+    // Match candidate — priority: email > name+promo > name alone
     const normName = normalizeName(rawName)
     let candidateId: string | null = null
 
-    if (promoNombre) {
+    // 1. Email match (most reliable)
+    const rawEmail = mapped['email']
+    if (rawEmail) {
+      candidateId = emailToId.get(rawEmail.toLowerCase().trim()) ?? null
+    }
+
+    // 2. Name + promo match
+    if (!candidateId && promoNombre) {
       candidateId = namePromoToId.get(`${normName}|${promoNombre}`) ?? null
     }
-    // Fallback: match by name alone (pick first if unique)
+
+    // 3. Name alone (only if unique in DB)
     if (!candidateId) {
       const ids = nameToIds.get(normName)
       if (ids && ids.length === 1) {

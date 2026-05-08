@@ -141,6 +141,27 @@ export default function ContabilidadView() {
   const [rows, setRows] = useState<PagoRow[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Sync state
+  const [syncState, setSyncState] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
+  const [syncResult, setSyncResult] = useState<{ totalInserted: number; totalUpdated: number; totalErrors: number; results: Array<{ label: string; inserted: number; updated: number; errors: string[] }> } | null>(null)
+
+  async function runImportPagos() {
+    setSyncState('running')
+    setSyncResult(null)
+    try {
+      const res = await fetch('/api/sheets/import-pagos', { method: 'POST' })
+      const data = await res.json()
+      setSyncResult(data)
+      setSyncState(data.totalErrors > 0 && data.totalInserted + data.totalUpdated === 0 ? 'error' : 'done')
+      // Reload rows after sync
+      const fresh = await import('@/lib/queries/pagos').then(m => m.getPagos())
+      setRows(fresh)
+    } catch (e) {
+      console.error('import-pagos error:', e)
+      setSyncState('error')
+    }
+  }
+
   // Filters
   const [search, setSearch] = useState('')
   const [filterPromo, setFilterPromo] = useState<string>('__all__')
@@ -341,9 +362,33 @@ export default function ContabilidadView() {
       {/* ------------------------------------------------------------------ */}
       {/* Header                                                              */}
       {/* ------------------------------------------------------------------ */}
-      <div>
-        <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: T.text }}>Pagos candidatos</h1>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: T.muted }}>{rows.length} registros en total</p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: T.text }}>Pagos candidatos</h1>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: T.muted }}>{rows.length} registros · sync diario 06:00 UTC</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          <button
+            onClick={runImportPagos}
+            disabled={syncState === 'running'}
+            style={{
+              padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+              cursor: syncState === 'running' ? 'not-allowed' : 'pointer',
+              background: syncState === 'done' ? T.green : syncState === 'error' ? T.red : T.accent,
+              color: '#fff', border: 'none', flexShrink: 0,
+            }}
+          >
+            {syncState === 'idle' && '↻ Importar pagos ahora'}
+            {syncState === 'running' && '⏳ Importando…'}
+            {syncState === 'done' && `✓ +${syncResult?.totalInserted ?? 0} nuevos · ${syncResult?.totalUpdated ?? 0} actualizados`}
+            {syncState === 'error' && '✗ Error — ver consola'}
+          </button>
+          {syncResult && syncResult.results.map((r, i) => (
+            <div key={i} style={{ fontSize: 10, color: T.muted }}>
+              {r.label}: +{r.inserted} · ↻{r.updated}{r.errors.length > 0 ? ` · ⚠${r.errors.length} errores` : ''}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ------------------------------------------------------------------ */}

@@ -134,9 +134,16 @@ export async function readSheetAsRows(
   }
   const tabName = sheetMeta.properties.title
 
+  // Wrap tabName in single quotes so the Sheets API treats it as a sheet name,
+  // not a range expression. This is required when the name contains "/" (e.g.
+  // "Pagos - Proyectos 2025/2026") — without quoting, the "/" breaks the URL
+  // path in the API call and the request returns no data.
+  // Single-quote literals inside the name are escaped by doubling them.
+  const safeRange = `'${tabName.replace(/'/g, "''")}'`
+
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: tabName,
+    range: safeRange,
   })
 
   const allRows = res.data.values ?? []
