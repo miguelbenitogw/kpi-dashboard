@@ -222,7 +222,7 @@ export default function ContabilidadView() {
       if (soloPendiente && (r.importe_pendiente ?? 0) <= 0) return false
       return true
     })
-  }, [rows, search, filterPromo, filterCoordinador, soloPendiente])
+  }, [rows, search, filterPromo, soloPendiente])
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
