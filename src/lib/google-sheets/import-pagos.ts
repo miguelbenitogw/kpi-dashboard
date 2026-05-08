@@ -97,7 +97,7 @@ const PAGOS_COLUMN_MAP: Record<string, string[]> = {
   fecha_cobro:                 ['fecha cobro'],
   importe_pagado_2024:         ['importe pagado 2024'],
   importe_pagado_2025:         ['importe pagado 2025'],
-  importe_pagado_2026:         ['importe pagado 2026'],
+  importe_pagado_2026:         ['importe pagado 2026', 'importe pagado'],
   importe_pendiente:           ['importe pendiente de pago', 'importe pendiente'],
   condiciones_pago:            ['condiciones de pago', 'condiciones pago', 'modo de devolución', 'modo de devolucion'],
   fecha_notificacion:          ['fecha de notificación', 'fecha de notificacion', 'fecha notificacion'],
@@ -116,8 +116,22 @@ const PROMO_ANTERIOR_HEADERS = [
 const ANEXO_FIRMADO_HEADERS = ['anexo firmado']
 const PRECIO_FORMACION_HEADERS = ['precio de esa formación', 'precio de esa formacion', 'precio esa formacion']
 
+/** Normalize a raw header string for comparison.
+ *  Replaces non-breaking spaces and other Unicode whitespace variants with a regular space,
+ *  collapses runs, then lowercases and trims.
+ *  Google Sheets often exports headers with U+00A0 instead of U+0020.
+ */
+function normalizeHeader(header: string): string {
+  return header
+    .replace(/[   ​     ﻿]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .trim()
+}
+
 function mapPagosHeader(header: string): string | null {
-  const lower = header.toLowerCase().trim()
+  const lower = normalizeHeader(header)
+
   // Exact match first
   for (const [canonical, variants] of Object.entries(PAGOS_COLUMN_MAP)) {
     if (variants.some((v) => lower === v)) {
@@ -244,7 +258,7 @@ export async function importPagos(sheetId: string): Promise<PagosResult> {
 
   for (let i = 0; i < headers.length; i++) {
     const h = headers[i]!
-    const lower = h.toLowerCase().trim()
+    const lower = normalizeHeader(h)
 
     if (PROMO_ANTERIOR_HEADERS.some((v) => lower === v || lower.includes(v))) {
       promoAntOccurrences.push(i)

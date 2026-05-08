@@ -194,6 +194,87 @@ export async function getGPCandidatesByOpenTo(
   return (data ?? []) as GPCandidateSummary[]
 }
 
+// ── Full candidate GP record (for the candidate table) ───────────────────────
+
+export interface GPCandidateFull {
+  id: string
+  full_name: string | null
+  promocion_nombre: string | null
+  gp_training_status: string | null
+  gp_open_to: string | null
+  gp_preferences: string | null
+  gp_tipo_perfil: string | null
+  gp_finish_date: string | null
+  gp_assignment: string | null
+  gp_hpr_nummer: string | null
+  gp_webcruiter: boolean | null
+  gp_application_sent: boolean | null
+  gp_profile_talent_portal: boolean | null
+  gp_cv_norsk: boolean | null
+  gp_blind_cv_norsk: boolean | null
+  gp_total_applications: number | null
+  gp_interviews_ratio: string | null
+  gp_applications_this_period: number | null
+  gp_quincena: string | null
+  gp_pk: string | null
+  gp_priority: string | null
+  gp_seminar: string | null
+  gp_mes_anio_llegada: string | null
+}
+
+export async function getGPCandidatesFull(
+  promoNombre?: string | null,
+): Promise<GPCandidateFull[]> {
+  let query = (supabase as any)
+    .from('candidates_kpi')
+    .select(
+      'id, full_name, promocion_nombre,' +
+      'gp_training_status, gp_open_to, gp_preferences, gp_tipo_perfil,' +
+      'gp_finish_date, gp_assignment,' +
+      'gp_hpr_nummer, gp_webcruiter, gp_application_sent, gp_profile_talent_portal,' +
+      'gp_cv_norsk, gp_blind_cv_norsk,' +
+      'gp_total_applications, gp_interviews_ratio, gp_applications_this_period,' +
+      'gp_quincena, gp_pk, gp_priority, gp_seminar, gp_mes_anio_llegada',
+    )
+    .not('gp_training_status', 'is', null)
+    .order('full_name', { ascending: true, nullsFirst: false })
+
+  if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
+
+  const { data, error } = await query
+  if (error) return []
+  return (data ?? []) as GPCandidateFull[]
+}
+
+// ── KPI stats for header cards ────────────────────────────────────────────────
+
+export interface GPKPIStats {
+  total: number
+  with_hpr: number
+  app_sent: number
+  talent_portal: number
+  with_cv_norsk: number
+}
+
+export async function getGPKPIStats(promoNombre?: string | null): Promise<GPKPIStats> {
+  let query = (supabase as any)
+    .from('candidates_kpi')
+    .select('gp_hpr_nummer, gp_application_sent, gp_profile_talent_portal, gp_cv_norsk')
+    .not('gp_training_status', 'is', null)
+
+  if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
+
+  const { data } = await query
+  const rows: GPCandidateFull[] = data ?? []
+  return {
+    total:          rows.length,
+    with_hpr:       rows.filter((r: any) => r.gp_hpr_nummer && String(r.gp_hpr_nummer).trim()).length,
+    app_sent:       rows.filter((r: any) => r.gp_application_sent === true).length,
+    talent_portal:  rows.filter((r: any) => r.gp_profile_talent_portal === true).length,
+    with_cv_norsk:  rows.filter((r: any) => r.gp_cv_norsk === true).length,
+  }
+}
+
 // ── Legacy (kept for backward compat with other components) ──────────────────
 
 export interface PlacementPreferenceCount {

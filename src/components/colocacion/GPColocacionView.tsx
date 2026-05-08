@@ -208,10 +208,11 @@ function SectionCard({
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export default function GPColocacionView() {
-  // Promotions
+export default function GPColocacionView({ externalPromo = '' }: { externalPromo?: string }) {
+  // Promotions (still needed for the linker and refresh action)
   const [promos, setPromos] = useState<PromoGPSummary[]>([])
-  const [selectedPromo, setSelectedPromo] = useState<string>('') // '' = todas
+  // Internal promo state is driven by externalPromo
+  const selectedPromo = externalPromo
   const [linkerPromo, setLinkerPromo] = useState<PromoGPSummary | null>(null)
 
   // Counts
@@ -256,9 +257,9 @@ export default function GPColocacionView() {
   }
 
   useEffect(() => {
-    loadCounts(selectedPromo || null)
+    loadCounts(externalPromo || null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPromo])
+  }, [externalPromo])
 
   // ── Refresh handler ───────────────────────────────────────────────────────
 
@@ -279,7 +280,7 @@ export default function GPColocacionView() {
       if (result.gpUpdated > 0 || result.madreUpdated > 0) {
         const updatedPromos = await getGPPromotions()
         setPromos(updatedPromos)
-        await loadCounts(selectedPromo || null)
+        await loadCounts(externalPromo || null)
       }
     })
   }
@@ -291,7 +292,7 @@ export default function GPColocacionView() {
     setExpandedStatus(status)
     setStatusCandidates([])
     setStatusCandLoading(true)
-    const cands = await getGPCandidatesByStatus(status, selectedPromo || null)
+    const cands = await getGPCandidatesByStatus(status, externalPromo || null)
     setStatusCandidates(cands)
     setStatusCandLoading(false)
   }
@@ -301,7 +302,7 @@ export default function GPColocacionView() {
     setExpandedOpenTo(openTo)
     setOpenToCandidates([])
     setOpenToCandLoading(true)
-    const cands = await getGPCandidatesByOpenTo(openTo, selectedPromo || null)
+    const cands = await getGPCandidatesByOpenTo(openTo, externalPromo || null)
     setOpenToCandidates(cands)
     setOpenToCandLoading(false)
   }
@@ -321,30 +322,12 @@ export default function GPColocacionView() {
 
   // ── Derived: current promo object ─────────────────────────────────────────
 
-  const currentPromo = promos.find((p) => p.name === selectedPromo) ?? null
+  const currentPromo = promos.find((p) => p.name === externalPromo) ?? null
 
   return (
     <div className="space-y-4">
       {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Promo selector */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500">Promoción:</label>
-          <select
-            value={selectedPromo}
-            onChange={(e) => setSelectedPromo(e.target.value)}
-            className="rounded-lg border border-surface-600/60 bg-surface-800 px-3 py-1.5 text-sm text-gray-200 focus:border-blue-500/50 focus:outline-none"
-          >
-            <option value="">Todas ({promos.reduce((s, p) => s + p.count, 0)})</option>
-            {promos.map((p) => (
-              <option key={p.name} value={p.name}>
-                {p.name} ({p.count})
-                {p.linked_job_opening_title ? ` — ${p.linked_job_opening_title}` : ' ⚠ sin vincular'}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Link button — only when a specific promo is selected */}
         {selectedPromo && (
           <button
