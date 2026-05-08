@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import GPColocacionView from '@/components/colocacion/GPColocacionView'
-import GPCandidateTable from '@/components/colocacion/GPCandidateTable'
 import GPPreferenciaView from '@/components/colocacion/GPPreferenciaView'
 import GPStatusView from '@/components/colocacion/GPStatusView'
 import { getGPPromotions, type PromoGPSummary } from '@/lib/queries/colocacion'
@@ -20,7 +19,6 @@ export default function ColocacionPage() {
 
       {/* ── Promo pill selector ── */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-        {/* "Todas" pill */}
         <button
           onClick={() => setSelectedPromo('')}
           style={{
@@ -39,10 +37,8 @@ export default function ColocacionPage() {
           Todas
         </button>
 
-        {/* divider */}
         <span style={{ width: 1, height: 16, background: '#e7e2d8', flexShrink: 0 }} />
 
-        {/* One pill per promo */}
         {promos.map((p) => {
           const active = selectedPromo === p.name
           return (
@@ -70,28 +66,6 @@ export default function ColocacionPage() {
           )
         })}
       </div>
-
-      {/* ── Readiness table ── */}
-      <section>
-        <div style={{ marginBottom: 12 }}>
-          <h2 className="text-base font-semibold" style={{ color: '#1c1917' }}>
-            Candidatos Global Placement
-          </h2>
-          <p className="text-sm" style={{ color: '#78716c', marginTop: 2 }}>
-            Readiness por candidato: HPR, Webcruiter, solicitudes, CV Norsk y más.
-          </p>
-        </div>
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1px solid #e7e2d8',
-            borderRadius: 14,
-            padding: 18,
-          }}
-        >
-          <GPCandidateTable promoFilter={selectedPromo} />
-        </div>
-      </section>
 
       {/* ── Preferencia y estado de colocación ── */}
       <section>
