@@ -6,7 +6,6 @@ export interface PagoRow {
   promocion_nombre: string | null
   full_name: string
   email: string | null
-  telefono: string | null
   perfil: string | null
   coordinador: string | null
   modalidad: string | null

@@ -71,7 +71,6 @@ export const PAGOS_GID = '1007684536'
 const PAGOS_COLUMN_MAP: Record<string, string[]> = {
   full_name:             ['nombre y apellidos', 'nombre', 'name'],
   email:                 ['email'],
-  telefono:              ['teléfono', 'telefono', 'phone', 'tel'],
   perfil:                ['perfil', 'profile'],
   promocion_nombre:      ['nº promoción', 'nº promocion', 'n° promoción', 'n° promocion', 'promocion', 'promo'],
   coordinador:           ['coordinador/a', 'coordinador', 'coordinadora'],
@@ -394,7 +393,6 @@ export async function importPagos(sheetId: string): Promise<PagosResult> {
       candidate_id: candidateId,
       promocion_nombre: promoNombre,
       email: mapped['email'] ?? null,
-      telefono: mapped['telefono'] ?? null,
       perfil: mapped['perfil'] ?? null,
       coordinador: mapped['coordinador'] ?? null,
       modalidad: mapped['modalidad'] ?? null,
