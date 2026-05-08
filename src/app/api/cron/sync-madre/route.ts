@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { importExcelMadre } from '@/lib/google-sheets/import-madre'
 import { importPromoSheet } from '@/lib/google-sheets/import'
+import { importPlacement, PlacementImportResult } from '@/lib/google-sheets/import-placement'
 
 export const maxDuration = 60
 
@@ -38,19 +39,26 @@ export async function GET(request: NextRequest) {
       imported?: number
       error?: string
     }>
+    placement: Array<{
+      label: string
+      year: number
+      results: PlacementImportResult[]
+      error?: string
+    }>
   } = {
     excel_madre: [],
     promo_sheets: [],
+    placement: [],
   }
 
   // ---- Phase 1: Excel madre import (all active sheets) --------------------
   const { data: madreSheets } = await supabaseAdmin
     .from('madre_sheets_kpi' as any)
-    .select('sheet_id, label')
+    .select('sheet_id, label, year')
     .eq('is_active', true)
     .order('year', { ascending: true })
 
-  for (const madre of (madreSheets as Array<{ sheet_id: string; label: string }> | null) ?? []) {
+  for (const madre of (madreSheets as Array<{ sheet_id: string; label: string; year: number }> | null) ?? []) {
     try {
       const madreResult = await importExcelMadre(madre.sheet_id)
       results.excel_madre.push({
@@ -140,9 +148,33 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // ---- Phase 3: Norway Global Placement import (years 2025 + 2026) --------
+  const norwaySheets = (madreSheets as Array<{ sheet_id: string; label: string; year: number }> | null)
+    ?.filter((s) => s.year === 2025 || s.year === 2026) ?? []
+
+  for (const madre of norwaySheets) {
+    if (Date.now() - startTime > TIMEOUT_MS) {
+      results.placement.push({
+        label: madre.label,
+        year: madre.year,
+        results: [],
+        error: 'Timeout: skipped to stay within execution limit',
+      })
+      continue
+    }
+    try {
+      const placementResults = await importPlacement(madre.sheet_id, madre.year)
+      results.placement.push({ label: madre.label, year: madre.year, results: placementResults })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      results.placement.push({ label: madre.label, year: madre.year, results: [], error: `Fatal: ${msg}` })
+    }
+  }
+
   const hasErrors =
     results.excel_madre.some((m) => m.errors.length > 0) ||
-    results.promo_sheets.some((r) => r.status === 'error')
+    results.promo_sheets.some((r) => r.status === 'error') ||
+    results.placement.some((p) => p.error != null || p.results.some((r) => r.errors.length > 0))
 
   return NextResponse.json(
     {
