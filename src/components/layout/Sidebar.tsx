@@ -15,6 +15,7 @@ import {
   Settings2,
   Briefcase,
   Globe,
+  Wallet,
 } from "lucide-react";
 
 type NavItem = {
@@ -55,6 +56,12 @@ const navSections: NavSection[] = [
     items: [
       { href: "/dashboard/alemania", label: "Alemania", icon: Globe },
       { href: "/dashboard/alemania/abandonos", label: "Abandonos", icon: TrendingDown },
+    ],
+  },
+  {
+    title: "CONTABILIDAD",
+    items: [
+      { href: "/dashboard/contabilidad", label: "Pagos", icon: Wallet },
     ],
   },
   {

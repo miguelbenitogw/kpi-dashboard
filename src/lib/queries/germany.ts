@@ -282,6 +282,10 @@ export interface GermanyDropoutRow {
   absence_percentage: number | null
   reason_for_dropout: string | null
   interest_in_future: string | null
+  // Payment enrichment
+  pago_importe_total: number | null
+  pago_importe_pendiente: number | null
+  pago_estado: 'cobrado' | 'pendiente' | 'sin_datos'
 }
 
 export interface GermanyDropoutStats {
@@ -483,7 +487,7 @@ export async function getGermanyDropoutRows(filters?: {
   }
 
   const { data, error } = await q as {
-    data: GermanyDropoutRow[] | null
+    data: Omit<GermanyDropoutRow, 'pago_importe_total' | 'pago_importe_pendiente' | 'pago_estado'>[] | null
     error: unknown
   }
 
@@ -492,7 +496,42 @@ export async function getGermanyDropoutRows(filters?: {
     return []
   }
 
-  return data ?? []
+  const rawRows = data ?? []
+
+  // Enrich with germany_payments_kpi (join by nombre)
+  const nombres = rawRows.map((r) => r.nombre).filter(Boolean) as string[]
+  let pagosMap = new Map<string, { importe_total: number | null; importe_pendiente: number | null }>()
+
+  if (nombres.length > 0) {
+    const { data: pagos } = await (supabase as any)
+      .from('germany_payments_kpi')
+      .select('nombre, importe_total, importe_pendiente')
+      .in('nombre', nombres) as { data: Array<{ nombre: string | null; importe_total: number | null; importe_pendiente: number | null }> | null }
+
+    pagosMap = new Map((pagos ?? []).map((p) => [p.nombre ?? '', p]))
+  }
+
+  return rawRows.map((r): GermanyDropoutRow => {
+    const pago = r.nombre ? pagosMap.get(r.nombre) ?? null : null
+
+    let pago_estado: 'cobrado' | 'pendiente' | 'sin_datos' = 'sin_datos'
+    if (pago) {
+      if (pago.importe_total === null || pago.importe_total === 0) {
+        pago_estado = 'sin_datos'
+      } else if ((pago.importe_pendiente ?? 0) > 0) {
+        pago_estado = 'pendiente'
+      } else {
+        pago_estado = 'cobrado'
+      }
+    }
+
+    return {
+      ...r,
+      pago_importe_total: pago?.importe_total ?? null,
+      pago_importe_pendiente: pago?.importe_pendiente ?? null,
+      pago_estado,
+    }
+  })
 }
 
 // ---------------------------------------------------------------------------

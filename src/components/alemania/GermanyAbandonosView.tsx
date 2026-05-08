@@ -475,7 +475,7 @@ export default function GermanyAbandonosView({ stats, initialRows }: Props) {
               <tr style={{ borderBottom: `2px solid ${T.border}` }}>
                 {[
                   'Nombre', 'Promo', 'Status', 'Perfil', 'Modalidad',
-                  'Días formación', 'Motivo', 'Interés futuro'
+                  'Días formación', 'Motivo', 'Interés futuro', 'Pago'
                 ].map((h) => (
                   <th
                     key={h}
@@ -497,7 +497,7 @@ export default function GermanyAbandonosView({ stats, initialRows }: Props) {
               {filteredRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     style={{ padding: '32px', textAlign: 'center', color: T.muted, fontSize: '13px' }}
                   >
                     No hay registros con los filtros seleccionados.
@@ -543,6 +543,21 @@ export default function GermanyAbandonosView({ stats, initialRows }: Props) {
                     </td>
                     <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                       <InterestBadge value={row.interest_in_future} />
+                    </td>
+                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                      {row.pago_estado === 'cobrado' && (
+                        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: '#dcfce7', color: '#16a34a' }}>
+                          ✓ Cobrado
+                        </span>
+                      )}
+                      {row.pago_estado === 'pendiente' && (
+                        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: '#fee2e2', color: '#dc2626' }}>
+                          Pendiente {row.pago_importe_pendiente != null ? `€${row.pago_importe_pendiente.toLocaleString('es-AR', { maximumFractionDigits: 0 })}` : ''}
+                        </span>
+                      )}
+                      {row.pago_estado === 'sin_datos' && (
+                        <span style={{ color: T.muted, fontSize: 12 }}>—</span>
+                      )}
                     </td>
                   </tr>
                 ))

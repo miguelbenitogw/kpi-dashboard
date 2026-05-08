@@ -120,12 +120,13 @@ export default function DropoutsTable({ rows }: Props) {
               ))}
               <th className="px-3 py-2.5 text-left font-medium text-gray-400">Etiquetas</th>
               <th className="px-3 py-2.5 text-left font-medium text-gray-400">Notas</th>
+              <th className="px-3 py-2.5 text-left font-medium text-gray-400">Pago</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-700/20">
             {pageRows.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-stone-500">
+                <td colSpan={10} className="px-3 py-8 text-center text-stone-500">
                   Sin resultados
                 </td>
               </tr>
@@ -181,6 +182,22 @@ export default function DropoutsTable({ rows }: Props) {
                         : row.dropout_notes}
                     </span>
                   ) : (
+                    <span className="text-stone-400">—</span>
+                  )}
+                </td>
+                {/* Pago */}
+                <td className="px-3 py-2">
+                  {row.pago_estado === 'cobrado' && (
+                    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: '#dcfce7', color: '#16a34a', whiteSpace: 'nowrap' }}>
+                      ✓ Cobrado
+                    </span>
+                  )}
+                  {row.pago_estado === 'pendiente' && (
+                    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: '#fee2e2', color: '#dc2626', whiteSpace: 'nowrap' }}>
+                      Pendiente {row.pago_importe_pendiente != null ? `€${row.pago_importe_pendiente.toLocaleString('es-AR', { maximumFractionDigits: 0 })}` : ''}
+                    </span>
+                  )}
+                  {row.pago_estado === 'sin_datos' && (
                     <span className="text-stone-400">—</span>
                   )}
                 </td>

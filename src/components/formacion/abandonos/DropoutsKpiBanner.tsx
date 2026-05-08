@@ -25,19 +25,29 @@ export default function DropoutsKpiBanner({ rows }: Props) {
   }
   const topTag = Array.from(tagCounts.entries()).sort(([, a], [, b]) => b - a)[0]?.[0] ?? '—'
 
+  const conDeuda = rows.filter((r) => (r.pago_importe_pendiente ?? 0) > 0)
+  const totalPendiente = conDeuda.reduce((acc, r) => acc + (r.pago_importe_pendiente ?? 0), 0)
+  const deudaLabel = totalPendiente > 0
+    ? `€${totalPendiente.toLocaleString('es-AR', { maximumFractionDigits: 0 })} pend.`
+    : undefined
+
   const cards = [
     { label: 'Total bajas', value: total.toLocaleString('es-AR'), color: 'text-red-400' },
     { label: 'Media días entrenados', value: avgDays !== null ? avgDays.toLocaleString('es-AR') : '—', color: 'text-blue-400' },
     { label: 'Con interés futuro', value: `${interestPct}%`, color: 'text-emerald-400' },
     { label: 'Canal dominante', value: topTag, color: 'text-purple-400' },
+    { label: 'Con deuda', value: conDeuda.length.toLocaleString('es-AR'), sub: deudaLabel, color: 'text-orange-400' },
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
       {cards.map((c) => (
         <div key={c.label} className="rounded-lg border border-gray-700/50 bg-gray-700/20 p-3 text-center">
           <p className="text-[10px] uppercase tracking-wider text-gray-500">{c.label}</p>
           <p className={`mt-1 text-2xl font-bold tabular-nums truncate ${c.color}`}>{c.value}</p>
+          {'sub' in c && c.sub && (
+            <p className="mt-0.5 text-[10px] text-gray-500 truncate">{c.sub}</p>
+          )}
         </div>
       ))}
     </div>
