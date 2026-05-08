@@ -99,6 +99,8 @@ export async function getGPTrainingStatusCounts(
     .not('promocion_nombre', 'is', null)
     .neq('current_status', 'Offer Withdrawn')
     .neq('current_status', 'Offer Declined')
+    .neq('current_status', 'Expelled')
+    .neq('current_status', 'No Show')
 
   if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
 
@@ -131,6 +133,8 @@ export async function getGPOpenToCounts(
     .not('gp_open_to', 'is', null)
     .neq('current_status', 'Offer Withdrawn')
     .neq('current_status', 'Offer Declined')
+    .neq('current_status', 'Expelled')
+    .neq('current_status', 'No Show')
 
   if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
 
@@ -237,6 +241,7 @@ export async function getGPCandidatesFull(
       'gp_quincena, gp_pk, gp_priority, gp_seminar, gp_mes_anio_llegada',
     )
     .not('gp_training_status', 'is', null)
+    .not('gp_training_status', 'in', '("Offer Withdrawn","Offer Declined","Expelled","No Show")')
     .order('full_name', { ascending: true, nullsFirst: false })
 
   if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
