@@ -674,6 +674,7 @@ export interface GermanyPagoFullRow {
   fecha_inicio_pago: string | null
   importe_formacion: number | null
   importe_piso_gw: number | null
+  ayuda_kilometraje: number | null
   importe_total: number | null
   cuotas: Array<{ numero: number; importe: number; fecha: string; pagado: boolean }> | null
   importe_pendiente: number | null

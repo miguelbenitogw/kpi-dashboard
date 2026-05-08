@@ -245,7 +245,7 @@ export async function readSheetByGid(
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: sheetName,
+    range: `'${sheetName.replace(/'/g, "''")}'`,
   })
 
   const rows = res.data.values ?? []
@@ -279,7 +279,7 @@ export async function readSheetByName(
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: sheetName,
+    range: `'${sheetName.replace(/'/g, "''")}'`,
   })
 
   const rows = res.data.values ?? []
