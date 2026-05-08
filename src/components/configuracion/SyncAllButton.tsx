@@ -24,10 +24,24 @@ export default function SyncAllButton() {
     setErrors([])
     try {
       const res = await fetch('/api/admin/sync-all', { method: 'POST' })
-      const data = await res.json()
+      const text = await res.text()
+      let data: any
+      try {
+        data = JSON.parse(text)
+      } catch {
+        // Server returned non-JSON (HTML error page or plain text)
+        setState('error')
+        setErrors([`HTTP ${res.status}: ${text.slice(0, 300)}`])
+        return
+      }
+      if (!res.ok && !data.summary) {
+        setState('error')
+        setErrors([data.error ?? `HTTP ${res.status}`])
+        return
+      }
       setSummary(data.summary ?? null)
       setErrors(data.errors ?? [])
-      setState(data.summary?.all_errors?.length > 0 ? 'error' : 'done')
+      setState((data.errors?.length ?? 0) > 0 ? 'error' : 'done')
     } catch (e) {
       console.error('sync-all error:', e)
       setState('error')

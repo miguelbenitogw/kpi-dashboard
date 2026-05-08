@@ -20,6 +20,16 @@ import { importPlacement } from '@/lib/google-sheets/import-placement'
 export const maxDuration = 60
 
 export async function POST() {
+  try {
+    return await runSync()
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[sync-all] unhandled error:', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}
+
+async function runSync() {
   // --- Session auth ---
   const client = await createServerSupabaseClient()
   const { data: { user } } = await client.auth.getUser()
