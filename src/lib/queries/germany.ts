@@ -657,9 +657,29 @@ export async function getGermanyPaymentsSummary(): Promise<GermanyPaymentsSummar
 // Pagos completo (para vista detallada)
 // ---------------------------------------------------------------------------
 
+/**
+ * Entrada de cuota en el JSONB germany_payments_kpi.cuotas.
+ *
+ * Los datos del sheet "Pagos - Proyectos Infantil" tienen cuotas simples:
+ * solo el importe (columnas "Cuota 1" … "Cuota 16").
+ * No hay subcampos de fecha ni pagado en el sheet original.
+ *
+ * El importer los persiste como { numero, importe, fecha: null, pagado: null }.
+ * Esta interfaz refleja la realidad: fecha y pagado son opcionales para compatibilidad
+ * con cualquier dato histórico que pudiera tener esos campos.
+ */
+export interface GermanyCuotaEntry {
+  numero: number
+  importe: number | null
+  fecha?: string | null
+  pagado?: boolean | string | null
+}
+
 export interface GermanyPagoFullRow {
   id: number
   nombre: string | null
+  telefono: string | null
+  telefono_aleman: string | null
   correo: string | null
   promo_numero: number | null
   profesion: string | null
@@ -676,7 +696,7 @@ export interface GermanyPagoFullRow {
   importe_piso_gw: number | null
   ayuda_kilometraje: number | null
   importe_total: number | null
-  cuotas: Array<{ numero: number; importe: number; fecha: string; pagado: boolean }> | null
+  cuotas: GermanyCuotaEntry[] | null
   importe_pendiente: number | null
   enviar_abogado: string | null
   comentarios_coordinadores: string | null

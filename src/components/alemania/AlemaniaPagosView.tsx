@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { ChevronUp, ChevronDown } from 'lucide-react'
-import { getGermanyPagosFull, type GermanyPagoFullRow } from '@/lib/queries/germany'
+import { getGermanyPagosFull, type GermanyPagoFullRow, type GermanyCuotaEntry } from '@/lib/queries/germany'
 
 // ---------------------------------------------------------------------------
 // Design tokens
@@ -84,10 +84,32 @@ function PagosBadge({ estado, pendiente }: { estado: PagoEstado; pendiente: numb
   )
 }
 
+function isCuotaPagada(c: GermanyCuotaEntry): boolean {
+  if (c.pagado == null) return false
+  if (typeof c.pagado === 'boolean') return c.pagado
+  return ['true', 'yes', 'si', 'sí', '1'].includes(String(c.pagado).toLowerCase().trim())
+}
+
 function CuotasBadge({ cuotas }: { cuotas: GermanyPagoFullRow['cuotas'] }) {
   if (!cuotas || cuotas.length === 0) return <span style={{ fontSize: 11, color: T.light }}>—</span>
   const total = cuotas.length
-  const pagadas = cuotas.filter(c => c.pagado).length
+  // Si ninguna cuota tiene campo pagado (datos del sheet simple), mostramos solo el total
+  const hasPagadoData = cuotas.some(c => c.pagado != null)
+  if (!hasPagadoData) {
+    return (
+      <span style={{
+        fontSize: 11,
+        fontWeight: 600,
+        color: T.accent,
+        background: '#eff6ff',
+        borderRadius: 99,
+        padding: '2px 8px',
+      }}>
+        {total} cuotas
+      </span>
+    )
+  }
+  const pagadas = cuotas.filter(isCuotaPagada).length
   return (
     <span style={{
       fontSize: 11,
@@ -432,24 +454,30 @@ export default function AlemaniaPagosView() {
                               Cuotas — {row.nombre}
                             </p>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                              {row.cuotas.map((c, ci) => (
-                                <div key={ci} style={{
-                                  background: c.pagado ? '#dcfce7' : '#fee2e2',
-                                  border: `1px solid ${c.pagado ? '#86efac' : '#fca5a5'}`,
-                                  borderRadius: 8,
-                                  padding: '5px 10px',
-                                  fontSize: 11,
-                                  minWidth: 100,
-                                }}>
-                                  <div style={{ fontWeight: 600, color: c.pagado ? T.green : T.red }}>
-                                    Cuota {c.numero ?? ci + 1} · {fmtEur(c.importe)}
+                              {row.cuotas.map((c, ci) => {
+                                const pagada = isCuotaPagada(c)
+                                const hasPagado = c.pagado != null
+                                return (
+                                  <div key={ci} style={{
+                                    background: hasPagado ? (pagada ? '#dcfce7' : '#fee2e2') : '#f0f4ff',
+                                    border: `1px solid ${hasPagado ? (pagada ? '#86efac' : '#fca5a5') : '#bfdbfe'}`,
+                                    borderRadius: 8,
+                                    padding: '5px 10px',
+                                    fontSize: 11,
+                                    minWidth: 100,
+                                  }}>
+                                    <div style={{ fontWeight: 600, color: hasPagado ? (pagada ? T.green : T.red) : T.accent }}>
+                                      Cuota {c.numero ?? ci + 1} · {fmtEur(c.importe)}
+                                    </div>
+                                    {c.fecha && <div style={{ color: T.muted }}>{fmtDate(c.fecha)}</div>}
+                                    {hasPagado && (
+                                      <div style={{ fontSize: 10, color: pagada ? T.green : T.red }}>
+                                        {pagada ? '✓ Pagada' : 'Pendiente'}
+                                      </div>
+                                    )}
                                   </div>
-                                  {c.fecha && <div style={{ color: T.muted }}>{fmtDate(c.fecha)}</div>}
-                                  <div style={{ fontSize: 10, color: c.pagado ? T.green : T.red }}>
-                                    {c.pagado ? '✓ Pagada' : 'Pendiente'}
-                                  </div>
-                                </div>
-                              ))}
+                                )
+                              })}
                             </div>
                           </td>
                         </tr>
