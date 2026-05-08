@@ -678,8 +678,6 @@ export interface GermanyCuotaEntry {
 export interface GermanyPagoFullRow {
   id: number
   nombre: string | null
-  telefono: string | null
-  telefono_aleman: string | null
   correo: string | null
   promo_numero: number | null
   profesion: string | null

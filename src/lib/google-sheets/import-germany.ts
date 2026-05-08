@@ -391,13 +391,6 @@ export async function importGermanyExamenes(sheetId: string): Promise<GermanyExa
 // evita que "Comentarios de coordinadores" se mapee a coordinador por substring collision.
 const PAGOS_COLUMN_MAP: Record<string, string[]> = {
   nombre: ['nombre y apellidos', 'nombre completo', 'nombre'],
-  // IMPORTANTE: telefono_aleman va ANTES que telefono en el mapa.
-  // buildHeaderMap itera en orden de inserción y en pass-2 (substring) gana el primero.
-  // "teléfono Aleman" normalizado es "telefono aleman", que contiene "telefono" (variant de
-  // telefono). Si telefono fuera primero, capturaría "teléfono Aleman" erróneamente.
-  // Poniendo telefono_aleman primero, el exact-match de pass-1 lo captura correctamente.
-  telefono_aleman: ['telefono aleman', 'teléfono aleman', 'telefono alemán', 'tel aleman'],
-  telefono: ['telefono', 'teléfono', 'tel', 'phone'],
   zoho_candidate_id: ['id', 'zoho id', 'zoho candidate id'],
   promo_numero: ['no promocion', 'no promo', 'num promo', 'nº promocion', 'nº promo', 'promocion', 'promoción'],
   profesion: ['profesion', 'profesión'],
@@ -559,8 +552,6 @@ export async function importGermanyPagos(sheetId: string): Promise<GermanyPagosR
 
     const payload = {
       nombre,
-      telefono: mapped['telefono'] ?? null,
-      telefono_aleman: mapped['telefono_aleman'] ?? null,
       zoho_candidate_id: mapped['zoho_candidate_id'] ?? null,
       promo_numero: promoNumero,
       profesion: mapped['profesion'] ?? null,
