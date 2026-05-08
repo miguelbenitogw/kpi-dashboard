@@ -446,68 +446,116 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
 
 // ─── Sync button ──────────────────────────────────────────────────────────────
 
-type SyncState = 'idle' | 'loading' | 'success' | 'error'
+type PhaseStatus = 'idle' | 'running' | 'done' | 'error'
+
+interface SyncPhase {
+  key: string
+  label: string
+  status: PhaseStatus
+  detail: string | null
+}
+
+const INITIAL_PHASES: SyncPhase[] = [
+  { key: 'openings', label: 'Vacantes',      status: 'idle', detail: null },
+  { key: 'stats',    label: 'Estados (~1min)', status: 'idle', detail: null },
+]
 
 function SyncZohoVacanciesButton({ onSynced }: { onSynced: () => void }) {
-  const [state, setState] = useState<SyncState>('idle')
-  const [result, setResult] = useState<{ synced: number } | null>(null)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [running, setRunning]   = useState(false)
+  const [done, setDone]         = useState(false)
+  const [phases, setPhases]     = useState<SyncPhase[]>(INITIAL_PHASES.map(p => ({ ...p })))
 
-  async function handleClick() {
-    setState('loading')
-    setResult(null)
-    setErrorMsg(null)
+  function patchPhase(key: string, patch: Partial<SyncPhase>) {
+    setPhases(prev => prev.map(p => p.key === key ? { ...p, ...patch } : p))
+  }
+
+  async function callPhase(key: string, url: string): Promise<boolean> {
+    patchPhase(key, { status: 'running', detail: null })
     try {
-      const res = await fetch('/api/admin/sync-zoho-vacancies', { method: 'POST' })
+      const res  = await fetch(url, { method: 'POST' })
       const data = await res.json()
-      if (!res.ok || !data.success) {
-        setErrorMsg(data.error ?? data.errors?.[0] ?? `HTTP ${res.status}`)
-        setState('error')
-      } else {
-        setResult({ synced: data.synced })
-        setState('success')
-        onSynced()
+      if (!res.ok || data.error) {
+        patchPhase(key, { status: 'error', detail: data.error ?? `HTTP ${res.status}` })
+        return false
       }
+      const detail = data.synced != null
+        ? `${data.synced} actualizadas`
+        : data.vacancies_processed != null
+          ? `${data.vacancies_processed} vacantes procesadas`
+          : null
+      patchPhase(key, { status: 'done', detail })
+      return true
     } catch (e) {
-      setErrorMsg(String(e))
-      setState('error')
+      patchPhase(key, { status: 'error', detail: String(e) })
+      return false
     }
   }
 
+  async function handleSync() {
+    setRunning(true)
+    setDone(false)
+    setPhases(INITIAL_PHASES.map(p => ({ ...p })))
+
+    const ok1 = await callPhase('openings', '/api/admin/sync-zoho-vacancies')
+    if (ok1) await callPhase('stats', '/api/admin/sync-vacancy-stats-session')
+
+    setRunning(false)
+    setDone(true)
+    onSynced()
+  }
+
+  const hasError = phases.some(p => p.status === 'error')
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
       <button
-        onClick={handleClick}
-        disabled={state === 'loading'}
+        onClick={handleSync}
+        disabled={running}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
           padding: '6px 14px', borderRadius: 7,
-          border: `1px solid ${state === 'loading' ? '#cbd5e1' : '#c7d2fe'}`,
-          background: state === 'loading' ? '#f8fafc' : '#eff6ff',
-          color: state === 'loading' ? '#94a3b8' : P.accent,
+          border: `1px solid ${running ? '#cbd5e1' : '#c7d2fe'}`,
+          background: running ? '#f8fafc' : '#eff6ff',
+          color: running ? '#94a3b8' : P.accent,
           fontWeight: 600, fontSize: 12,
-          cursor: state === 'loading' ? 'not-allowed' : 'pointer',
+          cursor: running ? 'not-allowed' : 'pointer',
           transition: 'all 0.15s',
         }}
       >
-        {state === 'loading'
+        {running
           ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
           : <RefreshCw size={13} />}
-        {state === 'loading' ? 'Sincronizando…' : 'Sincronizar vacantes Zoho'}
+        {running ? 'Sincronizando…' : 'Sincronizar desde Zoho'}
       </button>
 
-      {state === 'success' && result && (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: P.green, fontWeight: 500 }}>
-          <CheckCircle2 size={13} />
-          {result.synced} sincronizadas
-        </span>
+      {/* Phase pills — only visible while running or after completion */}
+      {(running || done) && phases.map(p => {
+        const colors = {
+          idle:    { bg: '#f8fafc', border: '#e2e8f0', text: '#94a3b8' },
+          running: { bg: '#eff6ff', border: '#bfdbfe', text: P.accent   },
+          done:    { bg: '#f0fdf4', border: '#bbf7d0', text: P.green    },
+          error:   { bg: '#fef2f2', border: '#fecaca', text: '#dc2626'  },
+        }[p.status]
+        return (
+          <div key={p.key} style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '4px 10px', borderRadius: 6,
+            border: `1px solid ${colors.border}`,
+            background: colors.bg, fontSize: 11, fontWeight: 500, color: colors.text,
+          }}>
+            {p.status === 'running' && <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} />}
+            {p.status === 'done'    && <CheckCircle2 size={11} />}
+            {p.status === 'error'   && <XCircle size={11} />}
+            <span>{p.label}</span>
+            {p.detail && <span style={{ opacity: 0.75 }}>· {p.detail}</span>}
+          </div>
+        )
+      })}
+
+      {done && !hasError && (
+        <span style={{ fontSize: 11, color: '#9ca3af' }}>Datos actualizados ✓</span>
       )}
-      {state === 'error' && errorMsg && (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#dc2626', fontWeight: 500 }}>
-          <XCircle size={13} />
-          {errorMsg.slice(0, 80)}
-        </span>
-      )}
+
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
     </div>
   )
