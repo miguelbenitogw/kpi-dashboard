@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import { RefreshCw, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { getResumenAtraccionVacantes, type ResumenVacanteItem } from '@/lib/queries/atraccion'
 import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
 import { SegmentedStatusBar } from '@/components/atraccion/VacancyStatusCharts'
@@ -443,22 +444,96 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
   )
 }
 
+// ─── Sync button ──────────────────────────────────────────────────────────────
+
+type SyncState = 'idle' | 'loading' | 'success' | 'error'
+
+function SyncZohoVacanciesButton({ onSynced }: { onSynced: () => void }) {
+  const [state, setState] = useState<SyncState>('idle')
+  const [result, setResult] = useState<{ synced: number } | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  async function handleClick() {
+    setState('loading')
+    setResult(null)
+    setErrorMsg(null)
+    try {
+      const res = await fetch('/api/admin/sync-zoho-vacancies', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        setErrorMsg(data.error ?? data.errors?.[0] ?? `HTTP ${res.status}`)
+        setState('error')
+      } else {
+        setResult({ synced: data.synced })
+        setState('success')
+        onSynced()
+      }
+    } catch (e) {
+      setErrorMsg(String(e))
+      setState('error')
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <button
+        onClick={handleClick}
+        disabled={state === 'loading'}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '6px 14px', borderRadius: 7,
+          border: `1px solid ${state === 'loading' ? '#cbd5e1' : '#c7d2fe'}`,
+          background: state === 'loading' ? '#f8fafc' : '#eff6ff',
+          color: state === 'loading' ? '#94a3b8' : P.accent,
+          fontWeight: 600, fontSize: 12,
+          cursor: state === 'loading' ? 'not-allowed' : 'pointer',
+          transition: 'all 0.15s',
+        }}
+      >
+        {state === 'loading'
+          ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+          : <RefreshCw size={13} />}
+        {state === 'loading' ? 'Sincronizando…' : 'Sincronizar vacantes Zoho'}
+      </button>
+
+      {state === 'success' && result && (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: P.green, fontWeight: 500 }}>
+          <CheckCircle2 size={13} />
+          {result.synced} sincronizadas
+        </span>
+      )}
+      {state === 'error' && errorMsg && (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#dc2626', fontWeight: 500 }}>
+          <XCircle size={13} />
+          {errorMsg.slice(0, 80)}
+        </span>
+      )}
+      <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
+    </div>
+  )
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function AtraccionResumen() {
   const [items, setItems] = useState<ResumenVacanteItem[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    let cancelled = false
+  const fetchData = useCallback(() => {
+    setLoading(true)
     getResumenAtraccionVacantes().then((data) => {
-      if (!cancelled) { setItems(data); setLoading(false) }
+      setItems(data)
+      setLoading(false)
     })
-    return () => { cancelled = true }
   }, [])
+
+  useEffect(() => { fetchData() }, [fetchData])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <style>{`@keyframes ar-pulse { 0%,100%{opacity:1} 50%{opacity:.45} }`}</style>
+
+      {/* Sync button */}
+      <SyncZohoVacanciesButton onSynced={fetchData} />
 
       {loading ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 16 }}>
