@@ -52,7 +52,22 @@ function parseDate(value: string | null | undefined): string | null {
  */
 function parseNumber(value: string | null | undefined): number | null {
   if (!value || !value.trim()) return null
-  const cleaned = value.trim().replace(/%/g, '').replace(/\s/g, '').replace(',', '.')
+  // Remove currency symbols (€, $, £, etc.) and whitespace
+  let cleaned = value.trim()
+    .replace(/[€$£¥]/g, '')
+    .replace(/\s/g, '')
+    .replace(/%/g, '')
+  if (!cleaned) return null
+
+  // European currency format: thousands-dot + decimal-comma, e.g. "1.900,00"
+  // If BOTH dot and comma are present, dot = thousands separator → strip it, comma → dot
+  if (cleaned.includes('.') && cleaned.includes(',')) {
+    cleaned = cleaned.replace(/\./g, '').replace(',', '.')
+  } else {
+    // Only comma present → decimal separator
+    cleaned = cleaned.replace(',', '.')
+  }
+
   const num = Number(cleaned)
   return Number.isNaN(num) ? null : num
 }
@@ -404,11 +419,12 @@ const PAGOS_COLUMN_MAP: Record<string, string[]> = {
   // 'fecha del inicio de la formacion' debe ir antes de 'fecha inicio de pago' para evitar que
   // 'Fecha inicio de pago del alumno' match-ee 'fecha inicio' → fecha_inicio_formacion
   fecha_inicio_formacion: ['fecha del inicio de la formacion', 'inicio de la formacion', 'fecha inicio formacion', 'fecha inicio de formacion'],
-  fecha_abandono_formacion: ['fecha de abandono', 'fecha abandono', 'abandono formacion'],
+  fecha_abandono_formacion: ['fecha del abandono de formacion', 'fecha del abandono', 'fecha de abandono', 'fecha abandono', 'abandono formacion'],
   fecha_inicio_contrato: ['inicio contrato laborar', 'fecha de inicio contrato', 'fecha inicio contrato', 'contrato laborar'],
   opcion_financiacion: ['opcion de financiacion', 'opcion financiacion', 'opción de financiación', 'financiacion'],
   fecha_inicio_pago: ['de pago del alumno', 'fecha inicio de pago', 'inicio pago del alumno', 'fecha inicio pago', 'inicio pago'],
   importe_formacion: [
+    'importe por formacion',   // ← actual column name in sheet
     'importe de formacion',
     'importe formacion',
     'importe de la formacion',
