@@ -20,7 +20,8 @@ export interface DropoutRow {
   pago_importe_pendiente: number | null
   pago_importe_cobrado: number | null
   pago_fecha_cobro: string | null
-  pago_estado: 'cobrado' | 'pendiente' | 'sin_datos'
+  pago_condiciones: string | null
+  pago_estado: 'cobrado' | 'parcial' | 'pendiente' | 'sin_datos'
 }
 
 export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
@@ -71,12 +72,12 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
 
   // Enrich with payment data
   const emails = dropouts.map((d) => d.email).filter(Boolean) as string[]
-  let pagosMap = new Map<string, { importe_total: number | null; importe_pendiente: number | null; importe_pagado_2024: number | null; importe_pagado_2025: number | null; importe_pagado_2026: number | null; fecha_cobro: string | null }>()
+  let pagosMap = new Map<string, { importe_total: number | null; importe_pendiente: number | null; importe_pagado_2024: number | null; importe_pagado_2025: number | null; importe_pagado_2026: number | null; fecha_cobro: string | null; condiciones_pago: string | null }>()
 
   if (emails.length > 0) {
     const { data: pagos } = await supabase
       .from('pagos_candidato_kpi')
-      .select('email, importe_total, importe_pendiente, importe_pagado_2024, importe_pagado_2025, importe_pagado_2026, fecha_cobro')
+      .select('email, importe_total, importe_pendiente, importe_pagado_2024, importe_pagado_2025, importe_pagado_2026, fecha_cobro, condiciones_pago')
       .in('email', emails)
 
     pagosMap = new Map((pagos ?? []).map((p: any) => [p.email, p]))
@@ -88,14 +89,20 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
       ? (pago.importe_pagado_2024 ?? 0) + (pago.importe_pagado_2025 ?? 0) + (pago.importe_pagado_2026 ?? 0)
       : null
 
-    let pago_estado: 'cobrado' | 'pendiente' | 'sin_datos' = 'sin_datos'
+    let pago_estado: 'cobrado' | 'parcial' | 'pendiente' | 'sin_datos' = 'sin_datos'
     if (pago) {
-      if (pago.importe_total === null || pago.importe_total === 0) {
+      const total = pago.importe_total ?? 0
+      const pendiente = pago.importe_pendiente ?? 0
+      if (total === 0 || pago.importe_total === null) {
         pago_estado = 'sin_datos'
-      } else if ((pago.importe_pendiente ?? 0) > 0) {
-        pago_estado = 'pendiente'
-      } else {
+      } else if (pendiente <= 0) {
         pago_estado = 'cobrado'
+      } else if (pendiente < total) {
+        // Ha pagado algo pero no todo
+        pago_estado = 'parcial'
+      } else {
+        // pendiente === total: no ha pagado nada
+        pago_estado = 'pendiente'
       }
     }
 
@@ -105,6 +112,7 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
       pago_importe_pendiente: pago?.importe_pendiente ?? null,
       pago_importe_cobrado: cobrado,
       pago_fecha_cobro: pago?.fecha_cobro ?? null,
+      pago_condiciones: pago?.condiciones_pago ?? null,
       pago_estado,
     }
   })

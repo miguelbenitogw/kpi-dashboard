@@ -366,7 +366,7 @@ export default function GPCandidateTable({ promoFilter }: { promoFilter: string 
                 <TH label="Talent Portal" sortKey="gp_profile_talent_portal" {...thProps} />
                 <TH label="CV Norsk"      sortKey="gp_cv_norsk"            {...thProps} />
                 <TH label="Total apps"    sortKey="gp_total_applications"  {...thProps} />
-                <TH label="Ratio"         sortKey="gp_interviews_ratio"    {...thProps} />
+                <TH label="Entrevistas"   sortKey="gp_interviews_ratio"    {...thProps} />
                 <TH label="Quincena"      sortKey="gp_quincena"            {...thProps} />
                 <TH label="Assignment"    sortKey="gp_assignment"          {...thProps} />
               </tr>

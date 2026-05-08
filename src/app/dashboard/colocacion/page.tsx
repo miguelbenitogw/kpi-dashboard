@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import GPColocacionView from '@/components/colocacion/GPColocacionView'
 import GPCandidateTable from '@/components/colocacion/GPCandidateTable'
+import GPPreferenciaView from '@/components/colocacion/GPPreferenciaView'
+import GPStatusView from '@/components/colocacion/GPStatusView'
 import { getGPPromotions, type PromoGPSummary } from '@/lib/queries/colocacion'
 
 export default function ColocacionPage() {
@@ -68,6 +70,26 @@ export default function ColocacionPage() {
           }}
         >
           <GPCandidateTable promoFilter={selectedPromo} />
+        </div>
+      </section>
+
+      {/* ── Preferencia y estado de colocación ── */}
+      <section>
+        <div style={{ marginBottom: 12 }}>
+          <h2 className="text-base font-semibold" style={{ color: '#1c1917' }}>
+            Preferencias y estado de colocación
+          </h2>
+          <p className="text-sm" style={{ color: '#78716c', marginTop: 2 }}>
+            Distribución por preferencia de destino y estado actual del proceso de placement.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 18 }}>
+            <GPPreferenciaView promoFilter={selectedPromo} />
+          </div>
+          <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 18 }}>
+            <GPStatusView promoFilter={selectedPromo} />
+          </div>
         </div>
       </section>
 

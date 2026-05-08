@@ -22,14 +22,14 @@ const EMPTY_FILTERS: DropoutFilters = {
 
 function Skeleton() {
   return (
-    <div className="space-y-4 animate-pulse">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-16 rounded-lg bg-gray-700/30" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+        {[...Array(8)].map((_, i) => (
+          <div key={i} style={{ height: 72, borderRadius: 10, background: '#f5f1ea', animation: 'pulse 1.5s infinite' }} />
         ))}
       </div>
-      <div className="h-10 rounded-lg bg-gray-700/30" />
-      <div className="h-64 rounded-xl bg-gray-700/30" />
+      <div style={{ height: 40, borderRadius: 8, background: '#f5f1ea' }} />
+      <div style={{ height: 260, borderRadius: 12, background: '#f5f1ea' }} />
     </div>
   )
 }
@@ -144,7 +144,7 @@ export default function DropoutsView() {
   if (loading) return <Skeleton />
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <DropoutsKpiBanner rows={filtered} />
 
       <DropoutsFilters
@@ -155,20 +155,32 @@ export default function DropoutsView() {
       />
 
       {/* Charts — collapsible */}
-      <div className="rounded-xl border border-gray-700/50 bg-gray-800/30">
+      <div style={{ borderRadius: 12, border: '1px solid #e7e2d8', background: '#ffffff', overflow: 'hidden' }}>
         <button
           onClick={() => setChartsOpen((o) => !o)}
-          className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-gray-300 hover:text-gray-100"
+          style={{
+            display: 'flex',
+            width: '100%',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            fontSize: 13,
+            fontWeight: 500,
+            color: '#1c1917',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+          }}
         >
           <span>Gráficos</span>
           {chartsOpen ? (
-            <ChevronUp className="h-4 w-4" />
+            <ChevronUp style={{ width: 16, height: 16, color: '#78716c' }} />
           ) : (
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown style={{ width: 16, height: 16, color: '#78716c' }} />
           )}
         </button>
         {chartsOpen && (
-          <div className="border-t border-gray-700/50 p-3">
+          <div style={{ borderTop: '1px solid #e7e2d8', padding: 12 }}>
             <DropoutsCharts rows={filtered} />
           </div>
         )}

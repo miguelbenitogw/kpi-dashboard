@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import type { DropoutRow } from '@/lib/queries/dropouts'
 
@@ -11,22 +11,16 @@ interface Props {
 const PAGE_SIZE = 25
 
 const INTEREST_COLORS: Record<string, string> = {
-  Yes: 'text-emerald-400',
-  No: 'text-red-400',
-  'Does not know': 'text-amber-400',
+  Yes: '#16a34a',
+  No: '#dc2626',
+  'Does not know': '#d97706',
 }
 
-const TAG_CHIP_COLORS: Record<string, string> = {
-  FR: 'bg-indigo-500/20 text-indigo-300',
-  CP: 'bg-emerald-500/20 text-emerald-300',
-  GW: 'bg-purple-500/20 text-purple-300',
-}
-
-function tagChipColor(tag: string): string {
-  for (const [prefix, cls] of Object.entries(TAG_CHIP_COLORS)) {
-    if (tag.startsWith(prefix)) return cls
-  }
-  return 'bg-gray-700/40 text-gray-400'
+function tagChipStyle(tag: string): React.CSSProperties {
+  if (tag.startsWith('FR')) return { background: '#eef2ff', color: '#4338ca' }
+  if (tag.startsWith('CP')) return { background: '#f0fdf4', color: '#15803d' }
+  if (tag.startsWith('GW')) return { background: '#faf5ff', color: '#7c3aed' }
+  return { background: '#f5f1ea', color: '#78716c' }
 }
 
 function formatDate(d: string | null): string {
@@ -38,6 +32,88 @@ function formatDate(d: string | null): string {
     month: '2-digit',
     year: '2-digit',
   })
+}
+
+function formatEuros(n: number | null): string {
+  if (n === null || n === 0) return ''
+  return `€${n.toLocaleString('es-ES', { maximumFractionDigits: 0 })}`
+}
+
+function PagoBadge({ row }: { row: DropoutRow }) {
+  if (row.pago_estado === 'cobrado') {
+    return (
+      <span style={{
+        display: 'inline-block',
+        padding: '2px 8px',
+        borderRadius: 999,
+        fontSize: 10,
+        fontWeight: 600,
+        background: '#f0fdf4',
+        color: '#15803d',
+        border: '1px solid #bbf7d0',
+        whiteSpace: 'nowrap',
+      }}>
+        ✓ Cobrado
+      </span>
+    )
+  }
+
+  if (row.pago_estado === 'parcial') {
+    const pendStr = formatEuros(row.pago_importe_pendiente)
+    const totalStr = formatEuros(row.pago_importe_total)
+    const label = pendStr ? `Parcial · ${pendStr} pend.` : 'Parcial'
+    const title = row.pago_condiciones
+      ? `Total: ${totalStr} · Pendiente: ${pendStr}\n\n${row.pago_condiciones}`
+      : `Total: ${totalStr} · Pendiente: ${pendStr}`
+    return (
+      <span
+        title={title}
+        style={{
+          display: 'inline-block',
+          padding: '2px 8px',
+          borderRadius: 999,
+          fontSize: 10,
+          fontWeight: 600,
+          background: '#fffbeb',
+          color: '#b45309',
+          border: '1px solid #fde68a',
+          whiteSpace: 'nowrap',
+          cursor: 'default',
+        }}
+      >
+        ◑ {label}
+      </span>
+    )
+  }
+
+  if (row.pago_estado === 'pendiente') {
+    const pendStr = formatEuros(row.pago_importe_pendiente)
+    const label = pendStr ? `Pendiente ${pendStr}` : 'Pendiente'
+    const title = row.pago_condiciones
+      ? `Sin pago · Total: ${pendStr}\n\n${row.pago_condiciones}`
+      : `Sin pago · Total: ${pendStr}`
+    return (
+      <span
+        title={title}
+        style={{
+          display: 'inline-block',
+          padding: '2px 8px',
+          borderRadius: 999,
+          fontSize: 10,
+          fontWeight: 600,
+          background: '#fff1f2',
+          color: '#be123c',
+          border: '1px solid #fecdd3',
+          whiteSpace: 'nowrap',
+          cursor: 'default',
+        }}
+      >
+        ✗ {label}
+      </span>
+    )
+  }
+
+  return <span style={{ color: '#a8a29e', fontSize: 12 }}>—</span>
 }
 
 type SortKey = keyof DropoutRow
@@ -56,6 +132,31 @@ const COLUMNS: ColDef[] = [
   { key: 'dropout_days_of_training', label: 'Días' },
   { key: 'dropout_interest_future', label: 'Interés' },
 ]
+
+const TH_STYLE: React.CSSProperties = {
+  padding: '8px 12px',
+  textAlign: 'left',
+  fontSize: 11,
+  fontWeight: 600,
+  color: '#78716c',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  whiteSpace: 'nowrap',
+  cursor: 'pointer',
+  userSelect: 'none',
+}
+
+const TH_STATIC: React.CSSProperties = {
+  ...TH_STYLE,
+  cursor: 'default',
+}
+
+const TD_STYLE: React.CSSProperties = {
+  padding: '7px 12px',
+  fontSize: 12,
+  color: '#44403c',
+  verticalAlign: 'middle',
+}
 
 export default function DropoutsTable({ rows }: Props) {
   const [page, setPage] = useState(0)
@@ -95,86 +196,105 @@ export default function DropoutsTable({ rows }: Props) {
   const to = Math.min((page + 1) * PAGE_SIZE, sorted.length)
 
   return (
-    <div className="rounded-xl border border-gray-700/50 bg-gray-800/50">
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+    <div style={{ borderRadius: 12, border: '1px solid #e7e2d8', background: '#ffffff', overflow: 'hidden' }}>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
-            <tr className="border-b border-gray-700/50">
+            <tr style={{ borderBottom: '1px solid #e7e2d8', background: '#faf9f7' }}>
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
                   onClick={() => handleSort(col.key)}
-                  className="cursor-pointer whitespace-nowrap px-3 py-2.5 text-left font-medium text-gray-400 hover:text-gray-200"
+                  style={TH_STYLE}
                 >
-                  <span className="inline-flex items-center gap-1">
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     {col.label}
                     {sortKey === col.key ? (
                       sortDir === 'asc' ? (
-                        <ChevronUp className="h-3 w-3" />
+                        <ChevronUp style={{ width: 12, height: 12 }} />
                       ) : (
-                        <ChevronDown className="h-3 w-3" />
+                        <ChevronDown style={{ width: 12, height: 12 }} />
                       )
                     ) : null}
                   </span>
                 </th>
               ))}
-              <th className="px-3 py-2.5 text-left font-medium text-gray-400">Etiquetas</th>
-              <th className="px-3 py-2.5 text-left font-medium text-gray-400">Notas</th>
-              <th className="px-3 py-2.5 text-left font-medium text-gray-400">Pago</th>
+              <th style={TH_STATIC}>Etiquetas</th>
+              <th style={TH_STATIC}>Notas</th>
+              <th style={{ ...TH_STATIC, cursor: 'pointer' }} onClick={() => handleSort('pago_estado')}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  Pago
+                  {sortKey === 'pago_estado' ? (
+                    sortDir === 'asc' ? <ChevronUp style={{ width: 12, height: 12 }} /> : <ChevronDown style={{ width: 12, height: 12 }} />
+                  ) : null}
+                </span>
+              </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-700/20">
+          <tbody>
             {pageRows.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-3 py-8 text-center text-stone-500">
+                <td colSpan={10} style={{ padding: '32px 12px', textAlign: 'center', color: '#a8a29e', fontSize: 13 }}>
                   Sin resultados
                 </td>
               </tr>
             )}
-            {pageRows.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-700/20">
-                <td className="px-3 py-2 text-gray-200">{row.full_name ?? '—'}</td>
-                <td className="px-3 py-2 text-gray-400">
+            {pageRows.map((row, i) => (
+              <tr
+                key={row.id}
+                style={{
+                  borderBottom: i < pageRows.length - 1 ? '1px solid #f0ede6' : undefined,
+                  background: i % 2 === 0 ? '#ffffff' : '#faf9f7',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f1ea')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = i % 2 === 0 ? '#ffffff' : '#faf9f7')}
+              >
+                <td style={{ ...TD_STYLE, fontWeight: 500, color: '#1c1917' }}>{row.full_name ?? '—'}</td>
+                <td style={{ ...TD_STYLE, color: '#78716c' }}>
                   {row.promocion_nombre
                     ? row.promocion_nombre.replace(/^Promoci[oó]n\s+/i, 'Prom. ')
                     : '—'}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 tabular-nums text-gray-400">
+                <td style={{ ...TD_STYLE, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', color: '#78716c' }}>
                   {formatDate(row.dropout_date)}
                 </td>
-                <td className="px-3 py-2 text-gray-300">{row.dropout_reason ?? '—'}</td>
-                <td className="px-3 py-2 text-gray-400">{row.dropout_language_level ?? '—'}</td>
-                <td className="px-3 py-2 tabular-nums text-gray-400">
+                <td style={{ ...TD_STYLE, color: '#44403c' }}>{row.dropout_reason ?? '—'}</td>
+                <td style={{ ...TD_STYLE, color: '#78716c' }}>{row.dropout_language_level ?? '—'}</td>
+                <td style={{ ...TD_STYLE, fontVariantNumeric: 'tabular-nums', color: '#78716c' }}>
                   {row.dropout_days_of_training ?? '—'}
                 </td>
-                <td
-                  className={`px-3 py-2 ${INTEREST_COLORS[row.dropout_interest_future ?? ''] ?? 'text-gray-400'}`}
-                >
+                <td style={{ ...TD_STYLE, color: INTEREST_COLORS[row.dropout_interest_future ?? ''] ?? '#78716c', fontWeight: 500 }}>
                   {row.dropout_interest_future ?? '—'}
                 </td>
                 {/* Tags */}
-                <td className="px-3 py-2">
-                  <div className="flex flex-wrap gap-1">
+                <td style={TD_STYLE}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                     {row.tags.slice(0, 3).map((tag) => (
                       <span
                         key={tag}
-                        className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${tagChipColor(tag)}`}
+                        style={{
+                          ...tagChipStyle(tag),
+                          borderRadius: 999,
+                          padding: '1px 7px',
+                          fontSize: 10,
+                          fontWeight: 600,
+                        }}
                       >
                         {tag}
                       </span>
                     ))}
                     {row.tags.length > 3 && (
-                      <span className="rounded-full bg-gray-700/40 px-1.5 py-0.5 text-[10px] text-stone-500">
-                        +{row.tags.length - 3} más
+                      <span style={{ background: '#f5f1ea', color: '#78716c', borderRadius: 999, padding: '1px 7px', fontSize: 10 }}>
+                        +{row.tags.length - 3}
                       </span>
                     )}
                   </div>
                 </td>
                 {/* Notas */}
-                <td className="px-3 py-2">
+                <td style={{ ...TD_STYLE, maxWidth: 200 }}>
                   {row.dropout_notes ? (
                     <span
-                      className="cursor-default text-stone-500"
+                      style={{ color: '#a8a29e', cursor: 'default' }}
                       title={row.dropout_notes}
                     >
                       {row.dropout_notes.length > 40
@@ -182,24 +302,12 @@ export default function DropoutsTable({ rows }: Props) {
                         : row.dropout_notes}
                     </span>
                   ) : (
-                    <span className="text-stone-400">—</span>
+                    <span style={{ color: '#d4cfc8' }}>—</span>
                   )}
                 </td>
                 {/* Pago */}
-                <td className="px-3 py-2">
-                  {row.pago_estado === 'cobrado' && (
-                    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: '#dcfce7', color: '#16a34a', whiteSpace: 'nowrap' }}>
-                      ✓ Cobrado
-                    </span>
-                  )}
-                  {row.pago_estado === 'pendiente' && (
-                    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: '#fee2e2', color: '#dc2626', whiteSpace: 'nowrap' }}>
-                      Pendiente {row.pago_importe_pendiente != null ? `€${row.pago_importe_pendiente.toLocaleString('es-AR', { maximumFractionDigits: 0 })}` : ''}
-                    </span>
-                  )}
-                  {row.pago_estado === 'sin_datos' && (
-                    <span className="text-stone-400">—</span>
-                  )}
+                <td style={TD_STYLE}>
+                  <PagoBadge row={row} />
                 </td>
               </tr>
             ))}
@@ -208,22 +316,45 @@ export default function DropoutsTable({ rows }: Props) {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between border-t border-gray-700/50 px-4 py-2.5">
-        <span className="text-xs text-stone-500">
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderTop: '1px solid #e7e2d8',
+        padding: '8px 16px',
+        background: '#faf9f7',
+      }}>
+        <span style={{ fontSize: 12, color: '#a8a29e' }}>
           {sorted.length > 0 ? `Mostrando ${from}–${to} de ${sorted.length}` : 'Sin resultados'}
         </span>
-        <div className="flex gap-2">
+        <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
-            className="rounded border border-gray-700/50 px-2.5 py-1 text-xs text-gray-400 hover:border-gray-600 hover:text-gray-200 disabled:opacity-30"
+            style={{
+              border: '1px solid #e7e2d8',
+              borderRadius: 6,
+              padding: '4px 12px',
+              fontSize: 12,
+              color: page === 0 ? '#d4cfc8' : '#78716c',
+              background: '#ffffff',
+              cursor: page === 0 ? 'not-allowed' : 'pointer',
+            }}
           >
             Anterior
           </button>
           <button
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page >= totalPages - 1}
-            className="rounded border border-gray-700/50 px-2.5 py-1 text-xs text-gray-400 hover:border-gray-600 hover:text-gray-200 disabled:opacity-30"
+            style={{
+              border: '1px solid #e7e2d8',
+              borderRadius: 6,
+              padding: '4px 12px',
+              fontSize: 12,
+              color: page >= totalPages - 1 ? '#d4cfc8' : '#78716c',
+              background: '#ffffff',
+              cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer',
+            }}
           >
             Siguiente
           </button>

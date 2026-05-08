@@ -50,32 +50,80 @@ function MultiSelect({
   onToggle: (v: string) => void
 }) {
   return (
-    <details className="relative">
-      <summary className="cursor-pointer list-none rounded-lg border border-gray-700/50 bg-gray-800/60 px-3 py-1.5 text-xs text-gray-300 hover:border-gray-600 flex items-center gap-1.5 select-none">
+    <details style={{ position: 'relative' }}>
+      <summary
+        style={{
+          cursor: 'pointer',
+          listStyle: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '5px 12px',
+          borderRadius: 8,
+          border: '1px solid #e7e2d8',
+          background: selected.length > 0 ? '#f5f1ea' : '#ffffff',
+          color: '#44403c',
+          fontSize: 12,
+          userSelect: 'none',
+        }}
+      >
         {label}
         {selected.length > 0 && (
-          <span className="rounded-full bg-indigo-500/30 px-1.5 text-[10px] text-indigo-300">
+          <span
+            style={{
+              borderRadius: 999,
+              background: '#1e4b9e',
+              color: '#ffffff',
+              padding: '0 6px',
+              fontSize: 10,
+              fontWeight: 600,
+            }}
+          >
             {selected.length}
           </span>
         )}
       </summary>
-      <div className="absolute z-20 mt-1 w-56 rounded-xl border border-gray-700/50 bg-gray-800 p-2 shadow-xl max-h-60 overflow-y-auto space-y-0.5">
+      <div
+        style={{
+          position: 'absolute',
+          zIndex: 20,
+          marginTop: 4,
+          width: 220,
+          borderRadius: 10,
+          border: '1px solid #e7e2d8',
+          background: '#ffffff',
+          padding: 8,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+          maxHeight: 240,
+          overflowY: 'auto',
+        }}
+      >
         {opts.length === 0 ? (
-          <p className="px-2 py-1 text-xs text-stone-500">Sin opciones</p>
+          <p style={{ padding: '4px 8px', fontSize: 12, color: '#a8a29e', margin: 0 }}>Sin opciones</p>
         ) : (
           opts.map((opt) => (
             <label
               key={opt.value}
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs hover:bg-gray-700/50"
+              style={{
+                display: 'flex',
+                cursor: 'pointer',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 8px',
+                borderRadius: 6,
+                fontSize: 12,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#faf9f7')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               <input
                 type="checkbox"
                 checked={selected.includes(opt.value)}
                 onChange={() => onToggle(opt.value)}
-                className="accent-indigo-500"
+                style={{ accentColor: '#1e4b9e' }}
               />
-              <span className="flex-1 text-gray-300">{opt.label}</span>
-              <span className="text-stone-500 tabular-nums">{opt.count}</span>
+              <span style={{ flex: 1, color: '#44403c' }}>{opt.label}</span>
+              <span style={{ color: '#a8a29e', fontVariantNumeric: 'tabular-nums' }}>{opt.count}</span>
             </label>
           ))
         )}
@@ -99,10 +147,16 @@ export default function DropoutsFilters({ filters, options, onChange, onClear }:
     filters.nationalities.length > 0
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
       {/* Search */}
-      <div className="relative">
-        <svg className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <div style={{ position: 'relative' }}>
+        <svg
+          style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: '#a8a29e', pointerEvents: 'none' }}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
         </svg>
         <input
@@ -110,7 +164,19 @@ export default function DropoutsFilters({ filters, options, onChange, onClear }:
           value={filters.search}
           onChange={(e) => onChange({ ...filters, search: e.target.value })}
           placeholder="Buscar nombre o email..."
-          className="rounded-lg border border-gray-700/50 bg-gray-800/60 pl-8 pr-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30 transition-colors w-48"
+          style={{
+            borderRadius: 8,
+            border: '1px solid #e7e2d8',
+            background: '#ffffff',
+            paddingLeft: 28,
+            paddingRight: 12,
+            paddingTop: 5,
+            paddingBottom: 5,
+            fontSize: 12,
+            color: '#1c1917',
+            outline: 'none',
+            width: 192,
+          }}
         />
       </div>
 
@@ -124,7 +190,15 @@ export default function DropoutsFilters({ filters, options, onChange, onClear }:
       {hasActive && (
         <button
           onClick={onClear}
-          className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/20 transition-colors"
+          style={{
+            borderRadius: 8,
+            border: '1px solid #fecdd3',
+            background: '#fff1f2',
+            padding: '5px 12px',
+            fontSize: 12,
+            color: '#be123c',
+            cursor: 'pointer',
+          }}
         >
           Limpiar todo
         </button>

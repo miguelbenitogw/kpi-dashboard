@@ -4,6 +4,11 @@ import type { DropoutRow } from '@/lib/queries/dropouts'
 
 interface Props { rows: DropoutRow[] }
 
+function formatEuros(n: number): string {
+  if (n === 0) return '€0'
+  return `€${n.toLocaleString('es-ES', { maximumFractionDigits: 0 })}`
+}
+
 export default function DropoutsKpiBanner({ rows }: Props) {
   const total = rows.length
 
@@ -25,28 +30,110 @@ export default function DropoutsKpiBanner({ rows }: Props) {
   }
   const topTag = Array.from(tagCounts.entries()).sort(([, a], [, b]) => b - a)[0]?.[0] ?? '—'
 
-  const conDeuda = rows.filter((r) => (r.pago_importe_pendiente ?? 0) > 0)
-  const totalPendiente = conDeuda.reduce((acc, r) => acc + (r.pago_importe_pendiente ?? 0), 0)
-  const deudaLabel = totalPendiente > 0
-    ? `€${totalPendiente.toLocaleString('es-AR', { maximumFractionDigits: 0 })} pend.`
-    : undefined
+  // Payment stats
+  const cobrados = rows.filter((r) => r.pago_estado === 'cobrado')
+  const parciales = rows.filter((r) => r.pago_estado === 'parcial')
+  const pendientes = rows.filter((r) => r.pago_estado === 'pendiente')
 
-  const cards = [
-    { label: 'Total bajas', value: total.toLocaleString('es-AR'), color: 'text-red-400' },
-    { label: 'Media días entrenados', value: avgDays !== null ? avgDays.toLocaleString('es-AR') : '—', color: 'text-blue-400' },
-    { label: 'Con interés futuro', value: `${interestPct}%`, color: 'text-emerald-400' },
-    { label: 'Canal dominante', value: topTag, color: 'text-purple-400' },
-    { label: 'Con deuda', value: conDeuda.length.toLocaleString('es-AR'), sub: deudaLabel, color: 'text-orange-400' },
+  const totalCobrado = cobrados.reduce((acc, r) => acc + (r.pago_importe_total ?? 0), 0)
+  const totalPendienteTotal = pendientes.reduce((acc, r) => acc + (r.pago_importe_pendiente ?? 0), 0)
+  const totalPendienteParcial = parciales.reduce((acc, r) => acc + (r.pago_importe_pendiente ?? 0), 0)
+  const totalDeudaActiva = totalPendienteTotal + totalPendienteParcial
+
+  const cards: Array<{
+    label: string
+    value: string
+    sub?: string
+    color: string
+    bg: string
+    border: string
+  }> = [
+    {
+      label: 'Total bajas',
+      value: total.toLocaleString('es-AR'),
+      color: '#dc2626',
+      bg: '#fff1f2',
+      border: '#fecdd3',
+    },
+    {
+      label: 'Media días entrenados',
+      value: avgDays !== null ? avgDays.toLocaleString('es-AR') : '—',
+      color: '#1e4b9e',
+      bg: '#eff6ff',
+      border: '#bfdbfe',
+    },
+    {
+      label: 'Con interés futuro',
+      value: `${interestPct}%`,
+      sub: `${interestYes} de ${total}`,
+      color: '#15803d',
+      bg: '#f0fdf4',
+      border: '#bbf7d0',
+    },
+    {
+      label: 'Canal dominante',
+      value: topTag,
+      color: '#7c3aed',
+      bg: '#faf5ff',
+      border: '#e9d5ff',
+    },
+    {
+      label: 'Cobrado íntegro',
+      value: cobrados.length.toLocaleString('es-AR'),
+      sub: cobrados.length > 0 ? formatEuros(totalCobrado) : undefined,
+      color: '#15803d',
+      bg: '#f0fdf4',
+      border: '#bbf7d0',
+    },
+    {
+      label: 'Pago parcial',
+      value: parciales.length.toLocaleString('es-AR'),
+      sub: parciales.length > 0 ? `${formatEuros(totalPendienteParcial)} pend.` : undefined,
+      color: '#b45309',
+      bg: '#fffbeb',
+      border: '#fde68a',
+    },
+    {
+      label: 'Sin ningún pago',
+      value: pendientes.length.toLocaleString('es-AR'),
+      sub: pendientes.length > 0 ? formatEuros(totalPendienteTotal) : undefined,
+      color: '#be123c',
+      bg: '#fff1f2',
+      border: '#fecdd3',
+    },
+    {
+      label: 'Deuda activa total',
+      value: totalDeudaActiva > 0 ? formatEuros(totalDeudaActiva) : '—',
+      sub: totalDeudaActiva > 0 ? `${parciales.length + pendientes.length} candidatos` : undefined,
+      color: '#c2410c',
+      bg: '#fff7ed',
+      border: '#fed7aa',
+    },
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
       {cards.map((c) => (
-        <div key={c.label} className="rounded-lg border border-gray-700/50 bg-gray-700/20 p-3 text-center">
-          <p className="text-[10px] uppercase tracking-wider text-gray-500">{c.label}</p>
-          <p className={`mt-1 text-2xl font-bold tabular-nums truncate ${c.color}`}>{c.value}</p>
-          {'sub' in c && c.sub && (
-            <p className="mt-0.5 text-[10px] text-gray-500 truncate">{c.sub}</p>
+        <div
+          key={c.label}
+          style={{
+            background: c.bg,
+            border: `1px solid ${c.border}`,
+            borderRadius: 10,
+            padding: '12px 14px',
+            textAlign: 'center',
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#78716c' }}>
+            {c.label}
+          </p>
+          <p style={{ margin: '6px 0 2px', fontSize: '1.4rem', fontWeight: 700, color: c.color, lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {c.value}
+          </p>
+          {c.sub && (
+            <p style={{ margin: 0, fontSize: 11, color: '#a8a29e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {c.sub}
+            </p>
           )}
         </div>
       ))}

@@ -306,6 +306,134 @@ export async function getGPKPIStats(promoNombre?: string | null): Promise<GPKPIS
   }
 }
 
+// ── Preferencia breakdown (gp_open_to split) ─────────────────────────────────
+
+export interface GPPreferenciaCount {
+  preference: string
+  count: number
+  percentage: number
+}
+
+export async function getGPPreferenciaBreakdown(
+  promoNombre?: string | null,
+): Promise<GPPreferenciaCount[]> {
+  let query = (supabase as any)
+    .from('candidates_kpi')
+    .select('gp_open_to, gp_training_status')
+    .not('gp_open_to', 'is', null)
+    .not('gp_training_status', 'is', null)
+
+  if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
+
+  const { data } = await query
+  const rows: { gp_open_to: string; gp_training_status: string }[] = ((data ?? []) as any[]).filter(
+    (r: any) => !['Offer Withdrawn', 'Offer Declined', 'Expelled', 'No Show'].includes(r.gp_training_status ?? '')
+  )
+
+  const countMap = new Map<string, number>()
+  for (const row of rows) {
+    const parts = row.gp_open_to
+      .split(',')
+      .map((p: string) => p.trim().replace(/Komunner/gi, 'Kommuner'))
+      .filter(Boolean)
+    for (const pref of parts) {
+      countMap.set(pref, (countMap.get(pref) ?? 0) + 1)
+    }
+  }
+
+  const total = rows.length
+  return Array.from(countMap.entries())
+    .map(([preference, count]) => ({
+      preference,
+      count,
+      percentage: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.count - a.count)
+}
+
+// ── Status breakdown (placement_status) ──────────────────────────────────────
+
+export interface GPStatusBreakdownItem {
+  status: string
+  count: number
+  percentage: number
+  topClients: string[]
+}
+
+export interface GPKommunerCandidate {
+  id: string
+  full_name: string | null
+  gp_training_status: string | null
+  placement_status: string | null
+  placement_client: string | null
+  gp_interviews_ratio: string | null
+  gp_total_applications: number | null
+  promocion_nombre: string | null
+}
+
+export async function getGPStatusBreakdown(
+  promoNombre?: string | null,
+): Promise<{ items: GPStatusBreakdownItem[]; total: number }> {
+  let query = (supabase as any)
+    .from('candidates_kpi')
+    .select('placement_status, placement_client, gp_training_status')
+    .not('gp_training_status', 'is', null)
+
+  if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
+
+  const { data } = await query
+  const rows = ((data ?? []) as any[]).filter(
+    (r) => !['Offer Withdrawn', 'Offer Declined', 'Expelled', 'No Show'].includes(r.gp_training_status ?? '')
+  )
+
+  const withStatus = rows.filter((r) => r.placement_status)
+  const total = withStatus.length
+
+  const map = new Map<string, { count: number; clients: Map<string, number> }>()
+  for (const row of withStatus) {
+    const s = row.placement_status as string
+    if (!map.has(s)) map.set(s, { count: 0, clients: new Map() })
+    const entry = map.get(s)!
+    entry.count++
+    if (row.placement_client) {
+      const c = String(row.placement_client).trim()
+      entry.clients.set(c, (entry.clients.get(c) ?? 0) + 1)
+    }
+  }
+
+  const items = Array.from(map.entries())
+    .map(([status, { count, clients }]) => ({
+      status,
+      count,
+      percentage: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
+      topClients: Array.from(clients.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([c]) => c),
+    }))
+    .sort((a, b) => b.count - a.count)
+
+  return { items, total }
+}
+
+export async function getGPKommunerCandidates(
+  promoNombre?: string | null,
+): Promise<GPKommunerCandidate[]> {
+  let query = (supabase as any)
+    .from('candidates_kpi')
+    .select('id, full_name, gp_training_status, placement_status, placement_client, gp_interviews_ratio, gp_total_applications, promocion_nombre')
+    .ilike('gp_open_to', '%kommuner%')
+    .not('gp_training_status', 'is', null)
+    .order('full_name', { ascending: true })
+
+  if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
+
+  const { data } = await query
+  return ((data ?? []) as any[]).filter(
+    (r) => !['Offer Withdrawn', 'Offer Declined', 'Expelled', 'No Show'].includes(r.gp_training_status ?? '')
+  ) as GPKommunerCandidate[]
+}
+
 // ── Legacy (kept for backward compat with other components) ──────────────────
 
 export interface PlacementPreferenceCount {
