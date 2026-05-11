@@ -3,6 +3,7 @@ import ConfiguracionClient from './ConfiguracionClient'
 import VacancyProfessionManagerWrapper from '@/components/configuracion/VacancyProfessionManagerWrapper'
 import KpiQualityDocs from '@/components/configuracion/KpiQualityDocs'
 import SyncAllButton from '@/components/configuracion/SyncAllButton'
+import DropoutSheetsManager from '@/components/configuracion/DropoutSheetsManager'
 
 export const metadata = {
   title: 'Configuración | KPI Dashboard',
@@ -48,6 +49,19 @@ export default function ConfiguracionPage() {
         </div>
         <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 20, overflow: 'hidden' }}>
           <ConfiguracionClient section="sheets" />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold" style={{ color: '#1c1917' }}>Excels de Abandonos</h2>
+          <p className="mt-0.5 text-sm" style={{ color: '#78716c' }}>
+            Registrá los Google Sheets que contienen datos de abandonos por promoción.
+            Cada sheet se puede sincronizar de forma independiente desde el panel de Sincronización manual.
+          </p>
+        </div>
+        <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 20, overflow: 'hidden' }}>
+          <DropoutSheetsManager />
         </div>
       </section>
 

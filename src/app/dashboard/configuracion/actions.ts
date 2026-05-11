@@ -4,6 +4,70 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { MadreSheet } from '@/lib/queries/madre-sheets'
 
+// ---------------------------------------------------------------------------
+// Dropout sheets
+// ---------------------------------------------------------------------------
+
+export interface DropoutSheet {
+  id: string
+  sheet_id: string
+  label: string
+  programa: string | null
+  promo_numero: number | null
+  tab_name: string
+  is_active: boolean
+  created_at: string
+}
+
+export async function getDropoutSheetsAction(): Promise<DropoutSheet[]> {
+  const { data, error } = await (supabaseAdmin
+    .from('dropout_sheets_kpi') as any)
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw new Error(`Failed to fetch dropout sheets: ${error.message}`)
+  return (data ?? []) as DropoutSheet[]
+}
+
+export async function registerDropoutSheetAction(input: {
+  sheetUrl: string
+  label: string
+  programa: string | null
+  promo_numero: number | null
+  tab_name: string
+}): Promise<void> {
+  const match = input.sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)
+  const sheetId = match?.[1] ?? null
+
+  if (!sheetId) {
+    throw new Error('No se pudo extraer el ID del sheet desde la URL proporcionada.')
+  }
+
+  const { error } = await (supabaseAdmin
+    .from('dropout_sheets_kpi') as any)
+    .insert({
+      sheet_id: sheetId,
+      label: input.label.trim(),
+      programa: input.programa || null,
+      promo_numero: input.promo_numero ?? null,
+      tab_name: input.tab_name.trim() || 'Dropouts',
+      is_active: true,
+    })
+
+  if (error) throw new Error(`Failed to register dropout sheet: ${error.message}`)
+  revalidatePath('/dashboard/configuracion')
+}
+
+export async function unregisterDropoutSheetAction(id: string): Promise<void> {
+  const { error } = await (supabaseAdmin
+    .from('dropout_sheets_kpi') as any)
+    .delete()
+    .eq('id', id)
+
+  if (error) throw new Error(`Failed to unregister dropout sheet: ${error.message}`)
+  revalidatePath('/dashboard/configuracion')
+}
+
 /**
  * Toggle is_vacante_principal for a single vacancy.
  *
