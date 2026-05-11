@@ -271,56 +271,52 @@ const RESUMEN_COLUMN_MAP: Record<string, string[]> = {
   modalidad: ['modalidad'],
   pais: ['pais', 'país'],
   coordinador: ['coord.', 'coord', 'coordinador', 'coordinadora'],
-  cliente: ['cliente'],
-  fecha_inicio: ['fecha inicio', 'fecha de inicio', 'inicio'],
-  fecha_fin: ['fecha fin', 'fecha de fin', 'fin'],
+  cliente: ['cliente'],   // short → exact match only (see mapResumenHeader)
+  fecha_inicio: ['fecha inicio', 'fecha de inicio'],
+  fecha_fin: ['fecha fin', 'fecha de fin'],
   objetivo_atraccion: [
     'objetivo atraccion', 'objetivo atracción', 'obj. atraccion', 'obj. atracción',
-    // 2026 verbose header
     'objetivo de personas que tienen que ser aceptadas',
   ],
   total_aceptados: [
-    'total aceptados', 'aceptados',
-    // 2026 verbose header
+    // 'aceptados' removed — too short, matches "% respecto a los aceptados"
+    'total aceptados',
     'total de personas que son aceptadas en el proceso de selección',
     'total de personas que son aceptadas',
   ],
   pct_consecucion_atraccion: [
     '% consecucion atraccion', '% consecución atracción', 'consecucion atraccion', 'consecución atracción',
-    // 2026 verbose header
     'porcentaje de consecución del objetivo de personas aceptadas',
     'porcentaje de consecucion del objetivo de personas aceptadas',
   ],
   objetivo_programa: [
     'objetivo programa', 'obj. programa',
-    // 2026 verbose header
     'objetivo de personas que comienzan el programa',
   ],
   total_programa: [
     'total programa',
-    // 2026 verbose header
     'total de personas que comienzan el programa',
   ],
   pct_consecucion_programa: [
     '% consecucion programa', '% consecución programa', 'consecucion programa', 'consecución programa',
-    // 2026 verbose header
     'porcentaje de consecución del objetivo de personas comienzan programa',
     'porcentaje de consecucion del objetivo de personas comienzan programa',
   ],
   expectativa_finalizan: [
     'expectativa finalizan', 'exp. finalizan',
-    // 2026 verbose header
+    // The 2025 header includes "a clientes" at the end — match by prefix
     'expectativa personas que finalizan',
   ],
   pct_exito_estimado: [
-    '% exito estimado', '% éxito estimado', 'exito estimado', 'éxito estimado',
-    // 2026 verbose header
+    '% exito estimado', '% éxito estimado',
+    // 'exito estimado' / 'éxito estimado' alone too short — kept but de-prioritized
     'estimación del porcentaje de éxito', 'estimacion del porcentaje de exito',
     'estimación de porcentaje de éxito',
+    'exito estimado', 'éxito estimado',
   ],
   contratos_firmados: [
-    'contratos firmados', 'contratos',
-    // 2026 verbose header
+    // 'contratos' alone too generic
+    'contratos firmados',
     'total personas firman contrato',
   ],
 }
@@ -328,7 +324,11 @@ const RESUMEN_COLUMN_MAP: Record<string, string[]> = {
 function mapResumenHeader(header: string): string | null {
   const lower = header.toLowerCase().trim()
   for (const [canonical, variants] of Object.entries(RESUMEN_COLUMN_MAP)) {
-    if (variants.some((v) => lower === v || lower.includes(v))) {
+    if (variants.some((v) => {
+      if (lower === v) return true          // exact match always valid
+      if (v.length <= 10) return false      // short variants: exact match only (avoid false positives)
+      return lower.includes(v)             // long variants: substring match OK
+    })) {
       return canonical
     }
   }
