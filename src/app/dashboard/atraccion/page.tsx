@@ -7,18 +7,16 @@ import VacancyStatusCharts from '@/components/atraccion/VacancyStatusCharts'
 import ReceivedCvsByVacancyView from '@/components/atraccion/ReceivedCvsByVacancyView'
 import ClosedVacancyCvsView from '@/components/atraccion/ClosedVacancyCvsView'
 import AtraccionResumen from '@/components/atraccion/AtraccionResumen'
-import RRSSOverview from '@/components/atraccion/RRSSOverview'
 import { type TipoProfesional, PROFESION_LABELS } from '@/lib/utils/vacancy-profession'
 import { type VacancyCountry } from '@/lib/utils/vacancy-country'
 
-type Tab = 'resumen' | 'vacantes' | 'cvs' | 'cerradas' | 'rrss'
+type Tab = 'resumen' | 'vacantes' | 'cvs' | 'cerradas'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'resumen',   label: 'Resumen' },
   { id: 'vacantes',  label: 'Vacantes activas' },
   { id: 'cvs',       label: 'CVs recibidos' },
   { id: 'cerradas',  label: 'CVs cerradas' },
-  { id: 'rrss',      label: 'Web y RRSS' },
 ]
 
 const ALL_PROFESIONES = Object.keys(PROFESION_LABELS) as TipoProfesional[]
@@ -147,7 +145,7 @@ export default function AtraccionPage() {
       </div>
 
       {/* Filters bar — profesión pills + país select */}
-      {tab !== 'resumen' && tab !== 'rrss' && (
+      {tab !== 'resumen' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {/* Profesión pills */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
@@ -237,9 +235,6 @@ export default function AtraccionPage() {
       {tab === 'cerradas' && (
         <ClosedVacancyCvsView profesionFilter={profesionFilter} countryFilter={countryFilter} />
       )}
-
-      {/* ─── WEB Y RRSS ─── */}
-      {tab === 'rrss' && <RRSSOverview />}
     </div>
   )
 }
