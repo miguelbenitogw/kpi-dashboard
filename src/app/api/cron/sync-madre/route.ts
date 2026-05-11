@@ -4,7 +4,7 @@ import { importExcelMadre } from '@/lib/google-sheets/import-madre'
 import { importPromoSheet } from '@/lib/google-sheets/import'
 import { importPlacement, PlacementImportResult } from '@/lib/google-sheets/import-placement'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 /**
  * GET /api/cron/sync-madre
@@ -12,6 +12,10 @@ export const maxDuration = 60
  * Daily cron route that:
  *   1. Imports/refreshes data from the Excel madre sheet (Base Datos + Resumen)
  *   2. Re-syncs all registered promo sheets (promo_sheets table)
+ *   3. Imports Global Placement for active years
+ *
+ * maxDuration = 300s (Vercel Pro cron limit). No internal timeout — the full
+ * pipeline is allowed to run to completion within that window.
  *
  * Protected by CRON_SECRET (same pattern as existing cron routes).
  */
@@ -24,7 +28,6 @@ export async function GET(request: NextRequest) {
   }
 
   const startTime = Date.now()
-  const TIMEOUT_MS = 50_000
 
   const results: {
     excel_madre: Array<{
@@ -94,16 +97,6 @@ export async function GET(request: NextRequest) {
     })
   } else if (sheets && sheets.length > 0) {
     for (const sheet of sheets) {
-      // Early exit if running out of time
-      if (Date.now() - startTime > TIMEOUT_MS) {
-        results.promo_sheets.push({
-          sheet_name: sheet.sheet_name,
-          status: 'skipped',
-          error: 'Timeout: skipped to stay within execution limit',
-        })
-        continue
-      }
-
       if (!sheet.promocion_nombre) {
         results.promo_sheets.push({
           sheet_name: sheet.sheet_name,
@@ -153,15 +146,6 @@ export async function GET(request: NextRequest) {
     ?.filter((s) => s.year === 2025 || s.year === 2026) ?? []
 
   for (const madre of norwaySheets) {
-    if (Date.now() - startTime > TIMEOUT_MS) {
-      results.placement.push({
-        label: madre.label,
-        year: madre.year,
-        results: [],
-        error: 'Timeout: skipped to stay within execution limit',
-      })
-      continue
-    }
     try {
       const placementResults = await importPlacement(madre.sheet_id, madre.year)
       results.placement.push({ label: madre.label, year: madre.year, results: placementResults })
