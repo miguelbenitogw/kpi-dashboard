@@ -303,6 +303,7 @@ export async function getPromotionsFormacionOverview(
   let query = supabase
     .from('promotions_kpi')
     .select('id, nombre, expectativa_finalizan, is_active, fecha_fin, objetivo_atraccion, objetivo_programa, modalidad, pais, coordinador, cliente, fecha_inicio, pct_exito_estimado, contratos_firmados')
+    .eq('pais', 'Noruega')
     .order('fecha_fin', { ascending: true, nullsFirst: false })
 
   if (filter === 'active') query = query.eq('is_active', true)
@@ -580,6 +581,7 @@ export async function getPromoVistaGeneral(
     .select(
       'id, nombre, numero, modalidad, pais, coordinador, cliente, fecha_inicio, fecha_fin, objetivo_atraccion, objetivo_programa, expectativa_finalizan, pct_exito_estimado, contratos_firmados, is_active'
     )
+    .eq('pais', 'Noruega')
     .order('numero', { ascending: true, nullsFirst: false })
 
   if (filter === 'active') query = query.eq('is_active', true)
