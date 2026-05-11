@@ -13,7 +13,7 @@ import {
   type TipoProfesional,
   PROFESION_LABELS,
 } from '@/lib/utils/vacancy-profession'
-import { setVacantePrincipalAction, crearTipoProfesionalAction } from '@/app/dashboard/configuracion/actions'
+import { toggleVacantePrincipalAction, crearTipoProfesionalAction } from '@/app/dashboard/configuracion/actions'
 
 // ─── Paleta (sin gray-* de Tailwind) ──────────────────────────────────────────
 const C = {
@@ -213,12 +213,11 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
 
   function handleSetPrincipal(v: VacancyForConfig) {
     if (!v.isActive) return
-    if (v.isVacantePrincipal) return // ya es principal, no hacer nada
 
     setStarStates((prev) => ({ ...prev, [v.id]: 'loading' }))
 
     startTransition(async () => {
-      const result = await setVacantePrincipalAction(v.id)
+      const result = await toggleVacantePrincipalAction(v.id, v.isVacantePrincipal)
 
       if (!result.ok) {
         setStarStates((prev) => ({ ...prev, [v.id]: 'error' }))
@@ -226,11 +225,21 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
         return
       }
 
-      // Actualizar estado local: desmarcar todas del mismo tipo, marcar la seleccionada
+      // Update local state:
+      // - Toggle this vacancy
+      // - When marking ON: also unmark others with same tipo_profesional + paisDestino
       setVacancies((prev) =>
         prev.map((item) => {
-          if (item.tipoProfesionalDb === v.tipoProfesionalDb) {
-            return { ...item, isVacantePrincipal: item.id === v.id }
+          if (item.id === v.id) {
+            return { ...item, isVacantePrincipal: !v.isVacantePrincipal }
+          }
+          // If we're marking ON, unmark others in the same (tipo + pais) scope
+          if (
+            !v.isVacantePrincipal &&
+            item.tipoProfesionalDb === v.tipoProfesionalDb &&
+            item.paisDestino === v.paisDestino
+          ) {
+            return { ...item, isVacantePrincipal: false }
           }
           return item
         }),
@@ -612,7 +621,7 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
                     {(() => {
                       const starState = starStates[v.id] ?? 'idle'
                       const isPrincipal = v.isVacantePrincipal
-                      const canMark = v.isActive && !isPrincipal
+                      const canMark = v.isActive
 
                       return (
                         <td style={{ padding: '6px 10px', textAlign: 'center' }}>
@@ -653,8 +662,8 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
                                 !v.isActive
                                   ? 'Solo las vacantes activas pueden ser principal'
                                   : isPrincipal
-                                    ? 'Vacante principal de este tipo de profesional'
-                                    : 'Marcar como vacante principal'
+                                    ? 'Quitar como vacante favorita'
+                                    : 'Marcar como vacante favorita'
                               }
                               style={{
                                 background: 'none',
@@ -668,7 +677,8 @@ export default function VacancyProfessionManager({ tiposProfesional: initialTipo
                               }}
                               onMouseEnter={(e) => {
                                 if (canMark) {
-                                  ;(e.currentTarget as HTMLButtonElement).style.color = '#f59e0b'
+                                  const hoverColor = isPrincipal ? '#ef4444' : '#f59e0b'
+                                  ;(e.currentTarget as HTMLButtonElement).style.color = hoverColor
                                   ;(e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.2)'
                                 }
                               }}

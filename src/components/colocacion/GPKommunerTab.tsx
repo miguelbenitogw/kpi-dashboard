@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from 'recharts'
 import {
   getGPKommunerTabData,
@@ -28,21 +28,66 @@ function countByField(rows: GPKommunerCandidateRow[], field: keyof GPKommunerCan
 
 function StatusChart({ title, data }: { title: string; data: { name: string; value: number }[] }) {
   if (data.length === 0) return null
+  const total = data.reduce((s, d) => s + d.value, 0)
+  const enriched = data.map((d) => ({
+    ...d,
+    pct: total > 0 ? Math.round((d.value / total) * 100) : 0,
+  }))
+  const BAR_H = 34
+  const chartHeight = Math.max(120, enriched.length * BAR_H + 16)
+
   return (
-    <div style={{ flex: '1 1 260px', minWidth: 240 }}>
-      <p style={{ fontSize: 12, fontWeight: 600, color: '#1c1917', marginBottom: 8 }}>{title}</p>
-      <ResponsiveContainer width="100%" height={180}>
-        <BarChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-          <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
-          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+    <div style={{ flex: '1 1 340px', minWidth: 300 }}>
+      <p style={{ fontSize: 12, fontWeight: 600, color: '#1c1917', marginBottom: 8 }}>
+        {title}
+        <span style={{ fontWeight: 400, color: '#78716c', marginLeft: 6 }}>· {total} total</span>
+      </p>
+      <ResponsiveContainer width="100%" height={chartHeight}>
+        <BarChart
+          layout="vertical"
+          data={enriched}
+          margin={{ top: 2, right: 72, left: 8, bottom: 2 }}
+          barCategoryGap="20%"
+        >
+          <XAxis type="number" hide />
+          <YAxis
+            type="category"
+            dataKey="name"
+            tick={{ fontSize: 11, fill: '#57534e' }}
+            tickLine={false}
+            axisLine={false}
+            width={160}
+          />
           <Tooltip
             contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e7e2d8' }}
+            formatter={(value: number, _name: string, { payload }: { payload: { pct: number } }) => [
+              `${value} (${payload.pct}%)`,
+              'Candidatos',
+            ]}
             cursor={{ fill: '#f5f5f4' }}
           />
-          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-            {data.map((_, i) => (
+          <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={22}>
+            {enriched.map((_, i) => (
               <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
             ))}
+            <LabelList
+              content={({ x, y, width, height, value, index }) => {
+                if (typeof x !== 'number' || typeof y !== 'number' || typeof width !== 'number' || typeof height !== 'number') return null
+                const item = enriched[index as number]
+                return (
+                  <text
+                    x={x + width + 6}
+                    y={y + (height / 2)}
+                    dominantBaseline="middle"
+                    fontSize={11}
+                    fill="#57534e"
+                    fontWeight={500}
+                  >
+                    {value} · {item?.pct}%
+                  </text>
+                )
+              }}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -227,8 +272,8 @@ export default function GPKommunerTab({ year }: { year: number }) {
             background: '#fff',
             padding: '16px 20px',
             display: 'flex',
-            flexWrap: 'wrap',
-            gap: 24,
+            flexDirection: 'column',
+            gap: 28,
           }}>
             <StatusChart
               title="Placement Status"

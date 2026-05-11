@@ -1794,6 +1794,8 @@ export interface VacancyForConfig {
   tipoProfesionalRegex: TipoProfesional
   isActive: boolean
   isVacantePrincipal: boolean
+  /** Destination country — used to scope the "one principal per profession+country" rule */
+  paisDestino: string | null
   /** Numeric hiring target for this vacancy (null = no target set) */
   hiringTarget: number | null
   /** Recruitment closing date in ISO format (null = no deadline set) */
@@ -1807,7 +1809,7 @@ export interface VacancyForConfig {
 export async function getVacanciesForProfessionConfig(): Promise<VacancyForConfig[]> {
   const { data, error } = await (supabase as any)
     .from('job_openings_kpi')
-    .select('id, title, tipo_profesional, es_proceso_atraccion_actual, zoho_job_number, is_vacante_principal, hiring_target, closing_date, ratio_exito_threshold, ratio_descarte_threshold')
+    .select('id, title, tipo_profesional, pais_destino, es_proceso_atraccion_actual, zoho_job_number, is_vacante_principal, hiring_target, closing_date, ratio_exito_threshold, ratio_descarte_threshold')
     .order('es_proceso_atraccion_actual', { ascending: false })
     .order('title', { ascending: true })
 
@@ -1825,6 +1827,7 @@ export async function getVacanciesForProfessionConfig(): Promise<VacancyForConfi
     tipoProfesionalRegex: deriveProfesionTipo(r.title ?? ''),
     isActive: r.es_proceso_atraccion_actual ?? false,
     isVacantePrincipal: r.is_vacante_principal ?? false,
+    paisDestino: r.pais_destino ?? null,
     hiringTarget: r.hiring_target ?? null,
     closingDate: r.closing_date ?? null,
     ratioExitoThreshold: r.ratio_exito_threshold ?? null,

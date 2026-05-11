@@ -4,49 +4,77 @@ import { supabaseAdmin } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { MadreSheet } from '@/lib/queries/madre-sheets'
 
-export async function setVacantePrincipalAction(
+/**
+ * Toggle is_vacante_principal for a single vacancy.
+ *
+ * Scoping rule: "una favorita por (tipo_profesional, pais_destino)".
+ * - If currentValue === true  → simply unmark this vacancy (toggle off).
+ * - If currentValue === false → unmark all others with the same
+ *   (tipo_profesional + pais_destino), then mark this one (toggle on).
+ */
+export async function toggleVacantePrincipalAction(
   vacancyId: string,
+  currentValue: boolean,
 ): Promise<{ ok: boolean; error?: string }> {
-  // 1. Obtener tipo_profesional de la vacante
-  const { data: vacancy, error: fetchError } = await (supabaseAdmin as any)
-    .from('job_openings_kpi')
-    .select('id, tipo_profesional')
-    .eq('id', vacancyId)
-    .single()
+  if (currentValue) {
+    // ── Toggle OFF: just unmark this vacancy ───────────────────────────────
+    const { error } = await (supabaseAdmin as any)
+      .from('job_openings_kpi')
+      .update({ is_vacante_principal: false })
+      .eq('id', vacancyId)
 
-  if (fetchError || !vacancy) {
-    const msg = fetchError?.message ?? 'Vacante no encontrada'
-    console.error('[actions] setVacantePrincipalAction fetch error:', msg)
-    return { ok: false, error: msg }
-  }
+    if (error) {
+      console.error('[actions] toggleVacantePrincipalAction unmark error:', error)
+      return { ok: false, error: error.message }
+    }
+  } else {
+    // ── Toggle ON: unmark same (tipo_profesional + pais_destino), mark this ─
+    const { data: vacancy, error: fetchError } = await (supabaseAdmin as any)
+      .from('job_openings_kpi')
+      .select('id, tipo_profesional, pais_destino')
+      .eq('id', vacancyId)
+      .single()
 
-  const tipoProfesional = (vacancy as { tipo_profesional: string }).tipo_profesional
+    if (fetchError || !vacancy) {
+      const msg = (fetchError as { message?: string } | null)?.message ?? 'Vacante no encontrada'
+      console.error('[actions] toggleVacantePrincipalAction fetch error:', msg)
+      return { ok: false, error: msg }
+    }
 
-  // 2. Desmarcar todas las del mismo tipo
-  const { error: unsetError } = await (supabaseAdmin as any)
-    .from('job_openings_kpi')
-    .update({ is_vacante_principal: false })
-    .eq('tipo_profesional', tipoProfesional)
+    const { tipo_profesional, pais_destino } = vacancy as {
+      tipo_profesional: string
+      pais_destino: string | null
+    }
 
-  if (unsetError) {
-    console.error('[actions] setVacantePrincipalAction unset error:', unsetError)
-    return { ok: false, error: unsetError.message }
-  }
+    // Unmark vacancies with same tipo_profesional + pais_destino
+    const unsetQuery = (supabaseAdmin as any)
+      .from('job_openings_kpi')
+      .update({ is_vacante_principal: false })
+      .eq('tipo_profesional', tipo_profesional)
 
-  // 3. Marcar la vacante indicada
-  const { error: setError } = await (supabaseAdmin as any)
-    .from('job_openings_kpi')
-    .update({ is_vacante_principal: true })
-    .eq('id', vacancyId)
+    const { error: unsetError } = pais_destino
+      ? await unsetQuery.eq('pais_destino', pais_destino)
+      : await unsetQuery.is('pais_destino', null)
 
-  if (setError) {
-    console.error('[actions] setVacantePrincipalAction set error:', setError)
-    return { ok: false, error: setError.message }
+    if (unsetError) {
+      console.error('[actions] toggleVacantePrincipalAction unset error:', unsetError)
+      return { ok: false, error: unsetError.message }
+    }
+
+    // Mark the target vacancy
+    const { error: setError } = await (supabaseAdmin as any)
+      .from('job_openings_kpi')
+      .update({ is_vacante_principal: true })
+      .eq('id', vacancyId)
+
+    if (setError) {
+      console.error('[actions] toggleVacantePrincipalAction set error:', setError)
+      return { ok: false, error: setError.message }
+    }
   }
 
   revalidatePath('/dashboard/configuracion')
   revalidatePath('/dashboard')
-
   return { ok: true }
 }
 
