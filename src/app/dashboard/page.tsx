@@ -5,6 +5,7 @@ import WeeklyTrendChart from '@/components/dashboard/WeeklyTrendChart'
 import TopVacancies from '@/components/dashboard/TopVacancies'
 import CvsPerVacancyChart from '@/components/dashboard/CvsPerVacancyChart'
 import VacantesPrincipalesStrip from '@/components/resumen/VacantesPrincipalesStrip'
+import PlacementPendingCards from '@/components/dashboard/PlacementPendingCards'
 
 export default function DashboardPage() {
   return (
@@ -41,6 +42,20 @@ export default function DashboardPage() {
           </span>
         </div>
         <KpiCards />
+      </section>
+
+      {/* Placement pending — Norway + Germany */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <span
+            className="inline-block w-2 h-2 rounded-sm"
+            style={{ background: '#b45309' }}
+          />
+          <span className="text-sm font-bold" style={{ color: '#b45309' }}>
+            Colocación pendiente
+          </span>
+        </div>
+        <PlacementPendingCards />
       </section>
 
       {/* CVs por vacante activa */}
