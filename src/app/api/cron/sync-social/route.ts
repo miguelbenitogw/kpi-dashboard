@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { fetchAllYouTubeStats } from '@/lib/social-media/youtube'
+import { fetchAllInstagramStats } from '@/lib/social-media/instagram'
 import type { Json } from '@/lib/supabase/types'
 
 export const maxDuration = 60
@@ -8,10 +9,11 @@ export const maxDuration = 60
 /**
  * GET /api/cron/sync-social
  *
- * Daily cron — syncs YouTube channel stats into social_media_snapshots_kpi.
- * Scheduled: 0 4 * * * (every day at 04:00 UTC)
+ * Daily cron — syncs YouTube and Instagram stats into social_media_snapshots_kpi.
+ * Scheduled: 0 3 * * * (every day at 03:00 UTC)
  *
- * Requires YOUTUBE_API_KEY env var. Safe to run without it — will log a skip.
+ * Requires YOUTUBE_API_KEY for YouTube. Requires META_ACCESS_TOKEN for Instagram.
+ * Safe to run without either — will log a skip.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -30,7 +32,7 @@ export async function GET(request: NextRequest) {
   // ── YouTube ──────────────────────────────────────────────────────────────
 
   if (!process.env.YOUTUBE_API_KEY) {
-    skipped = 3
+    skipped += 3
     errors.push('YOUTUBE_API_KEY not configured — skipped YouTube sync')
   } else {
     const youtubeStats = await fetchAllYouTubeStats()
@@ -54,6 +56,48 @@ export async function GET(request: NextRequest) {
 
       if (error) {
         errors.push(`YouTube ${stats.handle}: ${error.message}`)
+      } else {
+        synced++
+      }
+    }
+  }
+
+  // ── Instagram ─────────────────────────────────────────────────────────────
+
+  if (!process.env.META_ACCESS_TOKEN) {
+    skipped += 3
+    errors.push('META_ACCESS_TOKEN not configured — skipped Instagram sync')
+  } else {
+    const igStats = await fetchAllInstagramStats()
+
+    if (igStats.length === 0) {
+      errors.push('Instagram: no accounts returned — token may be expired or missing permissions')
+      console.error('[cron/sync-social] Instagram fetch returned 0 accounts. Check META_ACCESS_TOKEN validity.')
+    }
+
+    for (const stats of igStats) {
+      const { error } = await supabaseAdmin
+        .from('social_media_snapshots_kpi')
+        .insert({
+          account_id: stats.accountId,
+          platform: 'instagram',
+          handle: stats.handle,
+          metric_name: 'snapshot',
+          followers_count: stats.followersCount,
+          following_count: stats.followsCount,
+          posts_count: stats.mediaCount,
+          raw_data: {
+            igBusinessId: stats.igBusinessId,
+            username: stats.username,
+            name: stats.name,
+            profilePictureUrl: stats.profilePictureUrl,
+            topMedia: stats.topMedia,
+          } as unknown as Json,
+          captured_at: capturedAt,
+        })
+
+      if (error) {
+        errors.push(`Instagram ${stats.handle}: ${error.message}`)
       } else {
         synced++
       }

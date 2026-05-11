@@ -55,15 +55,16 @@ async function fetchData(): Promise<PendingData> {
       .eq('estado', 'To Place'),
   ])
 
-  // Filter out excluded statuses, count by placement_status
+  // Filter out excluded statuses and rows without placement_status
   const rows: { placement_status: string | null; gp_training_status: string }[] =
     (norwayRes.data ?? []).filter(
-      (r: { gp_training_status: string }) => !GP_EXCLUDED.has(r.gp_training_status),
+      (r: { gp_training_status: string; placement_status: string | null }) =>
+        !GP_EXCLUDED.has(r.gp_training_status) && r.placement_status != null && r.placement_status !== '',
     )
 
   const countMap = new Map<string, number>()
   for (const r of rows) {
-    const key = r.placement_status ?? 'Sin estado'
+    const key = r.placement_status!
     countMap.set(key, (countMap.get(key) ?? 0) + 1)
   }
 
@@ -116,7 +117,7 @@ function NorwayCard({ slices }: { slices: SliceData[] }) {
     <div style={{
       background: '#eff6ff', border: '1px solid #bfdbfe',
       borderRadius: 12, padding: '14px 16px',
-      flex: 1, minWidth: 280,
+      flex: '0 1 480px', minWidth: 280,
     }}>
       {/* Header */}
       <div style={{ fontSize: 11, fontWeight: 700, color: '#1e4b9e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>

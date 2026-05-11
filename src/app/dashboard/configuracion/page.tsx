@@ -4,6 +4,7 @@ import VacancyProfessionManagerWrapper from '@/components/configuracion/VacancyP
 import KpiQualityDocs from '@/components/configuracion/KpiQualityDocs'
 import SyncAllButton from '@/components/configuracion/SyncAllButton'
 import DropoutSheetsManager from '@/components/configuracion/DropoutSheetsManager'
+import InstagramSyncButton from '@/components/configuracion/InstagramSyncButton'
 
 export const metadata = {
   title: 'Configuración | KPI Dashboard',
@@ -29,6 +30,19 @@ export default function ConfiguracionPage() {
         </div>
         <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 20 }}>
           <SyncAllButton />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold" style={{ color: '#1c1917' }}>Instagram — Sync manual</h2>
+          <p className="mt-0.5 text-sm" style={{ color: '#78716c' }}>
+            Forzá la sincronización de cuentas de Instagram contra la Meta Graph API.
+            Útil para verificar que el <code className="rounded px-1 text-xs" style={{ background: '#f1f5f9', color: '#1e4b9e' }}>META_ACCESS_TOKEN</code> es válido.
+          </p>
+        </div>
+        <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 20 }}>
+          <InstagramSyncButton />
         </div>
       </section>
 
