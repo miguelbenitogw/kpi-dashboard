@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Instagram, Loader2, CheckCircle2, XCircle, RefreshCw } from 'lucide-react'
+import { Camera, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 
 type Phase = 'idle' | 'running' | 'done' | 'error'
 
@@ -61,7 +61,7 @@ export default function InstagramSyncButton() {
         >
           {running
             ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-            : <Instagram size={14} />}
+            : <Camera size={14} />}
           {running ? 'Sincronizando Instagram…' : 'Sincronizar Instagram ahora'}
         </button>
 
