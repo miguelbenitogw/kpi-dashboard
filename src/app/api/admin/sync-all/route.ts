@@ -82,17 +82,21 @@ function buildCronRequest(url: string): NextRequest {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 1 — Excel Madre
+// Phase 1 — Excel Madre (optional sheetId filters to a single sheet)
 // ---------------------------------------------------------------------------
-async function runExcelMadre(): Promise<PhaseSummary> {
+async function runExcelMadre(sheetId?: string): Promise<PhaseSummary> {
   const s: PhaseSummary = { phase: 'excel-madre', duration_ms: 0, updated: 0, inserted: 0, errors: 0, skipped: 0, all_errors: [] }
   const t0 = Date.now()
 
-  const { data: sheets, error } = await (supabaseAdmin as any)
+  let query = (supabaseAdmin as any)
     .from('madre_sheets_kpi')
     .select('sheet_id, label, year')
     .eq('is_active', true)
     .order('year', { ascending: true })
+
+  if (sheetId) query = query.eq('sheet_id', sheetId)
+
+  const { data: sheets, error } = await query
 
   if (error) { s.all_errors.push(`Failed to fetch madre_sheets_kpi: ${error.message}`); s.errors++; s.duration_ms = Date.now() - t0; return s }
 
@@ -389,10 +393,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const phase = new URL(req.url).searchParams.get('phase') ?? 'excel-madre'
+    const url     = new URL(req.url)
+    const phase   = url.searchParams.get('phase') ?? 'excel-madre'
+    const sheetId = url.searchParams.get('sheetId') ?? undefined
 
     let result: PhaseSummary
-    if      (phase === 'excel-madre')        result = await runExcelMadre()
+    if      (phase === 'excel-madre')        result = await runExcelMadre(sheetId)
     else if (phase === 'promo-sheets')       result = await runPromoSheets()
     else if (phase === 'placement')          result = await runPlacement()
     else if (phase === 'zoho-vacancies')     result = await runZohoVacancies()

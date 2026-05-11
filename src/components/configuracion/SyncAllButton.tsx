@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { RefreshCw, CheckCircle2, XCircle, Loader2, Clock, Play } from 'lucide-react'
+import { getMadreSheetsAction } from '@/app/dashboard/configuracion/actions'
 
 interface PhaseSummary {
   phase: string
@@ -15,92 +16,94 @@ interface PhaseSummary {
 
 type JobState = 'idle' | 'running' | 'done' | 'error'
 
-type PhaseKey =
-  | 'excel-madre'
-  | 'promo-sheets'
-  | 'placement'
-  | 'zoho-vacancies'
-  | 'vacancy-cvs'
-  | 'vacancy-stats'
-  | 'social'
-  | 'germany'
-  | 'germany-candidates'
-  | 'atraccion-history'
-
-interface JobStatus {
-  key: PhaseKey
+interface JobDef {
+  key: string
   label: string
+  apiPhase: string
+  sheetId?: string   // set for excel-madre per-sheet jobs
+}
+
+interface JobStatus extends JobDef {
   state: JobState
   result: PhaseSummary | null
   error: string | null
 }
 
-interface JobGroup {
-  label: string
-  jobs: PhaseKey[]
-}
-
-const JOB_DEFINITIONS: Record<PhaseKey, string> = {
-  'excel-madre':        'Excel Madre (Base Datos + Resumen)',
-  'promo-sheets':       'Promo Sheets',
-  'placement':          'Global Placement',
-  'zoho-vacancies':     'Vacantes Zoho',
-  'vacancy-cvs':        'CVs recibidos',
-  'vacancy-stats':      'Stats por vacante',
-  'germany':            'Datos Alemania',
-  'germany-candidates': 'Candidatos Alemania',
-  'social':             'Redes Sociales',
-  'atraccion-history':  'Historial Atracción',
-}
-
-const GROUPS: JobGroup[] = [
-  { label: 'Excel Madre',     jobs: ['excel-madre', 'promo-sheets', 'placement'] },
-  { label: 'Zoho & Vacantes', jobs: ['zoho-vacancies', 'vacancy-cvs', 'vacancy-stats'] },
-  { label: 'Alemania',        jobs: ['germany', 'germany-candidates'] },
-  { label: 'Otros',           jobs: ['social', 'atraccion-history'] },
+// Static jobs (non-madre)
+const STATIC_JOBS: JobDef[] = [
+  { key: 'promo-sheets',       label: 'Promo Sheets',        apiPhase: 'promo-sheets' },
+  { key: 'placement',          label: 'Global Placement',    apiPhase: 'placement' },
+  { key: 'zoho-vacancies',     label: 'Vacantes Zoho',       apiPhase: 'zoho-vacancies' },
+  { key: 'vacancy-cvs',        label: 'CVs recibidos',       apiPhase: 'vacancy-cvs' },
+  { key: 'vacancy-stats',      label: 'Stats por vacante',   apiPhase: 'vacancy-stats' },
+  { key: 'germany',            label: 'Datos Alemania',      apiPhase: 'germany' },
+  { key: 'germany-candidates', label: 'Candidatos Alemania', apiPhase: 'germany-candidates' },
+  { key: 'social',             label: 'Redes Sociales',      apiPhase: 'social' },
+  { key: 'atraccion-history',  label: 'Historial Atracción', apiPhase: 'atraccion-history' },
 ]
 
-const ALL_PHASES: PhaseKey[] = GROUPS.flatMap(g => g.jobs)
+function makeStatus(def: JobDef): JobStatus {
+  return { ...def, state: 'idle', result: null, error: null }
+}
 
-function makeInitialJobs(): JobStatus[] {
-  return ALL_PHASES.map(key => ({
-    key,
-    label: JOB_DEFINITIONS[key],
-    state: 'idle',
-    result: null,
-    error: null,
-  }))
+function buildApiUrl(job: JobDef): string {
+  const url = `/api/admin/sync-all?phase=${job.apiPhase}`
+  return job.sheetId ? `${url}&sheetId=${encodeURIComponent(job.sheetId)}` : url
 }
 
 export default function SyncAllButton() {
+  const [madreJobs, setMadreJobs]   = useState<JobStatus[]>([])
+  const [staticJobs, setStaticJobs] = useState<JobStatus[]>(STATIC_JOBS.map(makeStatus))
   const [running, setRunning]       = useState(false)
-  const [jobs, setJobs]             = useState<JobStatus[]>(makeInitialJobs())
   const [globalDone, setGlobalDone] = useState(false)
+  const [loadingSheets, setLoadingSheets] = useState(true)
 
-  function updateJob(key: PhaseKey, patch: Partial<JobStatus>) {
-    setJobs(prev => prev.map(j => j.key === key ? { ...j, ...patch } : j))
+  // Load madre sheets once on mount
+  useEffect(() => {
+    getMadreSheetsAction().then((sheets) => {
+      const active = sheets.filter((s: any) => s.is_active)
+      const defs: JobDef[] = active.map((s: any) => ({
+        key: `excel-madre:${s.sheet_id}`,
+        label: s.label ?? `Madre ${s.year ?? ''}`,
+        apiPhase: 'excel-madre',
+        sheetId: s.sheet_id,
+      }))
+      setMadreJobs(defs.map(makeStatus))
+      setLoadingSheets(false)
+    }).catch(() => setLoadingSheets(false))
+  }, [])
+
+  const allJobs = [...madreJobs, ...staticJobs]
+
+  function patchJob(key: string, patch: Partial<JobStatus>, isMadre: boolean) {
+    if (isMadre) {
+      setMadreJobs(prev => prev.map(j => j.key === key ? { ...j, ...patch } : j))
+    } else {
+      setStaticJobs(prev => prev.map(j => j.key === key ? { ...j, ...patch } : j))
+    }
   }
 
-  async function callPhase(key: PhaseKey): Promise<PhaseSummary | null> {
-    updateJob(key, { state: 'running', error: null, result: null })
+  async function callJob(job: JobDef): Promise<PhaseSummary | null> {
+    const isMadre = job.apiPhase === 'excel-madre'
+    patchJob(job.key, { state: 'running', error: null, result: null }, isMadre)
     try {
-      const res  = await fetch(`/api/admin/sync-all?phase=${key}`, { method: 'POST' })
+      const res  = await fetch(buildApiUrl(job), { method: 'POST' })
       const text = await res.text()
       let data: PhaseSummary
       try {
         data = JSON.parse(text)
       } catch {
-        updateJob(key, { state: 'error', error: `HTTP ${res.status}: ${text.slice(0, 200)}` })
+        patchJob(job.key, { state: 'error', error: `HTTP ${res.status}: ${text.slice(0, 200)}` }, isMadre)
         return null
       }
       if (!res.ok && !('phase' in data)) {
-        updateJob(key, { state: 'error', error: (data as any).error ?? `HTTP ${res.status}` })
+        patchJob(job.key, { state: 'error', error: (data as any).error ?? `HTTP ${res.status}` }, isMadre)
         return null
       }
-      updateJob(key, { state: data.errors > 0 ? 'error' : 'done', result: data })
+      patchJob(job.key, { state: data.errors > 0 ? 'error' : 'done', result: data }, isMadre)
       return data
     } catch (e) {
-      updateJob(key, { state: 'error', error: String(e) })
+      patchJob(job.key, { state: 'error', error: String(e) }, isMadre)
       return null
     }
   }
@@ -108,38 +111,47 @@ export default function SyncAllButton() {
   async function handleSyncAll() {
     setRunning(true)
     setGlobalDone(false)
-    setJobs(makeInitialJobs())
+    setMadreJobs(prev => prev.map(j => ({ ...j, state: 'idle', result: null, error: null })))
+    setStaticJobs(STATIC_JOBS.map(makeStatus))
 
-    for (const key of ALL_PHASES) {
-      await callPhase(key)
+    for (const job of allJobs) {
+      await callJob(job)
     }
 
     setRunning(false)
     setGlobalDone(true)
   }
 
-  async function handleSyncOne(key: PhaseKey) {
+  async function handleSyncOne(job: JobDef) {
     if (running) return
     setGlobalDone(false)
-    await callPhase(key)
+    await callJob(job)
   }
 
-  const hasAnyError = jobs.some(j => j.state === 'error')
+  const hasAnyError = allJobs.some(j => j.state === 'error')
+
+  const groups: { label: string; jobs: JobStatus[] }[] = [
+    { label: 'Excel Madre',     jobs: madreJobs },
+    { label: 'Noruega',         jobs: staticJobs.filter(j => ['promo-sheets', 'placement'].includes(j.key)) },
+    { label: 'Zoho & Vacantes', jobs: staticJobs.filter(j => ['zoho-vacancies', 'vacancy-cvs', 'vacancy-stats'].includes(j.key)) },
+    { label: 'Alemania',        jobs: staticJobs.filter(j => ['germany', 'germany-candidates'].includes(j.key)) },
+    { label: 'Otros',           jobs: staticJobs.filter(j => ['social', 'atraccion-history'].includes(j.key)) },
+  ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-      {/* Top bar — Sincronizar todo */}
+      {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <button
           onClick={handleSyncAll}
-          disabled={running}
+          disabled={running || loadingSheets}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
             padding: '9px 20px', borderRadius: 8, border: 'none',
-            background: running ? '#94a3b8' : '#1e4b9e',
+            background: (running || loadingSheets) ? '#94a3b8' : '#1e4b9e',
             color: '#fff', fontWeight: 600, fontSize: 14,
-            cursor: running ? 'not-allowed' : 'pointer',
+            cursor: (running || loadingSheets) ? 'not-allowed' : 'pointer',
             transition: 'background 0.15s',
           }}
         >
@@ -161,9 +173,8 @@ export default function SyncAllButton() {
       </div>
 
       {/* Groups */}
-      {GROUPS.map(group => (
+      {groups.map(group => (
         <div key={group.label}>
-          {/* Group header */}
           <div style={{
             fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
             textTransform: 'uppercase', color: '#64748b',
@@ -173,19 +184,17 @@ export default function SyncAllButton() {
             {group.label}
           </div>
 
-          {/* Job cards */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {group.jobs.map(key => {
-              const job = jobs.find(j => j.key === key)!
-              return (
-                <JobCard
-                  key={key}
-                  job={job}
-                  disabled={running}
-                  onTrigger={() => handleSyncOne(key)}
-                />
-              )
-            })}
+            {group.label === 'Excel Madre' && loadingSheets ? (
+              <span style={{ fontSize: 12, color: '#94a3b8' }}>Cargando sheets…</span>
+            ) : group.jobs.map(job => (
+              <JobCard
+                key={job.key}
+                job={job}
+                disabled={running}
+                onTrigger={() => handleSyncOne(job)}
+              />
+            ))}
           </div>
         </div>
       ))}
@@ -220,16 +229,15 @@ function JobCard({ job, disabled, onTrigger }: JobCardProps) {
     <div style={{
       background: c.bg, border: `1px solid ${c.border}`,
       borderRadius: 10, padding: '10px 12px',
-      minWidth: 180, maxWidth: 220,
+      minWidth: 180, maxWidth: 240,
       display: 'flex', flexDirection: 'column', gap: 6,
     }}>
-      {/* Header row: icon + label + trigger button */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <div style={{ flexShrink: 0 }}>
-          {state === 'idle'    && <Clock       size={13} color={c.text} />}
-          {state === 'running' && <Loader2     size={13} color={c.text} style={{ animation: 'spin 1s linear infinite' }} />}
+          {state === 'idle'    && <Clock        size={13} color={c.text} />}
+          {state === 'running' && <Loader2      size={13} color={c.text} style={{ animation: 'spin 1s linear infinite' }} />}
           {state === 'done'    && <CheckCircle2 size={13} color={c.text} />}
-          {state === 'error'   && <XCircle     size={13} color={c.text} />}
+          {state === 'error'   && <XCircle      size={13} color={c.text} />}
         </div>
         <span style={{
           fontSize: 11, fontWeight: 700, color: c.text,
@@ -239,7 +247,6 @@ function JobCard({ job, disabled, onTrigger }: JobCardProps) {
           {label}
         </span>
 
-        {/* Individual trigger button */}
         <button
           onClick={onTrigger}
           disabled={disabled || state === 'running'}
@@ -259,11 +266,9 @@ function JobCard({ job, disabled, onTrigger }: JobCardProps) {
         </button>
       </div>
 
-      {/* State message */}
       {state === 'idle'    && <div style={{ fontSize: 11, color: '#94a3b8' }}>En espera</div>}
       {state === 'running' && <div style={{ fontSize: 11, color: c.text }}>Procesando…</div>}
 
-      {/* Result stats */}
       {result && (
         <div style={{ fontSize: 12, color: '#374151', display: 'flex', flexDirection: 'column', gap: 1 }}>
           {result.updated  > 0 && <span>{result.updated} actualizados</span>}
@@ -276,7 +281,6 @@ function JobCard({ job, disabled, onTrigger }: JobCardProps) {
         </div>
       )}
 
-      {/* HTTP/network error */}
       {error && (
         <details style={{ marginTop: 2 }}>
           <summary style={{ fontSize: 11, color: '#dc2626', cursor: 'pointer' }}>Ver error</summary>
@@ -286,7 +290,6 @@ function JobCard({ job, disabled, onTrigger }: JobCardProps) {
         </details>
       )}
 
-      {/* Business errors from result */}
       {result && result.all_errors.length > 0 && (
         <details style={{ marginTop: 2 }}>
           <summary style={{ fontSize: 11, color: '#dc2626', cursor: 'pointer' }}>
