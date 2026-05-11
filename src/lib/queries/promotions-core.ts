@@ -318,3 +318,16 @@ export function extractPromoNumber(nombre: string): number | null {
   const match = nombre.match(/\d+/)
   return match ? parseInt(match[0], 10) : null
 }
+
+/**
+ * Derives the country (pais) from a promotion number.
+ * 100–199 → Noruega
+ * 20–29   → Alemania
+ * Returns null if the number doesn't match any known range.
+ */
+export function derivePaisFromNumero(numero: number | null): string | null {
+  if (numero === null) return null
+  if (numero >= 100 && numero <= 199) return 'Noruega'
+  if (numero >= 20 && numero <= 29) return 'Alemania'
+  return null
+}
