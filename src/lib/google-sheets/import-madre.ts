@@ -17,7 +17,6 @@ import { importPagos, type PagosResult } from './import-pagos'
 import { importCursoDesarrollo, type CursoDesarrolloResult } from './import-curso-desarrollo'
 import {
   extractPromoNumber,
-  derivePaisFromNumero,
   syncPromotionsFromCandidates,
   type SyncPromotionCountsResult,
 } from '@/lib/queries/promotions-core'
@@ -405,7 +404,7 @@ export async function importResumen(sheetId: string): Promise<ResumenResult> {
       nombre: promocion,
       numero,
       modalidad: mapped['modalidad'] ?? null,
-      pais: mapped['pais'] ?? derivePaisFromNumero(numero),
+      pais: mapped['pais'] ?? null,
       coordinador: mapped['coordinador'] ?? null,
       cliente: mapped['cliente'] ?? null,
       fecha_inicio: parseDate(mapped['fecha_inicio'] ?? ''),
@@ -497,7 +496,7 @@ async function createPromotionsFromCandidates(): Promise<PromotionsCreateResult>
     const num = extractPromoNumber(nombre)
     const { error: upsertError } = await supabaseAdmin
       .from('promotions_kpi')
-      .upsert({ nombre, numero: num, pais: derivePaisFromNumero(num) } as any, { onConflict: 'nombre' })
+      .upsert({ nombre, numero: num } as any, { onConflict: 'nombre' })
 
     if (upsertError) {
       result.errors.push(`${nombre}: ${upsertError.message}`)
