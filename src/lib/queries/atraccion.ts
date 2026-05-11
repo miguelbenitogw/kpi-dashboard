@@ -1911,6 +1911,7 @@ export interface ResumenVacantePrincipal {
   total_candidates: number
   hired_count: number
   success_rate: number | null
+  weeklyPoints: { week: string; count: number }[]
 }
 
 /**
@@ -2023,12 +2024,44 @@ export async function getResumenVacantesPrincipales(): Promise<ResumenVacantePri
     approvedMap.set(s.vacancy_id, (approvedMap.get(s.vacancy_id) ?? 0) + s.count)
   }
 
+  // 3. Fetch last 6 weeks of CVs per vacancy
+  const WEEKLY_WEEKS = 6
+  const weekStarts6 = getRecentIsoMondays(WEEKLY_WEEKS)
+  const oldestWeek6 = weekStarts6[0]
+  const thisWeekNow = getCurrentIsoWeekMonday()
+
+  const { data: weeklyRaw } = await (supabase as any)
+    .from('vacancy_cv_weekly_kpi')
+    .select('vacancy_id, job_opening_id, week_start, week, candidate_count, count, cv_count, new_cvs, total')
+    .in('vacancy_id', ids)
+    .gte('week_start', oldestWeek6)
+    .lte('week_start', thisWeekNow)
+
+  // Build vacancyId → weekStart → count map
+  const weeklyMap = new Map<string, Map<string, number>>()
+  for (const row of (weeklyRaw ?? []) as VacancyCvWeeklyRow[]) {
+    const vid = row.vacancy_id ?? row.job_opening_id
+    if (!vid || !ids.includes(vid)) continue
+    const ws = normalizeToIsoMonday(row.week_start ?? row.week)
+    if (!ws) continue
+    const n = toNumberCount(row.candidate_count ?? row.count ?? row.cv_count ?? row.new_cvs ?? row.total)
+    if (!weeklyMap.has(vid)) weeklyMap.set(vid, new Map())
+    const wm = weeklyMap.get(vid)!
+    wm.set(ws, (wm.get(ws) ?? 0) + n)
+  }
+
   return rows.map((v) => {
     const total = v.total_candidates ?? 0
     const hired = v.hired_count ?? 0
     const approved = approvedMap.get(v.id) ?? 0
     const success_rate =
       total > 0 ? Math.round(((hired + approved) / total) * 10000) / 100 : null
+
+    const wm = weeklyMap.get(v.id)
+    const weeklyPoints = weekStarts6.map((ws) => ({
+      week: formatWeekLabel(ws),
+      count: wm?.get(ws) ?? 0,
+    }))
 
     return {
       id: v.id,
@@ -2038,6 +2071,7 @@ export async function getResumenVacantesPrincipales(): Promise<ResumenVacantePri
       total_candidates: total,
       hired_count: hired,
       success_rate,
+      weeklyPoints,
     }
   })
 }

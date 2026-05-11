@@ -1,5 +1,6 @@
 import { getResumenVacantesPrincipales } from '@/lib/queries/atraccion'
 import { PROFESION_LABELS } from '@/lib/utils/vacancy-profession'
+import MiniLineChart from './MiniLineChart'
 
 // ─── Paleta warm-light ────────────────────────────────────────────────────────
 const P = {
@@ -46,28 +47,25 @@ export default async function VacantesPrincipalesStrip() {
           gap: 12,
           overflowX: 'auto',
           paddingBottom: 4,
-          // Scrollbar discreta
           scrollbarWidth: 'thin',
           scrollbarColor: `${P.border} transparent`,
         }}
       >
         {vacantes.map((v) => {
           const label = PROFESION_LABELS[v.tipo_profesional] ?? v.tipo_profesional
-
-          const successPct =
-            v.success_rate !== null ? `${v.success_rate}%` : '—'
+          const successPct = v.success_rate !== null ? `${v.success_rate}%` : '—'
 
           return (
             <article
               key={v.id}
               style={{
                 flex: '0 0 auto',
-                minWidth: 200,
-                maxWidth: 240,
+                minWidth: 210,
+                maxWidth: 250,
                 background: P.card,
                 border: `1px solid ${P.border}`,
                 borderRadius: 12,
-                padding: '14px 16px',
+                padding: '14px 16px 10px',
                 boxShadow: '0 1px 3px rgba(28,25,23,0.06)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -115,7 +113,6 @@ export default async function VacantesPrincipalesStrip() {
                 style={{
                   display: 'flex',
                   gap: 10,
-                  marginTop: 2,
                   borderTop: `1px solid ${P.border}`,
                   paddingTop: 8,
                 }}
@@ -123,6 +120,14 @@ export default async function VacantesPrincipalesStrip() {
                 <KpiPill label="CVs" value={String(v.total_candidates)} />
                 <KpiPill label="Contrat." value={String(v.hired_count)} />
                 <KpiPill label="Éxito" value={successPct} highlight={v.success_rate !== null && v.success_rate >= 10} />
+              </div>
+
+              {/* Mini sparkline — últimas 6 semanas */}
+              <div style={{ borderTop: `1px solid ${P.border}`, paddingTop: 4 }}>
+                <div style={{ fontSize: 9, color: P.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                  CVs · últimas 6 sem.
+                </div>
+                <MiniLineChart points={v.weeklyPoints} />
               </div>
             </article>
           )
