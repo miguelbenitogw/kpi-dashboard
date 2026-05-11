@@ -86,6 +86,12 @@ function parseNumber(value: string): number | null {
   return Number.isNaN(num) ? null : num
 }
 
+/** Like parseNumber but rounds to integer — safe for integer DB columns */
+function parseInteger(value: string): number | null {
+  const n = parseNumber(value)
+  return n !== null ? Math.round(n) : null
+}
+
 // ---------------------------------------------------------------------------
 // Base Datos import
 // ---------------------------------------------------------------------------
@@ -409,15 +415,15 @@ export async function importResumen(sheetId: string): Promise<ResumenResult> {
       cliente: mapped['cliente'] ?? null,
       fecha_inicio: parseDate(mapped['fecha_inicio'] ?? ''),
       fecha_fin: parseDate(mapped['fecha_fin'] ?? ''),
-      objetivo_atraccion: parseNumber(mapped['objetivo_atraccion'] ?? ''),
-      total_aceptados: parseNumber(mapped['total_aceptados'] ?? ''),
+      objetivo_atraccion:        parseInteger(mapped['objetivo_atraccion'] ?? ''),
+      total_aceptados:           parseInteger(mapped['total_aceptados'] ?? ''),
       pct_consecucion_atraccion: parseNumber(mapped['pct_consecucion_atraccion'] ?? ''),
-      objetivo_programa: parseNumber(mapped['objetivo_programa'] ?? ''),
-      total_programa: parseNumber(mapped['total_programa'] ?? ''),
-      pct_consecucion_programa: parseNumber(mapped['pct_consecucion_programa'] ?? ''),
-      expectativa_finalizan: parseNumber(mapped['expectativa_finalizan'] ?? ''),
-      pct_exito_estimado: parseNumber(mapped['pct_exito_estimado'] ?? ''),
-      contratos_firmados: parseNumber(mapped['contratos_firmados'] ?? ''),
+      objetivo_programa:         parseInteger(mapped['objetivo_programa'] ?? ''),
+      total_programa:            parseInteger(mapped['total_programa'] ?? ''),
+      pct_consecucion_programa:  parseNumber(mapped['pct_consecucion_programa'] ?? ''),
+      expectativa_finalizan:     parseInteger(mapped['expectativa_finalizan'] ?? ''),
+      pct_exito_estimado:        parseNumber(mapped['pct_exito_estimado'] ?? ''),
+      contratos_firmados:        parseInteger(mapped['contratos_firmados'] ?? ''),
       raw_data: row as unknown as Record<string, string>,
     }
 
