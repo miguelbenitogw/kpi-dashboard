@@ -16,7 +16,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'resumen',   label: 'Resumen' },
   { id: 'vacantes',  label: 'Vacantes activas' },
   { id: 'cvs',       label: 'CVs recibidos' },
-  { id: 'cerradas',  label: 'CVs cerradas' },
+  { id: 'cerradas',  label: 'Vacantes cerradas' },
 ]
 
 const ALL_PROFESIONES = Object.keys(PROFESION_LABELS) as TipoProfesional[]
