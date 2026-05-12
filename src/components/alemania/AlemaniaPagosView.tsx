@@ -136,6 +136,7 @@ export default function AlemaniaPagosView({ initialData }: { initialData?: Germa
   const [rows, setRows] = useState<GermanyPagoFullRow[]>(initialData ?? [])
   const [search, setSearch] = useState('')
   const [promoFilter, setPromoFilter] = useState<number | 'todas'>('todas')
+  const [filterEstado, setFilterEstado] = useState<string>('__all__')
   const [onlyPendiente, setOnlyPendiente] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('promo_numero')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -152,15 +153,10 @@ export default function AlemaniaPagosView({ initialData }: { initialData?: Germa
     return nums.sort((a, b) => b - a)
   }, [rows])
 
-  // KPIs
-  const kpis = useMemo(() => {
-    const withImporte = rows.filter(r => (r.importe_total ?? 0) > 0)
-    const totalDeuda = withImporte.reduce((s, r) => s + (r.importe_total ?? 0), 0)
-    const totalPendiente = withImporte.reduce((s, r) => s + (r.importe_pendiente ?? 0), 0)
-    const totalCobrado = totalDeuda - totalPendiente
-    const pctCobrado = totalDeuda > 0 ? (totalCobrado / totalDeuda) * 100 : 0
-    const conPendiente = rows.filter(r => (r.importe_pendiente ?? 0) > 0).length
-    return { totalDeuda, totalPendiente, totalCobrado, pctCobrado, conPendiente, total: rows.length }
+  // Available estados de formación
+  const availableEstados = useMemo(() => {
+    const s = new Set(rows.map(r => r.estado).filter((e): e is string => !!e))
+    return [...s].sort()
   }, [rows])
 
   // Filter + sort
@@ -176,6 +172,9 @@ export default function AlemaniaPagosView({ initialData }: { initialData?: Germa
     }
     if (promoFilter !== 'todas') {
       result = result.filter(r => r.promo_numero === promoFilter)
+    }
+    if (filterEstado !== '__all__') {
+      result = result.filter(r => r.estado === filterEstado)
     }
     if (onlyPendiente) {
       result = result.filter(r => (r.importe_pendiente ?? 0) > 0)
@@ -197,7 +196,18 @@ export default function AlemaniaPagosView({ initialData }: { initialData?: Germa
       const cmp = av < bv ? -1 : av > bv ? 1 : 0
       return sortDir === 'asc' ? cmp : -cmp
     })
-  }, [rows, search, promoFilter, onlyPendiente, sortKey, sortDir])
+  }, [rows, search, promoFilter, filterEstado, onlyPendiente, sortKey, sortDir])
+
+  // KPIs — reactivos a todos los filtros activos
+  const kpis = useMemo(() => {
+    const withImporte = filtered.filter(r => (r.importe_total ?? 0) > 0)
+    const totalDeuda = withImporte.reduce((s, r) => s + (r.importe_total ?? 0), 0)
+    const totalPendiente = withImporte.reduce((s, r) => s + (r.importe_pendiente ?? 0), 0)
+    const totalCobrado = totalDeuda - totalPendiente
+    const pctCobrado = totalDeuda > 0 ? (totalCobrado / totalDeuda) * 100 : 0
+    const conPendiente = filtered.filter(r => (r.importe_pendiente ?? 0) > 0).length
+    return { totalDeuda, totalPendiente, totalCobrado, pctCobrado, conPendiente, total: filtered.length }
+  }, [filtered])
 
   // Grouped by promo
   const byPromo = useMemo(() => {
@@ -346,6 +356,41 @@ export default function AlemaniaPagosView({ initialData }: { initialData?: Germa
         <span style={{ fontSize: 12, color: T.light, marginLeft: 4 }}>
           {filtered.length} candidato{filtered.length !== 1 ? 's' : ''}
         </span>
+
+        {/* Estado de formación */}
+        {availableEstados.length > 0 && (
+          <>
+            <div style={{ width: '100%', height: 1, background: T.border, margin: '2px 0' }} />
+            <span style={{ fontSize: 11, color: T.muted, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              Estado:
+            </span>
+            <button
+              onClick={() => setFilterEstado('__all__')}
+              style={{
+                padding: '5px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                border: `1px solid ${T.border}`,
+                background: filterEstado === '__all__' ? T.accent : T.card,
+                color: filterEstado === '__all__' ? '#fff' : T.muted,
+              }}
+            >
+              Todos
+            </button>
+            {availableEstados.map(e => (
+              <button
+                key={e}
+                onClick={() => setFilterEstado(filterEstado === e ? '__all__' : e)}
+                style={{
+                  padding: '5px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  border: `1px solid ${T.border}`,
+                  background: filterEstado === e ? T.accent : T.card,
+                  color: filterEstado === e ? '#fff' : T.muted,
+                }}
+              >
+                {e}
+              </button>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Tabla principal */}
