@@ -164,6 +164,7 @@ export default function ContabilidadView() {
   // Filters
   const [search, setSearch] = useState('')
   const [filterPromo, setFilterPromo] = useState<string>('__all__')
+  const [filterEstado, setFilterEstado] = useState<string>('__all__')
   const [soloPendiente, setSoloPendiente] = useState(false)
 
   // Sort
@@ -189,23 +190,12 @@ export default function ContabilidadView() {
     return Array.from(set).sort((a, b) => b.localeCompare(a))
   }, [rows])
 
-  // ---------------------------------------------------------------------------
-  // KPI calculations (over ALL rows, no filters)
-  // ---------------------------------------------------------------------------
-
-  const kpis = useMemo(() => {
-    let deuda = 0
-    let totalCobrado = 0
-    let pendiente = 0
-
+  const estados = useMemo(() => {
+    const set = new Set<string>()
     for (const r of rows) {
-      if ((r.importe_total ?? 0) > 0) deuda += r.importe_total!
-      totalCobrado += cobrado(r)
-      if ((r.importe_pendiente ?? 0) > 0) pendiente += r.importe_pendiente!
+      if (r.estado) set.add(r.estado)
     }
-
-    const pctCobrado = deuda > 0 ? Math.round((totalCobrado / deuda) * 100) : 0
-    return { deuda, cobrado: totalCobrado, pendiente, pctCobrado }
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [rows])
 
   // ---------------------------------------------------------------------------
@@ -219,10 +209,30 @@ export default function ContabilidadView() {
         if (!(r.full_name ?? '').toLowerCase().includes(s)) return false
       }
       if (filterPromo !== '__all__' && r.promocion_nombre !== filterPromo) return false
+      if (filterEstado !== '__all__' && r.estado !== filterEstado) return false
       if (soloPendiente && (r.importe_pendiente ?? 0) <= 0) return false
       return true
     })
-  }, [rows, search, filterPromo, soloPendiente])
+  }, [rows, search, filterPromo, filterEstado, soloPendiente])
+
+  // ---------------------------------------------------------------------------
+  // KPI calculations (over filtered rows — reflects active filters)
+  // ---------------------------------------------------------------------------
+
+  const kpis = useMemo(() => {
+    let deuda = 0
+    let totalCobrado = 0
+    let pendiente = 0
+
+    for (const r of filtered) {
+      if ((r.importe_total ?? 0) > 0) deuda += r.importe_total!
+      totalCobrado += cobrado(r)
+      if ((r.importe_pendiente ?? 0) > 0) pendiente += r.importe_pendiente!
+    }
+
+    const pctCobrado = deuda > 0 ? Math.round((totalCobrado / deuda) * 100) : 0
+    return { deuda, cobrado: totalCobrado, pendiente, pctCobrado }
+  }, [filtered])
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -500,6 +510,46 @@ export default function ContabilidadView() {
         <span style={{ marginLeft: 'auto', fontSize: 12, color: T.muted }}>
           {sorted.length} resultado{sorted.length !== 1 ? 's' : ''}
         </span>
+
+        {/* Pills de estado del candidato */}
+        {estados.length > 0 && (
+          <div style={{ width: '100%', display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', paddingTop: 4, borderTop: `1px solid ${T.border}` }}>
+            <span style={{ fontSize: 11, color: T.light, fontWeight: 500, marginRight: 2, whiteSpace: 'nowrap' }}>Estado:</span>
+            <button
+              onClick={() => setFilterEstado('__all__')}
+              style={{
+                padding: '4px 11px',
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 600,
+                border: `1px solid ${filterEstado === '__all__' ? T.accent : T.border}`,
+                background: filterEstado === '__all__' ? T.accent : T.card,
+                color: filterEstado === '__all__' ? '#ffffff' : T.muted,
+                cursor: 'pointer',
+              }}
+            >
+              Todos
+            </button>
+            {estados.map((e) => (
+              <button
+                key={e}
+                onClick={() => setFilterEstado(filterEstado === e ? '__all__' : e)}
+                style={{
+                  padding: '4px 11px',
+                  borderRadius: 999,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  border: `1px solid ${filterEstado === e ? T.accent : T.border}`,
+                  background: filterEstado === e ? T.accent : T.card,
+                  color: filterEstado === e ? '#ffffff' : T.muted,
+                  cursor: 'pointer',
+                }}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ------------------------------------------------------------------ */}
