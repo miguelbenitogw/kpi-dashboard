@@ -264,7 +264,7 @@ function KommunerCandidateTable({ candidates }: { candidates: GPKommunerCandidat
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #e7e2d8', background: '#fafaf9' }}>
-                {['Nombre', 'Promo', 'Estado GP', 'Placement', 'Preferencia', 'Solicitudes'].map((h) => (
+                {['Nombre', 'Promo', 'Estado GP', 'Placement', 'Preferencia', 'Aplicaciones'].map((h) => (
                   <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: '#78716c', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
