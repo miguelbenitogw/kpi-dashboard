@@ -59,7 +59,7 @@ function StatusBreakdown({ candidates }: { candidates: GPAgenciaCandidateRow[] }
   const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1])
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+    <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 6, marginTop: 8, overflowX: 'auto' }}>
       {sorted.map(([status, count]) => {
         const pct = Math.round((count / total) * 100)
         const { bg, color } = getStatusStyle(status)
@@ -67,15 +67,16 @@ function StatusBreakdown({ candidates }: { candidates: GPAgenciaCandidateRow[] }
           <span
             key={status}
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              padding: '2px 9px', borderRadius: 99, fontSize: 11, fontWeight: 500,
+              display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0,
+              padding: '3px 11px', borderRadius: 99, fontSize: 12, fontWeight: 500,
               background: bg, color,
               border: `1px solid ${color}28`,
+              whiteSpace: 'nowrap',
             }}
           >
             {status}
-            <strong style={{ fontWeight: 700 }}>{count}</strong>
-            <span style={{ opacity: 0.6, fontSize: 10 }}>{pct}%</span>
+            <strong style={{ fontWeight: 800, fontSize: 14 }}>{count}</strong>
+            <span style={{ opacity: 0.55, fontSize: 11 }}>{pct}%</span>
           </span>
         )
       })}
