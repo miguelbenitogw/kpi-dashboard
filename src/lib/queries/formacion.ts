@@ -52,6 +52,7 @@ export interface DropoutByWeek {
 export interface DropoutByMonth {
   month: string
   count: number
+  promos?: string[]
 }
 
 export interface DropoutByLevel {
@@ -228,6 +229,7 @@ export async function getDropoutAnalysis(
 
   const weekCounts = new Map<number, number>()
   const monthCounts = new Map<string, number>()
+  const monthPromos = new Map<string, Set<string>>()
   const levelCounts = new Map<string, number>()
   const reasonCounts = new Map<string, number>()
   const interestCounts = new Map<string, number>()
@@ -247,6 +249,11 @@ export async function getDropoutAnalysis(
         year: '2-digit',
       })
       monthCounts.set(monthKey, (monthCounts.get(monthKey) ?? 0) + 1)
+
+      if (d.promocion_nombre) {
+        if (!monthPromos.has(monthKey)) monthPromos.set(monthKey, new Set())
+        monthPromos.get(monthKey)!.add(d.promocion_nombre)
+      }
     }
 
     // Language level when they dropped out ("Level of language they was in")
@@ -275,7 +282,11 @@ export async function getDropoutAnalysis(
       .sort(([a], [b]) => a - b)
       .map(([week, count]) => ({ week, count })),
     byMonth: Array.from(monthCounts.entries())
-      .map(([month, count]) => ({ month, count })),
+      .map(([month, count]) => ({
+        month,
+        count,
+        promos: Array.from(monthPromos.get(month) ?? []).sort(),
+      })),
     byLanguageLevel: Array.from(levelCounts.entries())
       .sort(([, a], [, b]) => b - a)
       .map(([level, count]) => ({ level, count })),

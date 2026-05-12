@@ -382,8 +382,33 @@ function AbandonosSection({ data }: { data: DropoutAnalysisData | null }) {
                     allowDecimals={false}
                   />
                   <Tooltip
-                    {...TOOLTIP_STYLE}
-                    formatter={((v: number) => [v.toLocaleString('es-AR'), 'Bajas']) as any}
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null
+                      const entry = payload[0].payload as { count: number; promos?: string[] }
+                      return (
+                        <div style={{
+                          background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
+                          padding: '8px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', minWidth: 140,
+                        }}>
+                          <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700, color: '#111827' }}>
+                            {label}
+                          </p>
+                          <p style={{ margin: '0 0 6px', fontSize: 12, color: '#111827' }}>
+                            <strong>{entry.count}</strong> baja{entry.count !== 1 ? 's' : ''}
+                          </p>
+                          {entry.promos && entry.promos.length > 0 && (
+                            <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 6 }}>
+                              <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                Promos
+                              </p>
+                              {entry.promos.map((p) => (
+                                <p key={p} style={{ margin: '1px 0', fontSize: 11, color: '#374151', fontWeight: 500 }}>{p}</p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    }}
                   />
                   <Bar dataKey="count" fill="#F59E0B" radius={[4, 4, 0, 0]} />
                 </BarChart>
