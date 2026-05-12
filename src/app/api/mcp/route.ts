@@ -2,8 +2,14 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { createMcpServer } from '@/lib/mcp/server'
 
 async function handleMcpRequest(req: Request): Promise<Response> {
-  const apiKey = req.headers.get('x-api-key')
-  if (apiKey !== process.env.MCP_API_KEY) {
+  // Accept key from header (programmatic) or query param (ChatGPT / browser clients)
+  const url = new URL(req.url)
+  const apiKey =
+    req.headers.get('x-api-key') ??
+    req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
+    url.searchParams.get('key')
+
+  if (!apiKey || apiKey !== process.env.MCP_API_KEY) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
