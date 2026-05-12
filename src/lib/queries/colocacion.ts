@@ -91,6 +91,7 @@ export async function searchJobOpenings(query: string): Promise<JobOpeningOption
 
 export async function getGPTrainingStatusCounts(
   promocionNombre?: string | null,
+  year?: number | null,
 ): Promise<GPStatusCount[]> {
   let query = (supabase as any)
     .from('candidates_kpi')
@@ -103,6 +104,11 @@ export async function getGPTrainingStatusCounts(
     .neq('current_status', 'No Show')
 
   if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
+  if (year) {
+    const promoIds = await getPromotionIdsByYear(year)
+    if (promoIds.length) query = query.in('promotion_id', promoIds)
+    else return []
+  }
 
   const { data, error } = await query
   if (error) return []
@@ -126,6 +132,7 @@ export async function getGPTrainingStatusCounts(
 
 export async function getGPOpenToCounts(
   promocionNombre?: string | null,
+  year?: number | null,
 ): Promise<GPStatusCount[]> {
   let query = (supabase as any)
     .from('candidates_kpi')
@@ -137,6 +144,11 @@ export async function getGPOpenToCounts(
     .neq('current_status', 'No Show')
 
   if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
+  if (year) {
+    const promoIds = await getPromotionIdsByYear(year)
+    if (promoIds.length) query = query.in('promotion_id', promoIds)
+    else return []
+  }
 
   const { data, error } = await query
   if (error) return []
@@ -163,6 +175,7 @@ export async function getGPOpenToCounts(
 export async function getGPCandidatesByStatus(
   status: string,
   promocionNombre?: string | null,
+  year?: number | null,
 ): Promise<GPCandidateSummary[]> {
   let query = (supabase as any)
     .from('candidates_kpi')
@@ -173,6 +186,11 @@ export async function getGPCandidatesByStatus(
     .order('full_name', { ascending: true, nullsFirst: false })
 
   if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
+  if (year) {
+    const promoIds = await getPromotionIdsByYear(year)
+    if (promoIds.length) query = query.in('promotion_id', promoIds)
+    else return []
+  }
 
   const { data, error } = await query
   if (error) return []
@@ -182,6 +200,7 @@ export async function getGPCandidatesByStatus(
 export async function getGPCandidatesByOpenTo(
   openTo: string,
   promocionNombre?: string | null,
+  year?: number | null,
 ): Promise<GPCandidateSummary[]> {
   let query = (supabase as any)
     .from('candidates_kpi')
@@ -192,6 +211,11 @@ export async function getGPCandidatesByOpenTo(
     .order('full_name', { ascending: true, nullsFirst: false })
 
   if (promocionNombre) query = query.eq('promocion_nombre', promocionNombre)
+  if (year) {
+    const promoIds = await getPromotionIdsByYear(year)
+    if (promoIds.length) query = query.in('promotion_id', promoIds)
+    else return []
+  }
 
   const { data, error } = await query
   if (error) return []
@@ -341,6 +365,7 @@ export interface GPPreferenciaCount {
 
 export async function getGPPreferenciaBreakdown(
   promoNombre?: string | null,
+  year?: number | null,
 ): Promise<GPPreferenciaCount[]> {
   let query = (supabase as any)
     .from('candidates_kpi')
@@ -349,6 +374,11 @@ export async function getGPPreferenciaBreakdown(
     .not('gp_training_status', 'is', null)
 
   if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
+  if (year) {
+    const promoIds = await getPromotionIdsByYear(year)
+    if (promoIds.length) query = query.in('promotion_id', promoIds)
+    else return []
+  }
 
   const { data } = await query
   const rows: { gp_open_to: string; gp_training_status: string }[] = ((data ?? []) as any[]).filter(
@@ -387,6 +417,7 @@ export interface GPPreferenciaCombination {
 
 export async function getGPPreferenciaCombinations(
   promoNombre?: string | null,
+  year?: number | null,
 ): Promise<GPPreferenciaCombination[]> {
   let query = (supabase as any)
     .from('candidates_kpi')
@@ -395,6 +426,11 @@ export async function getGPPreferenciaCombinations(
     .not('gp_training_status', 'is', null)
 
   if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
+  if (year) {
+    const promoIds = await getPromotionIdsByYear(year)
+    if (promoIds.length) query = query.in('promotion_id', promoIds)
+    else return []
+  }
 
   const { data } = await query
   const rows: { gp_open_to: string; gp_training_status: string }[] = ((data ?? []) as any[]).filter(
@@ -447,6 +483,7 @@ export interface GPKommunerCandidate {
 
 export async function getGPStatusBreakdown(
   promoNombre?: string | null,
+  year?: number | null,
 ): Promise<{ items: GPStatusBreakdownItem[]; total: number }> {
   let query = (supabase as any)
     .from('candidates_kpi')
@@ -454,6 +491,11 @@ export async function getGPStatusBreakdown(
     .not('gp_training_status', 'is', null)
 
   if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
+  if (year) {
+    const promoIds = await getPromotionIdsByYear(year)
+    if (promoIds.length) query = query.in('promotion_id', promoIds)
+    else return { items: [], total: 0 }
+  }
 
   const { data } = await query
   const rows = ((data ?? []) as any[]).filter(
@@ -492,6 +534,7 @@ export async function getGPStatusBreakdown(
 
 export async function getGPKommunerCandidates(
   promoNombre?: string | null,
+  year?: number | null,
 ): Promise<GPKommunerCandidate[]> {
   let query = (supabase as any)
     .from('candidates_kpi')
@@ -501,6 +544,11 @@ export async function getGPKommunerCandidates(
     .order('full_name', { ascending: true })
 
   if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
+  if (year) {
+    const promoIds = await getPromotionIdsByYear(year)
+    if (promoIds.length) query = query.in('promotion_id', promoIds)
+    else return []
+  }
 
   const { data } = await query
   return ((data ?? []) as any[]).filter(

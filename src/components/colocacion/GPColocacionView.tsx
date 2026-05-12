@@ -208,7 +208,7 @@ function SectionCard({
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export default function GPColocacionView({ externalPromo = '' }: { externalPromo?: string }) {
+export default function GPColocacionView({ externalPromo = '', year }: { externalPromo?: string; year?: number | null }) {
   // Promotions (still needed for the linker and refresh action)
   const [promos, setPromos] = useState<PromoGPSummary[]>([])
   // Internal promo state is driven by externalPromo
@@ -248,8 +248,8 @@ export default function GPColocacionView({ externalPromo = '' }: { externalPromo
     setExpandedOpenTo(null)
     const promo = promoName ?? (selectedPromo || null)
     const [s, o] = await Promise.all([
-      getGPTrainingStatusCounts(promo),
-      getGPOpenToCounts(promo),
+      getGPTrainingStatusCounts(promo, year),
+      getGPOpenToCounts(promo, year),
     ])
     setStatusData(s)
     setOpenToData(o)
@@ -292,7 +292,7 @@ export default function GPColocacionView({ externalPromo = '' }: { externalPromo
     setExpandedStatus(status)
     setStatusCandidates([])
     setStatusCandLoading(true)
-    const cands = await getGPCandidatesByStatus(status, externalPromo || null)
+    const cands = await getGPCandidatesByStatus(status, externalPromo || null, year)
     setStatusCandidates(cands)
     setStatusCandLoading(false)
   }
@@ -302,7 +302,7 @@ export default function GPColocacionView({ externalPromo = '' }: { externalPromo
     setExpandedOpenTo(openTo)
     setOpenToCandidates([])
     setOpenToCandLoading(true)
-    const cands = await getGPCandidatesByOpenTo(openTo, externalPromo || null)
+    const cands = await getGPCandidatesByOpenTo(openTo, externalPromo || null, year)
     setOpenToCandidates(cands)
     setOpenToCandLoading(false)
   }

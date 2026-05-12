@@ -69,9 +69,10 @@ const STATUS_DEFINITIONS: { label: string; description: string }[] = [
 
 interface Props {
   promoFilter: string
+  year?: number | null
 }
 
-export default function GPStatusView({ promoFilter }: Props) {
+export default function GPStatusView({ promoFilter, year }: Props) {
   const [breakdown, setBreakdown] = useState<{ items: GPStatusBreakdownItem[]; total: number }>({
     items: [],
     total: 0,
@@ -84,15 +85,15 @@ export default function GPStatusView({ promoFilter }: Props) {
   useEffect(() => {
     setLoading(true)
     Promise.all([
-      getGPStatusBreakdown(promoFilter || null),
-      getGPKommunerCandidates(promoFilter || null),
+      getGPStatusBreakdown(promoFilter || null, year),
+      getGPKommunerCandidates(promoFilter || null, year),
     ]).then(([bd, kc]) => {
       setBreakdown(bd)
       const sorted = [...kc].sort((a, b) => kommunerSortKey(a) - kommunerSortKey(b))
       setKommunerCandidates(sorted)
       setLoading(false)
     })
-  }, [promoFilter])
+  }, [promoFilter, year])
 
   const maxCount = breakdown.items.length > 0 ? breakdown.items[0].count : 1
 

@@ -30,9 +30,10 @@ function getColor(preference: string): string {
 
 interface Props {
   promoFilter: string
+  year?: number | null
 }
 
-export default function GPPreferenciaView({ promoFilter }: Props) {
+export default function GPPreferenciaView({ promoFilter, year }: Props) {
   const [data, setData] = useState<GPPreferenciaCount[]>([])
   const [combinations, setCombinations] = useState<GPPreferenciaCombination[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,14 +43,14 @@ export default function GPPreferenciaView({ promoFilter }: Props) {
   useEffect(() => {
     setLoading(true)
     Promise.all([
-      getGPPreferenciaBreakdown(promoFilter || null),
-      getGPPreferenciaCombinations(promoFilter || null),
+      getGPPreferenciaBreakdown(promoFilter || null, year),
+      getGPPreferenciaCombinations(promoFilter || null, year),
     ]).then(([breakdown, combos]) => {
       setData(breakdown)
       setCombinations(combos)
       setLoading(false)
     })
-  }, [promoFilter])
+  }, [promoFilter, year])
 
   const maxCount = data.length > 0 ? data[0].count : 1
 

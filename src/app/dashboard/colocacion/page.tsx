@@ -172,10 +172,10 @@ export default function ColocacionPage() {
             </div>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 18 }}>
-                <GPPreferenciaView promoFilter="" />
+                <GPPreferenciaView promoFilter="" year={selectedYear || null} />
               </div>
               <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 18 }}>
-                <GPStatusView promoFilter="" />
+                <GPStatusView promoFilter="" year={selectedYear || null} />
               </div>
             </div>
           </section>
@@ -191,7 +191,7 @@ export default function ColocacionPage() {
               </p>
             </div>
             <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 18 }}>
-              <GPColocacionView externalPromo={''} />
+              <GPColocacionView externalPromo={''} year={selectedYear || null} />
             </div>
           </section>
         </>
