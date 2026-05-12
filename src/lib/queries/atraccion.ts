@@ -2126,6 +2126,8 @@ export interface ResumenVacanteItem {
   ratioExitoThreshold: number | null
   /** Configurable color threshold for ratio descarte (default 0.50 = 50%) */
   ratioDescarteThreshold: number | null
+  /** Last 6 completed weeks of CV counts for sparkline */
+  weeklyPoints: { week: string; count: number }[]
 }
 
 export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[]> {
@@ -2144,24 +2146,27 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
   const rows = vacancies as { id: string; title: string | null; tipo_profesional: string | null; total_candidates: number | null; hiring_target: number | null; closing_date: string | null; date_opened: string | null; ratio_exito_contactados: number | null; ratio_descarte: number | null; ratio_exito_threshold: number | null; ratio_descarte_threshold: number | null }[]
   const ids = rows.map((r) => r.id)
 
-  // 2. Weekly CVs — this week + last week
-  const thisWeek = getCurrentIsoMonday()
-  const lastWeekDate = new Date(thisWeek)
-  lastWeekDate.setUTCDate(lastWeekDate.getUTCDate() - 7)
-  const lastWeek = lastWeekDate.toISOString().split('T')[0]
+  // 2. Weekly CVs — last 6 completed weeks + current in-progress week
+  const RESUMEN_WEEKS = 6
+  const weekStarts6 = getRecentIsoMondays(RESUMEN_WEEKS)   // 6 completed weeks (for sparkline)
+  const oldestWeek6 = weekStarts6[0]
+  const thisWeek = getCurrentIsoWeekMonday()                // current in-progress week
+  const lastWeek = weekStarts6[weekStarts6.length - 1]      // most recent completed week
 
   const { data: weeklyRows } = await (supabase as any)
     .from('vacancy_cv_weekly_kpi')
     .select('vacancy_id, week_start, candidate_count')
     .in('vacancy_id', ids)
-    .in('week_start', [thisWeek, lastWeek])
+    .gte('week_start', oldestWeek6)
+    .lte('week_start', thisWeek)
 
-  const weeklyMap = new Map<string, { thisWeek: number; lastWeek: number }>()
-  for (const id of ids) weeklyMap.set(id, { thisWeek: 0, lastWeek: 0 })
+  const weeklyMap = new Map<string, { thisWeek: number; lastWeek: number; byWeek: Map<string, number> }>()
+  for (const id of ids) weeklyMap.set(id, { thisWeek: 0, lastWeek: 0, byWeek: new Map() })
   for (const wr of (weeklyRows ?? []) as { vacancy_id: string; week_start: string; candidate_count: number | null }[]) {
     const entry = weeklyMap.get(wr.vacancy_id)
     if (!entry) continue
     const count = wr.candidate_count ?? 0
+    entry.byWeek.set(wr.week_start, (entry.byWeek.get(wr.week_start) ?? 0) + count)
     if (wr.week_start === thisWeek) entry.thisWeek += count
     else if (wr.week_start === lastWeek) entry.lastWeek += count
   }
@@ -2215,25 +2220,33 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
   // Already ordered by count desc from DB, but sort defensively
   for (const [, arr] of gwTagMap) arr.sort((a, b) => b.count - a.count)
 
-  return rows.map((v) => ({
-    id: v.id,
-    title: v.title ?? 'Sin título',
-    tipo_profesional: v.tipo_profesional ?? 'otro',
-    cvsThisWeek: weeklyMap.get(v.id)?.thisWeek ?? 0,
-    cvsLastWeek: weeklyMap.get(v.id)?.lastWeek ?? 0,
-    dailyCvsThisWeek: weekDays.map((day) => ({
-      day,
-      count: dailyMap.get(v.id)?.get(day) ?? 0,
-    })),
-    statusCounts: statusMap.get(v.id) ?? [],
-    totalCandidates: v.total_candidates ?? 0,
-    gwTags: gwTagMap.get(v.id) ?? [],
-    hiringTarget: v.hiring_target ?? null,
-    closingDate: v.closing_date ?? null,
-    dateOpened: v.date_opened ?? null,
-    ratioExitoContactados: v.ratio_exito_contactados ?? null,
-    ratioDescarte: v.ratio_descarte ?? null,
-    ratioExitoThreshold: v.ratio_exito_threshold ?? null,
-    ratioDescarteThreshold: v.ratio_descarte_threshold ?? null,
-  }))
+  return rows.map((v) => {
+    const wm = weeklyMap.get(v.id)
+    const weeklyPoints = weekStarts6.map((ws) => ({
+      week: formatWeekLabel(ws),
+      count: wm?.byWeek.get(ws) ?? 0,
+    }))
+    return {
+      id: v.id,
+      title: v.title ?? 'Sin título',
+      tipo_profesional: v.tipo_profesional ?? 'otro',
+      cvsThisWeek: wm?.thisWeek ?? 0,
+      cvsLastWeek: wm?.lastWeek ?? 0,
+      dailyCvsThisWeek: weekDays.map((day) => ({
+        day,
+        count: dailyMap.get(v.id)?.get(day) ?? 0,
+      })),
+      statusCounts: statusMap.get(v.id) ?? [],
+      totalCandidates: v.total_candidates ?? 0,
+      gwTags: gwTagMap.get(v.id) ?? [],
+      hiringTarget: v.hiring_target ?? null,
+      closingDate: v.closing_date ?? null,
+      dateOpened: v.date_opened ?? null,
+      ratioExitoContactados: v.ratio_exito_contactados ?? null,
+      ratioDescarte: v.ratio_descarte ?? null,
+      ratioExitoThreshold: v.ratio_exito_threshold ?? null,
+      ratioDescarteThreshold: v.ratio_descarte_threshold ?? null,
+      weeklyPoints,
+    }
+  })
 }

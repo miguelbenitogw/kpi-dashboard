@@ -5,6 +5,7 @@ import { RefreshCw, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { getResumenAtraccionVacantes, type ResumenVacanteItem } from '@/lib/queries/atraccion'
 import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
 import { SegmentedStatusBar } from '@/components/atraccion/VacancyStatusCharts'
+import MiniLineChart from '@/components/resumen/MiniLineChart'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const P = {
@@ -170,8 +171,6 @@ function getDeadlineInfo(
 }
 
 // ─── Misc helpers ─────────────────────────────────────────────────────────────
-const DAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
-function todayIso(): string { return new Date().toISOString().split('T')[0] }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 function Sk({ w, h, r = 6 }: { w: string | number; h: number; r?: number }) {
@@ -224,12 +223,9 @@ function SkeletonVacancyCard() {
 function VacancyCard({ item }: { item: ResumenVacanteItem }) {
   const country = getVacancyCountry(item.title)
   const cc = COUNTRY_COLORS[country]
-  const today = todayIso()
-
   // ── CVs
   const delta = item.cvsThisWeek - item.cvsLastWeek
   const deltaColor = delta > 0 ? P.green : delta < 0 ? P.orange : P.muted
-  const maxDay = Math.max(1, ...item.dailyCvsThisWeek.map((d) => d.count))
 
   // ── Status
   const total = Math.max(item.totalCandidates, 1)
@@ -327,39 +323,12 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
           </div>
           <div style={{ fontSize: 9, color: P.muted, marginTop: 2 }}>CVs</div>
         </div>
-        {/* Sparkline */}
+        {/* 6-week sparkline */}
         <div style={{ flex: 1, paddingLeft: 16 }}>
-          <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 32 }}>
-            {item.dailyCvsThisWeek.map((d, i) => {
-              const isFuture = d.day > today
-              const pct = isFuture ? 0 : Math.max(d.count > 0 ? 15 : 0, Math.round((d.count / maxDay) * 100))
-              const isToday = d.day === today
-              return (
-                <div key={d.day} style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                  <div
-                    style={{
-                      width: '100%', borderRadius: 3,
-                      height: isFuture ? 3 : `${Math.max(3, pct)}%`,
-                      background: isFuture ? P.border : isToday ? P.accent : '#93c5fd',
-                      opacity: isFuture ? 0.4 : 1,
-                      minHeight: 3,
-                    }}
-                    title={`${DAY_LABELS[i]}: ${isFuture ? '—' : d.count + ' CVs'}`}
-                  />
-                </div>
-              )
-            })}
+          <div style={{ fontSize: 9, fontWeight: 600, color: P.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
+            últimas 6 sem.
           </div>
-          <div style={{ display: 'flex', gap: 3, marginTop: 3 }}>
-            {DAY_LABELS.map((label, i) => {
-              const isToday = item.dailyCvsThisWeek[i]?.day === today
-              return (
-                <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 8, fontWeight: isToday ? 700 : 400, color: isToday ? P.accent : P.muted }}>
-                  {label}
-                </div>
-              )
-            })}
-          </div>
+          <MiniLineChart points={item.weeklyPoints} />
         </div>
       </div>
 
