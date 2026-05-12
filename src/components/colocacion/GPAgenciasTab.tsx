@@ -7,22 +7,27 @@ import {
   type GPAgenciaCandidateRow,
 } from '@/lib/queries/colocacion'
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+// ── shared status color map ───────────────────────────────────────────────────
+
+const STATUS_STYLE_MAP: Record<string, { bg: string; color: string }> = {
+  'Hired':                  { bg: '#f0fdf4', color: '#15803d' },
+  'Assigned':               { bg: '#f0fdf4', color: '#15803d' },
+  'Approved by client':     { bg: '#f0fdf4', color: '#15803d' },
+  'Transferred':            { bg: '#f0fdf4', color: '#15803d' },
+  'Hired by agency':        { bg: '#f0fdf4', color: '#15803d' },
+  'To Place':               { bg: '#fefce8', color: '#854d0e' },
+  'In Training':            { bg: '#f0f9ff', color: '#0369a1' },
+  'Interview in process':   { bg: '#fdf4ff', color: '#7e22ce' },
+  'Presented to an Agency': { bg: '#fdf4ff', color: '#7e22ce' },
+}
+
+function getStatusStyle(s: string) {
+  return STATUS_STYLE_MAP[s] ?? { bg: '#f5f5f4', color: '#57534e' }
+}
 
 function statusBadge(s: string | null) {
   if (!s) return null
-  const map: Record<string, { bg: string; color: string }> = {
-    'Hired':            { bg: '#f0fdf4', color: '#15803d' },
-    'Assigned':         { bg: '#f0fdf4', color: '#15803d' },
-    'Approved by client': { bg: '#f0fdf4', color: '#15803d' },
-    'Transferred':      { bg: '#f0fdf4', color: '#15803d' },
-    'To Place':         { bg: '#fefce8', color: '#854d0e' },
-    'In Training':      { bg: '#f0f9ff', color: '#0369a1' },
-    'Interview in process': { bg: '#fdf4ff', color: '#7e22ce' },
-    'Presented to an Agency': { bg: '#fdf4ff', color: '#7e22ce' },
-    'Hired by agency':  { bg: '#f0fdf4', color: '#15803d' },
-  }
-  const style = map[s] ?? { bg: '#f5f5f4', color: '#57534e' }
+  const { bg, color } = getStatusStyle(s)
   return (
     <span style={{
       display: 'inline-block',
@@ -30,8 +35,8 @@ function statusBadge(s: string | null) {
       borderRadius: 99,
       fontSize: 11,
       fontWeight: 500,
-      background: style.bg,
-      color: style.color,
+      background: bg,
+      color,
       whiteSpace: 'nowrap',
     }}>
       {s}
@@ -39,21 +44,62 @@ function statusBadge(s: string | null) {
   )
 }
 
+// ── status breakdown — always visible in each agency card header ──────────────
+
+function StatusBreakdown({ candidates }: { candidates: GPAgenciaCandidateRow[] }) {
+  const total = candidates.length
+  if (total === 0) return null
+
+  const counts = new Map<string, number>()
+  for (const c of candidates) {
+    const s = c.gp_training_status ?? 'Sin estado'
+    counts.set(s, (counts.get(s) ?? 0) + 1)
+  }
+
+  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1])
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+      {sorted.map(([status, count]) => {
+        const pct = Math.round((count / total) * 100)
+        const { bg, color } = getStatusStyle(status)
+        return (
+          <span
+            key={status}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: '2px 9px', borderRadius: 99, fontSize: 11, fontWeight: 500,
+              background: bg, color,
+              border: `1px solid ${color}28`,
+            }}
+          >
+            {status}
+            <strong style={{ fontWeight: 700 }}>{count}</strong>
+            <span style={{ opacity: 0.6, fontSize: 10 }}>{pct}%</span>
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── agency color map ──────────────────────────────────────────────────────────
+
 const AGENCY_COLORS: Record<string, { bg: string; color: string }> = {
-  'Randstad':    { bg: '#fef2f2', color: '#991b1b' },
-  'Eccera':      { bg: '#f0f9ff', color: '#0369a1' },
-  'Summer FC':   { bg: '#f0fdf4', color: '#15803d' },
-  'Summer Viva': { bg: '#f0fdf4', color: '#166534' },
-  'Helsenor':    { bg: '#fdf4ff', color: '#7e22ce' },
-  'Vacant Helse':{ bg: '#fff7ed', color: '#9a3412' },
-  'Focus Care':  { bg: '#fefce8', color: '#854d0e' },
+  'Randstad':     { bg: '#fef2f2', color: '#991b1b' },
+  'Eccera':       { bg: '#f0f9ff', color: '#0369a1' },
+  'Summer FC':    { bg: '#f0fdf4', color: '#15803d' },
+  'Summer Viva':  { bg: '#f0fdf4', color: '#166534' },
+  'Helsenor':     { bg: '#fdf4ff', color: '#7e22ce' },
+  'Vacant Helse': { bg: '#fff7ed', color: '#9a3412' },
+  'Focus Care':   { bg: '#fefce8', color: '#854d0e' },
 }
 
 function agencyColor(name: string) {
   return AGENCY_COLORS[name] ?? { bg: '#f5f5f4', color: '#57534e' }
 }
 
-// ── sub-components ────────────────────────────────────────────────────────────
+// ── agency card ───────────────────────────────────────────────────────────────
 
 function AgencyCard({ row }: { row: GPAgenciaRow }) {
   const [open, setOpen] = useState(false)
@@ -61,30 +107,36 @@ function AgencyCard({ row }: { row: GPAgenciaRow }) {
 
   return (
     <div style={{ border: '1px solid #e7e2d8', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
-      {/* Header */}
+      {/* Header — always shows status breakdown */}
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '12px 16px', background: bg, border: 'none', cursor: 'pointer',
+          width: '100%', display: 'flex', alignItems: 'flex-start',
+          justifyContent: 'space-between', padding: '12px 16px',
+          background: bg, border: 'none', cursor: 'pointer', textAlign: 'left',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{
-            padding: '3px 12px', borderRadius: 99, fontSize: 13, fontWeight: 700,
-            background: bg, color,
-            border: `1px solid ${color}22`,
-          }}>
-            {row.agency}
-          </span>
-          <span style={{ fontSize: 13, color: '#78716c' }}>
-            {row.count} candidato{row.count !== 1 ? 's' : ''}
-          </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{
+              padding: '3px 12px', borderRadius: 99, fontSize: 13, fontWeight: 700,
+              background: bg, color, border: `1px solid ${color}22`,
+            }}>
+              {row.agency}
+            </span>
+            <span style={{ fontSize: 13, color: '#78716c' }}>
+              {row.count} candidato{row.count !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <StatusBreakdown candidates={row.candidates} />
         </div>
-        <span style={{ fontSize: 16, color: '#78716c', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }}>▾</span>
+        <span style={{
+          fontSize: 16, color: '#78716c', flexShrink: 0, marginLeft: 12, marginTop: 2,
+          transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 150ms',
+        }}>▾</span>
       </button>
 
-      {/* Candidate list */}
+      {/* Candidate table */}
       {open && (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
