@@ -2032,21 +2032,20 @@ export async function getResumenVacantesPrincipales(): Promise<ResumenVacantePri
 
   const { data: weeklyRaw } = await (supabase as any)
     .from('vacancy_cv_weekly_kpi')
-    .select('vacancy_id, job_opening_id, week_start, week, candidate_count, count, cv_count, new_cvs, total')
+    .select('vacancy_id, week_start, candidate_count')
     .in('vacancy_id', ids)
     .gte('week_start', oldestWeek6)
     .lte('week_start', thisWeekNow)
 
   // Build vacancyId → weekStart → count map
   const weeklyMap = new Map<string, Map<string, number>>()
-  for (const row of (weeklyRaw ?? []) as VacancyCvWeeklyRow[]) {
-    const vid = row.vacancy_id ?? row.job_opening_id
-    if (!vid || !ids.includes(vid)) continue
-    const ws = normalizeToIsoMonday(row.week_start ?? row.week)
+  for (const row of (weeklyRaw ?? []) as { vacancy_id: string; week_start: string; candidate_count: number | null }[]) {
+    if (!row.vacancy_id) continue
+    const ws = normalizeToIsoMonday(row.week_start)
     if (!ws) continue
-    const n = toNumberCount(row.candidate_count ?? row.count ?? row.cv_count ?? row.new_cvs ?? row.total)
-    if (!weeklyMap.has(vid)) weeklyMap.set(vid, new Map())
-    const wm = weeklyMap.get(vid)!
+    const n = toNumberCount(row.candidate_count)
+    if (!weeklyMap.has(row.vacancy_id)) weeklyMap.set(row.vacancy_id, new Map())
+    const wm = weeklyMap.get(row.vacancy_id)!
     wm.set(ws, (wm.get(ws) ?? 0) + n)
   }
 
