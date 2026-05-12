@@ -376,6 +376,55 @@ export async function getGPPreferenciaBreakdown(
     .sort((a, b) => b.count - a.count)
 }
 
+// ── Preferencia combinations (full tag sets) ──────────────────────────────────
+
+export interface GPPreferenciaCombination {
+  combination: string   // sorted, normalized tags joined with " · "
+  tags: string[]        // individual tags
+  count: number
+  percentage: number
+}
+
+export async function getGPPreferenciaCombinations(
+  promoNombre?: string | null,
+): Promise<GPPreferenciaCombination[]> {
+  let query = (supabase as any)
+    .from('candidates_kpi')
+    .select('gp_open_to, gp_training_status')
+    .not('gp_open_to', 'is', null)
+    .not('gp_training_status', 'is', null)
+
+  if (promoNombre) query = query.eq('promocion_nombre', promoNombre)
+
+  const { data } = await query
+  const rows: { gp_open_to: string; gp_training_status: string }[] = ((data ?? []) as any[]).filter(
+    (r: any) => !['Offer Withdrawn', 'Offer Declined', 'Expelled', 'No Show'].includes(r.gp_training_status ?? '')
+  )
+
+  const countMap = new Map<string, { tags: string[]; count: number }>()
+  for (const row of rows) {
+    const tags = row.gp_open_to
+      .split(',')
+      .map((p: string) => p.trim().replace(/Komunner/gi, 'Kommuner'))
+      .filter(Boolean)
+      .sort()
+    const key = tags.join(' · ')
+    const existing = countMap.get(key)
+    if (existing) existing.count++
+    else countMap.set(key, { tags, count: 1 })
+  }
+
+  const total = rows.length
+  return Array.from(countMap.entries())
+    .map(([combination, { tags, count }]) => ({
+      combination,
+      tags,
+      count,
+      percentage: total > 0 ? Math.round((count / total) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.count - a.count)
+}
+
 // ── Status breakdown (placement_status) ──────────────────────────────────────
 
 export interface GPStatusBreakdownItem {
