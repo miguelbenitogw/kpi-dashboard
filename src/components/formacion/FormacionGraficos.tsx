@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  ReferenceLine,
 } from 'recharts'
 import {
   getFormacionStates,
@@ -365,9 +366,23 @@ function AbandonosSection({ data }: { data: DropoutAnalysisData | null }) {
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
               Bajas por mes
             </p>
-            <div className="h-48">
+            {/* Legend for promo start lines */}
+            {data.promoStartDates.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1">
+                {data.promoStartDates.map((p) => (
+                  <span key={p.nombre} className="flex items-center gap-1 text-[10px] text-blue-400">
+                    <span className="inline-block h-3 w-px bg-blue-400 opacity-70" />
+                    {p.nombre}
+                    <span className="text-gray-500">
+                      ({new Date(p.fecha_inicio).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' })})
+                    </span>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.byMonth} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                <BarChart data={data.byMonth} margin={{ top: 20, right: 8, left: -16, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
                   <XAxis
                     dataKey="month"
@@ -385,10 +400,12 @@ function AbandonosSection({ data }: { data: DropoutAnalysisData | null }) {
                     content={({ active, payload, label }) => {
                       if (!active || !payload?.length) return null
                       const entry = payload[0].payload as { count: number; promos?: string[] }
+                      // Promos that start this month
+                      const startingHere = data.promoStartDates.filter((p) => p.monthKey === label)
                       return (
                         <div style={{
                           background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
-                          padding: '8px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', minWidth: 140,
+                          padding: '8px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.10)', minWidth: 150,
                         }}>
                           <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700, color: '#111827' }}>
                             {label}
@@ -397,12 +414,22 @@ function AbandonosSection({ data }: { data: DropoutAnalysisData | null }) {
                             <strong>{entry.count}</strong> baja{entry.count !== 1 ? 's' : ''}
                           </p>
                           {entry.promos && entry.promos.length > 0 && (
-                            <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 6 }}>
+                            <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 6, marginBottom: startingHere.length > 0 ? 6 : 0 }}>
                               <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Promos
+                                Promos con bajas
                               </p>
                               {entry.promos.map((p) => (
                                 <p key={p} style={{ margin: '1px 0', fontSize: 11, color: '#374151', fontWeight: 500 }}>{p}</p>
+                              ))}
+                            </div>
+                          )}
+                          {startingHere.length > 0 && (
+                            <div style={{ borderTop: '1px solid #dbeafe', paddingTop: 6 }}>
+                              <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                🟦 Inicio de promo
+                              </p>
+                              {startingHere.map((p) => (
+                                <p key={p.nombre} style={{ margin: '1px 0', fontSize: 11, color: '#1d4ed8', fontWeight: 600 }}>{p.nombre}</p>
                               ))}
                             </div>
                           )}
@@ -410,6 +437,24 @@ function AbandonosSection({ data }: { data: DropoutAnalysisData | null }) {
                       )
                     }}
                   />
+                  {/* Reference lines for promo start dates */}
+                  {data.promoStartDates.map((p) => (
+                    <ReferenceLine
+                      key={p.nombre}
+                      x={p.monthKey}
+                      stroke="#3B82F6"
+                      strokeDasharray="4 3"
+                      strokeWidth={1.5}
+                      strokeOpacity={0.7}
+                      label={{
+                        value: p.nombre.match(/\d+$/)?.[0] ?? p.nombre.slice(0, 6),
+                        position: 'top',
+                        fontSize: 9,
+                        fill: '#60A5FA',
+                        fontWeight: 600,
+                      }}
+                    />
+                  ))}
                   <Bar dataKey="count" fill="#F59E0B" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>

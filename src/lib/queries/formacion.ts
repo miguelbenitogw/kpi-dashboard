@@ -70,6 +70,12 @@ export interface DropoutByInterest {
   count: number
 }
 
+export interface PromoStartDate {
+  nombre: string
+  fecha_inicio: string
+  monthKey: string
+}
+
 export interface DropoutAnalysisData {
   byWeek: DropoutByWeek[]
   byMonth: DropoutByMonth[]
@@ -80,6 +86,7 @@ export interface DropoutAnalysisData {
   dropoutRate: number
   avgWeeksOfTraining: number | null
   avgAttendancePct: number | null
+  promoStartDates: PromoStartDate[]
 }
 
 export interface PromotionFormacionOverview {
@@ -221,6 +228,7 @@ export async function getDropoutAnalysis(
       dropoutRate: 0,
       avgWeeksOfTraining: null,
       avgAttendancePct: null,
+      promoStartDates: [],
     }
   }
 
@@ -228,13 +236,17 @@ export async function getDropoutAnalysis(
   const total = totalPrograma ?? 0
 
   const weekCounts = new Map<number, number>()
-  const monthCounts = new Map<string, number>()
-  const monthPromos = new Map<string, Set<string>>()
+  // monthKey → { count, firstDate (for sorting) }
+  const monthData = new Map<string, { count: number; firstDate: Date; promos: Set<string> }>()
   const levelCounts = new Map<string, number>()
   const reasonCounts = new Map<string, number>()
   const interestCounts = new Map<string, number>()
   let daysSum = 0
   let daysCount = 0
+
+  function toMonthKey(date: Date): string {
+    return date.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' })
+  }
 
   for (const d of dropouts) {
     if (d.dropout_date) {
@@ -244,19 +256,22 @@ export async function getDropoutAnalysis(
       const weekNum = Math.ceil(diff / (7 * 24 * 60 * 60 * 1000))
       weekCounts.set(weekNum, (weekCounts.get(weekNum) ?? 0) + 1)
 
-      const monthKey = date.toLocaleDateString('es-AR', {
-        month: 'short',
-        year: '2-digit',
-      })
-      monthCounts.set(monthKey, (monthCounts.get(monthKey) ?? 0) + 1)
-
-      if (d.promocion_nombre) {
-        if (!monthPromos.has(monthKey)) monthPromos.set(monthKey, new Set())
-        monthPromos.get(monthKey)!.add(d.promocion_nombre)
+      const monthKey = toMonthKey(date)
+      const existing = monthData.get(monthKey)
+      if (existing) {
+        existing.count++
+        if (date < existing.firstDate) existing.firstDate = date
+        if (d.promocion_nombre) existing.promos.add(d.promocion_nombre)
+      } else {
+        monthData.set(monthKey, {
+          count: 1,
+          firstDate: date,
+          promos: new Set(d.promocion_nombre ? [d.promocion_nombre] : []),
+        })
       }
     }
 
-    // Language level when they dropped out ("Level of language they was in")
+    // Language level when they dropped out
     const level = d.dropout_language_level ?? 'Sin dato'
     levelCounts.set(level, (levelCounts.get(level) ?? 0) + 1)
 
@@ -277,15 +292,39 @@ export async function getDropoutAnalysis(
     }
   }
 
+  // Fetch promo start dates for all promos that appear in the dropout data
+  const promoNamesInData = Array.from(
+    new Set(dropouts.map((d) => d.promocion_nombre).filter((n): n is string => Boolean(n)))
+  )
+
+  let promoStartDates: PromoStartDate[] = []
+  if (promoNamesInData.length > 0) {
+    const { data: promoRows } = await (supabase as any)
+      .from('promotions_kpi')
+      .select('nombre, fecha_inicio')
+      .in('nombre', promoNamesInData)
+      .not('fecha_inicio', 'is', null) as {
+        data: Array<{ nombre: string; fecha_inicio: string }> | null
+      }
+
+    promoStartDates = (promoRows ?? []).map((p) => ({
+      nombre: p.nombre,
+      fecha_inicio: p.fecha_inicio,
+      monthKey: toMonthKey(new Date(p.fecha_inicio)),
+    }))
+  }
+
   return {
     byWeek: Array.from(weekCounts.entries())
       .sort(([a], [b]) => a - b)
       .map(([week, count]) => ({ week, count })),
-    byMonth: Array.from(monthCounts.entries())
-      .map(([month, count]) => ({
+    // Sort months chronologically by their first dropout date
+    byMonth: Array.from(monthData.entries())
+      .sort(([, a], [, b]) => a.firstDate.getTime() - b.firstDate.getTime())
+      .map(([month, { count, promos }]) => ({
         month,
         count,
-        promos: Array.from(monthPromos.get(month) ?? []).sort(),
+        promos: Array.from(promos).sort(),
       })),
     byLanguageLevel: Array.from(levelCounts.entries())
       .sort(([, a], [, b]) => b - a)
@@ -305,6 +344,7 @@ export async function getDropoutAnalysis(
       ? Math.round((daysSum / daysCount / 7) * 10) / 10
       : null,
     avgAttendancePct: null, // not tracked in promo sheets
+    promoStartDates,
   }
 }
 
