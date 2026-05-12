@@ -328,7 +328,7 @@ function AbandonosSection({ data }: { data: DropoutAnalysisData | null }) {
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
               Nivel de idioma al abandonar
             </p>
-            <div className="h-52">
+            <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -337,8 +337,8 @@ function AbandonosSection({ data }: { data: DropoutAnalysisData | null }) {
                     nameKey="level"
                     cx="50%"
                     cy="50%"
-                    outerRadius={80}
-                    innerRadius={42}
+                    outerRadius={90}
+                    innerRadius={48}
                     paddingAngle={2}
                     label={({ payload }: any) => `${payload.level} (${payload.count})`}
                     labelLine={{ stroke: '#4B5563' }}
@@ -422,7 +422,7 @@ function AbandonosSection({ data }: { data: DropoutAnalysisData | null }) {
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
               Interés en proyectos futuros
             </p>
-            <div className="h-48">
+            <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -431,8 +431,8 @@ function AbandonosSection({ data }: { data: DropoutAnalysisData | null }) {
                     nameKey="interest"
                     cx="50%"
                     cy="50%"
-                    outerRadius={70}
-                    innerRadius={36}
+                    outerRadius={90}
+                    innerRadius={48}
                     paddingAngle={2}
                     label={({ payload }: any) => `${payload.interest} (${payload.count})`}
                     labelLine={{ stroke: '#4B5563' }}

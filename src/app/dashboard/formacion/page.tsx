@@ -192,7 +192,16 @@ export default function FormacionPage() {
             )}
 
             {/* Trayectoria de candidatos — shown only when a single promo is selected */}
-            {intentosStats && (
+            {intentosStats && intentosStats.total === 0 && (
+              <div style={{ marginTop: '24px', padding: '16px 20px', background: '#f8f7f4', border: '1px solid #e7e2d8', borderRadius: 12 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#78716c' }}>Trayectoria de candidatos</p>
+                <p style={{ margin: '6px 0 0', fontSize: 12, color: '#a8a29e' }}>
+                  Sin datos — esta promo no tiene vacante de formación vinculada en Zoho todavía.
+                  Las promos con datos son: 113, 114, 119, 120, 122.
+                </p>
+              </div>
+            )}
+            {intentosStats && intentosStats.total > 0 && (
               <div style={{ marginTop: '24px' }}>
                 <h2
                   style={{
