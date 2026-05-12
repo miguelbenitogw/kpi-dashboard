@@ -1,13 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { registerDashboardTools } from './tools/dashboard.js'
-import { registerCandidateTools } from './tools/candidates.js'
-import { registerVacancyTools } from './tools/vacancies.js'
-import { registerPromotionTools } from './tools/promotions.js'
-import { registerAnalyticsTools } from './tools/analytics.js'
-import { registerGermanyTools } from './tools/germany.js'
-import { registerDatabaseTools } from './tools/database.js'
-import { registerSyncTools } from './tools/sync.js'
-import { registerSchemaResources } from './resources/schema.js'
+import { registerDashboardTools } from './tools/dashboard'
+import { registerCandidateTools } from './tools/candidates'
+import { registerVacancyTools } from './tools/vacancies'
+import { registerPromotionTools } from './tools/promotions'
+import { registerAnalyticsTools } from './tools/analytics'
+import { registerGermanyTools } from './tools/germany'
+import { registerDatabaseTools } from './tools/database'
+import { registerSyncTools } from './tools/sync'
+import { registerSchemaResources } from './resources/schema'
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({

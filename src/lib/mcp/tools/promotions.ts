@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
-import { mcpRpc } from '../supabase.js'
+import { mcpRpc } from '../supabase'
 
 export function registerPromotionTools(server: McpServer) {
   server.tool(

@@ -1,5 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { mcpRpc } from '../supabase.js'
+import { mcpRpc } from '../supabase'
 
 export function registerDashboardTools(server: McpServer) {
   server.tool(
