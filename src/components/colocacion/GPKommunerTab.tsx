@@ -264,7 +264,7 @@ function KommunerCandidateTable({ candidates }: { candidates: GPKommunerCandidat
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #e7e2d8', background: '#fafaf9' }}>
-                {['Nombre', 'Promo', 'Estado GP', 'Placement', 'Preferencia', 'Solicitudes', 'Presentaciones'].map((h) => (
+                {['Nombre', 'Promo', 'Estado GP', 'Placement', 'Preferencia', 'Solicitudes'].map((h) => (
                   <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: '#78716c', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -279,9 +279,6 @@ function KommunerCandidateTable({ candidates }: { candidates: GPKommunerCandidat
                   <td style={{ padding: '7px 10px', color: '#78716c', fontSize: 11, maxWidth: 200 }}>{c.gp_open_to ?? '—'}</td>
                   <td style={{ padding: '7px 10px', textAlign: 'center', color: '#0e7490', fontWeight: 600 }}>
                     {c.gp_total_applications ?? '—'}
-                  </td>
-                  <td style={{ padding: '7px 10px', textAlign: 'center', color: '#0e7490', fontWeight: 600 }}>
-                    {c.presentations_kommuner > 0 ? c.presentations_kommuner : '—'}
                   </td>
                 </tr>
               ))}
