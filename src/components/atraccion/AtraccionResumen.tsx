@@ -185,7 +185,55 @@ function getDeadlineInfo(
   return { color, tint: `${color}18`, isExpired: false, label: null }
 }
 
-// ─── Misc helpers ─────────────────────────────────────────────────────────────
+// ─── Tooltip ──────────────────────────────────────────────────────────────────
+function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <span
+      style={{ position: 'relative', cursor: 'help' }}
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+    >
+      {children}
+      {visible && (
+        <span
+          style={{
+            position: 'absolute',
+            bottom: 'calc(100% + 8px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#1c1917',
+            color: '#fafaf9',
+            fontSize: 11,
+            fontWeight: 400,
+            lineHeight: 1.45,
+            padding: '7px 11px',
+            borderRadius: 7,
+            whiteSpace: 'normal',
+            width: 220,
+            zIndex: 50,
+            pointerEvents: 'none',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+          }}
+        >
+          {text}
+          {/* Arrow */}
+          <span style={{
+            position: 'absolute',
+            top: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 0,
+            height: 0,
+            borderLeft: '5px solid transparent',
+            borderRight: '5px solid transparent',
+            borderTop: '5px solid #1c1917',
+          }} />
+        </span>
+      )}
+    </span>
+  )
+}
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 function Sk({ w, h, r = 6 }: { w: string | number; h: number; r?: number }) {
@@ -295,23 +343,27 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
             <span>{item.totalCandidates} candidatos</span>
             {item.ratioExitoContactados != null && (() => {
               const pct = Math.round(item.ratioExitoContactados! * 100)
-              const T = (item.ratioExitoThreshold ?? 0.06) * 100
-              const color = pct >= T ? '#16a34a' : pct >= T * 0.5 ? '#d97706' : '#dc2626'
+              const threshold = (item.ratioExitoThreshold ?? 0.06) * 100
+              const color = pct >= threshold ? '#16a34a' : pct >= threshold * 0.5 ? '#d97706' : '#dc2626'
               return (
                 <>
                   <span>·</span>
-                  <span style={{ color, fontWeight: 700 }}>✓ {pct}% éxito</span>
+                  <Tooltip text={`Candidatos que avanzaron positivamente (Hired + Approved by client) sobre el total del proceso. Umbral configurado en Configuración: ${Math.round(threshold)}%`}>
+                    <span style={{ color, fontWeight: 700 }}>✓ {pct}% éxito</span>
+                  </Tooltip>
                 </>
               )
             })()}
             {item.ratioDescarte != null && (() => {
               const pct = Math.round(item.ratioDescarte! * 100)
-              const T = (item.ratioDescarteThreshold ?? 0.50) * 100
-              const color = pct <= T * 0.6 ? '#78716c' : pct <= T ? '#d97706' : '#dc2626'
+              const threshold = (item.ratioDescarteThreshold ?? 0.50) * 100
+              const color = pct <= threshold * 0.6 ? '#78716c' : pct <= threshold ? '#d97706' : '#dc2626'
               return (
                 <>
                   <span>·</span>
-                  <span style={{ color, fontWeight: 700 }}>✗ {pct}% descarte</span>
+                  <Tooltip text={`Porcentaje de candidatos que no valen — descartados o rechazados del proceso. Un valor alto indica mismatch de perfil o proceso muy selectivo. Umbral configurado: ${Math.round(threshold)}%`}>
+                    <span style={{ color, fontWeight: 700 }}>✗ {pct}% descarte</span>
+                  </Tooltip>
                 </>
               )
             })()}
