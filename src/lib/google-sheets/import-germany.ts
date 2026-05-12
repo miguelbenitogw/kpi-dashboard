@@ -640,9 +640,16 @@ export async function importGermanyPagos(sheetId: string): Promise<GermanyPagosR
       synced_at: new Date().toISOString(),
     }
 
+    // Prefer zoho_candidate_id as the conflict key when available — it's a stable
+    // Zoho ID and avoids name-collision issues (two candidates with the same name
+    // in the same promo, or a typo in the name field).
+    // Falls back to nombre,promo_numero,sheet_id for rows without a Zoho ID.
+    // The DB has a partial unique index: (zoho_candidate_id, sheet_id) WHERE zoho_candidate_id IS NOT NULL AND zoho_candidate_id <> ''
+    const hasZohoId = !!(payload.zoho_candidate_id && payload.zoho_candidate_id.trim() !== '')
+    const conflictKey = hasZohoId ? 'zoho_candidate_id,sheet_id' : 'nombre,promo_numero,sheet_id'
     const { error: upsertError } = await supabaseAdmin
       .from('germany_payments_kpi' as any)
-      .upsert(payload, { onConflict: 'nombre,promo_numero,sheet_id' })
+      .upsert(payload, { onConflict: conflictKey })
 
     if (upsertError) {
       result.errors.push(`Row ${rowNum} (${nombre}): ${upsertError.message}`)

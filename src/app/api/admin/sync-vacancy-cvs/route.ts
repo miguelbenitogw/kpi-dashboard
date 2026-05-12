@@ -394,13 +394,10 @@ export async function POST(request: Request) {
         }
       }
 
-      // GW tag counts — full-refresh: delete existing rows then upsert new ones
-      await (supabaseAdmin as any)
-        .from('vacancy_tag_counts_kpi')
-        .delete()
-        .eq('vacancy_id', vacancy.id)
-        .ilike('tag', 'GW%')
-
+      // GW tag counts — safe refresh: upsert first (no data loss window),
+      // then remove stale tags that no longer appear in Zoho.
+      // Previous pattern (delete→upsert) left a gap where tags were missing
+      // if the upsert failed after the delete.
       if (gwTagRows.length > 0) {
         const { error: gwTagError } = await (supabaseAdmin as any)
           .from('vacancy_tag_counts_kpi')
@@ -408,7 +405,32 @@ export async function POST(request: Request) {
 
         if (gwTagError) {
           errors.push(`gw-tags ${vacancy.title}: ${gwTagError.message}`)
+        } else {
+          // Stale cleanup: remove GW tags no longer present in Zoho
+          const currentTagNames = gwTagRows.map((r: GwTagKpiRow) => r.tag)
+          const { data: existingTags } = await (supabaseAdmin as any)
+            .from('vacancy_tag_counts_kpi')
+            .select('tag')
+            .eq('vacancy_id', vacancy.id)
+            .ilike('tag', 'GW%')
+          const staleTags = ((existingTags ?? []) as { tag: string }[])
+            .map((r) => r.tag)
+            .filter((tag) => !currentTagNames.includes(tag))
+          for (const staleTag of staleTags) {
+            await (supabaseAdmin as any)
+              .from('vacancy_tag_counts_kpi')
+              .delete()
+              .eq('vacancy_id', vacancy.id)
+              .eq('tag', staleTag)
+          }
         }
+      } else {
+        // No GW tags found in Zoho — remove any existing ones for this vacancy
+        await (supabaseAdmin as any)
+          .from('vacancy_tag_counts_kpi')
+          .delete()
+          .eq('vacancy_id', vacancy.id)
+          .ilike('tag', 'GW%')
       }
 
       vacanciesProcessed += 1

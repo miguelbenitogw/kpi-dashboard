@@ -78,6 +78,25 @@ export async function POST(request: Request) {
         errors.push(`${vacancy.title} (${vacancy.id}): ${upsertError.message}`)
       } else {
         totalCountsUpserted += rows.length
+
+        // Stale cleanup: remove statuses that no longer exist in Zoho.
+        // Since we fetched ALL candidates, the statusMap is the complete truth —
+        // any DB row not in currentStatuses is outdated and should be removed.
+        const currentStatuses = rows.map((r) => r.status)
+        const { data: existingRows } = await supabaseAdmin
+          .from('vacancy_status_counts_kpi')
+          .select('status')
+          .eq('vacancy_id', vacancy.id)
+        const staleStatuses = ((existingRows ?? []) as { status: string }[])
+          .filter((r) => !currentStatuses.includes(r.status))
+          .map((r) => r.status)
+        for (const staleStatus of staleStatuses) {
+          await supabaseAdmin
+            .from('vacancy_status_counts_kpi')
+            .delete()
+            .eq('vacancy_id', vacancy.id)
+            .eq('status', staleStatus)
+        }
       }
 
       vacanciesProcessed++
