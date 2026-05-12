@@ -227,6 +227,72 @@ function WantedKommunerSection({ rows, year }: { rows: GPWantedKommunerRow[]; ye
   )
 }
 
+// ── kandidat table (collapsible) ──────────────────────────────────────────────
+
+function KommunerCandidateTable({ candidates }: { candidates: GPKommunerCandidateRow[] }) {
+  const [open, setOpen] = useState(false)
+  if (candidates.length === 0) return null
+
+  return (
+    <div style={{ border: '1px solid #e7e2d8', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 16px', background: '#ecfeff', border: 'none', cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            padding: '3px 12px', borderRadius: 99, fontSize: 13, fontWeight: 700,
+            background: '#ecfeff', color: '#0e7490', border: '1px solid #a5f3fc',
+          }}>
+            GP - Kommuner
+          </span>
+          <span style={{ fontSize: 13, color: '#78716c' }}>
+            {candidates.length} candidato{candidates.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+        <span style={{
+          fontSize: 16, color: '#78716c', flexShrink: 0,
+          transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 150ms',
+        }}>▾</span>
+      </button>
+
+      {open && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #e7e2d8', background: '#fafaf9' }}>
+                {['Nombre', 'Promo', 'Estado GP', 'Placement', 'Preferencia', 'Solicitudes', 'Presentaciones'].map((h) => (
+                  <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: '#78716c', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {candidates.map((c) => (
+                <tr key={c.id} style={{ borderBottom: '1px solid #f5f5f4' }}>
+                  <td style={{ padding: '7px 10px', fontWeight: 500, color: '#1c1917', whiteSpace: 'nowrap' }}>{c.full_name ?? '—'}</td>
+                  <td style={{ padding: '7px 10px', color: '#78716c', whiteSpace: 'nowrap' }}>{c.promocion_nombre ?? '—'}</td>
+                  <td style={{ padding: '7px 10px' }}>{statusBadge(c.gp_training_status)}</td>
+                  <td style={{ padding: '7px 10px' }}>{statusBadge(c.placement_status)}</td>
+                  <td style={{ padding: '7px 10px', color: '#78716c', fontSize: 11, maxWidth: 200 }}>{c.gp_open_to ?? '—'}</td>
+                  <td style={{ padding: '7px 10px', textAlign: 'center', color: '#0e7490', fontWeight: 600 }}>
+                    {c.gp_total_applications ?? '—'}
+                  </td>
+                  <td style={{ padding: '7px 10px', textAlign: 'center', color: '#0e7490', fontWeight: 600 }}>
+                    {c.presentations_kommuner > 0 ? c.presentations_kommuner : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── main component ────────────────────────────────────────────────────────────
 
 export default function GPKommunerTab({ year }: { year: number }) {
@@ -286,6 +352,9 @@ export default function GPKommunerTab({ year }: { year: number }) {
           </div>
         </div>
       )}
+
+      {/* Candidate detail table */}
+      <KommunerCandidateTable candidates={data.kommunerCandidates} />
 
       {/* "Wanted Kommuner but in agency" section */}
       <WantedKommunerSection rows={data.wantedKommunerInAgency} year={year} />
