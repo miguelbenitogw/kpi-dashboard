@@ -6,6 +6,21 @@ import { getResumenAtraccionVacantes, type ResumenVacanteItem } from '@/lib/quer
 import { getVacancyCountry, COUNTRY_COLORS } from '@/lib/utils/vacancy-country'
 import { SegmentedStatusBar } from '@/components/atraccion/VacancyStatusCharts'
 import MiniLineChart from '@/components/resumen/MiniLineChart'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  rectSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const P = {
@@ -215,6 +230,23 @@ function SkeletonVacancyCard() {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ─── Sortable wrapper ─────────────────────────────────────────────────────────
+function SortableVacancyCard({ item }: { item: ResumenVacanteItem }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.45 : 1,
+    cursor: 'grab',
+    touchAction: 'none',
+  }
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <VacancyCard item={item} />
     </div>
   )
 }
@@ -530,10 +562,67 @@ function SyncZohoVacanciesButton({ onSynced }: { onSynced: () => void }) {
   )
 }
 
+// ─── Cards-per-row selector ───────────────────────────────────────────────────
+const CPR_OPTIONS = [4, 5, 6] as const
+type CardsPerRow = (typeof CPR_OPTIONS)[number]
+
+function CardsPerRowSelector({ value, onChange }: { value: CardsPerRow; onChange: (v: CardsPerRow) => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ fontSize: 11, color: P.muted, fontWeight: 500 }}>Por fila:</span>
+      {CPR_OPTIONS.map((n) => {
+        const active = value === n
+        return (
+          <button
+            key={n}
+            onClick={() => onChange(n)}
+            style={{
+              width: 30, height: 26,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: active ? 700 : 500,
+              color: active ? '#ffffff' : P.muted,
+              background: active ? P.accent : P.card,
+              border: `1px solid ${active ? P.accent : P.border}`,
+              borderRadius: 6,
+              cursor: 'pointer',
+              transition: 'all 0.12s',
+            }}
+          >
+            {n}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
+const LS_ORDER_KEY = 'atraccion-card-order'
+const LS_CPR_KEY   = 'atraccion-cards-per-row'
+
 export default function AtraccionResumen() {
-  const [items, setItems] = useState<ResumenVacanteItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [items, setItems]             = useState<ResumenVacanteItem[]>([])
+  const [order, setOrder]             = useState<string[]>([])
+  const [cardsPerRow, setCardsPerRow] = useState<CardsPerRow>(4)
+  const [loading, setLoading]         = useState(true)
+  const [hydrated, setHydrated]       = useState(false)
+
+  // ── Hydrate localStorage (client-only, avoids SSR mismatch)
+  useEffect(() => {
+    try {
+      const savedOrder = localStorage.getItem(LS_ORDER_KEY)
+      if (savedOrder) setOrder(JSON.parse(savedOrder) as string[])
+
+      const savedCpr = localStorage.getItem(LS_CPR_KEY)
+      if (savedCpr) {
+        const parsed = parseInt(savedCpr, 10)
+        if ((CPR_OPTIONS as readonly number[]).includes(parsed)) {
+          setCardsPerRow(parsed as CardsPerRow)
+        }
+      }
+    } catch { /* localStorage unavailable */ }
+    setHydrated(true)
+  }, [])
 
   const fetchData = useCallback(() => {
     setLoading(true)
@@ -545,12 +634,53 @@ export default function AtraccionResumen() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  // ── Derived sorted list: apply saved order, append new items at the end
+  const sortedItems = (() => {
+    if (order.length === 0) return items
+    const idMap = new Map(items.map((i) => [i.id, i]))
+    const ordered = order.flatMap((id) => {
+      const item = idMap.get(id)
+      return item ? [item] : []
+    })
+    const known = new Set(order)
+    const newItems = items.filter((i) => !known.has(i.id))
+    return [...ordered, ...newItems]
+  })()
+
+  // ── DnD sensors
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const ids = sortedItems.map((i) => i.id)
+    const oldIdx = ids.indexOf(active.id as string)
+    const newIdx = ids.indexOf(over.id as string)
+    const newOrder = arrayMove(ids, oldIdx, newIdx)
+
+    setOrder(newOrder)
+    try { localStorage.setItem(LS_ORDER_KEY, JSON.stringify(newOrder)) } catch { /* noop */ }
+  }
+
+  function handleCardsPerRowChange(v: CardsPerRow) {
+    setCardsPerRow(v)
+    try { localStorage.setItem(LS_CPR_KEY, String(v)) } catch { /* noop */ }
+  }
+
+  const gridCols = `repeat(${cardsPerRow}, 1fr)`
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <style>{`@keyframes ar-pulse { 0%,100%{opacity:1} 50%{opacity:.45} }`}</style>
 
-      {/* Sync button */}
-      <SyncZohoVacanciesButton onSynced={fetchData} />
+      {/* Toolbar: sync + cards-per-row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+        <SyncZohoVacanciesButton onSynced={fetchData} />
+        {hydrated && !loading && sortedItems.length > 0 && (
+          <CardsPerRowSelector value={cardsPerRow} onChange={handleCardsPerRowChange} />
+        )}
+      </div>
 
       {loading ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 16 }}>
@@ -561,9 +691,15 @@ export default function AtraccionResumen() {
           No hay vacantes favoritas. Podés marcarlas en la pestaña Configuración.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 16 }}>
-          {items.map((item) => <VacancyCard key={item.id} item={item} />)}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={sortedItems.map((i) => i.id)} strategy={rectSortingStrategy}>
+            <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: 16 }}>
+              {sortedItems.map((item) => (
+                <SortableVacancyCard key={item.id} item={item} />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   )
