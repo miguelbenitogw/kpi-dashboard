@@ -70,6 +70,38 @@ function stateColor(s: string) { return STATE_COLORS[s] ?? '#6B7280' }
 function prefColor(s: string) { return PREF_COLORS[s] ?? '#6B7280' }
 function interestColor(s: string) { return INTEREST_COLORS[s] ?? '#6B7280' }
 
+// ─── Custom pie tooltip ───────────────────────────────────────────────────────
+
+function PieTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  if (!active || !payload?.length) return null
+  const item = payload[0]
+  const name   = item.name  as string
+  const value  = item.value as number
+  const pct    = (item.payload?.percentage as number | undefined) ?? null
+  const color  = item.payload?.fill ?? item.fill ?? '#6B7280'
+  return (
+    <div style={{
+      background: '#fff',
+      border: '1px solid #e5e7eb',
+      borderRadius: 8,
+      padding: '8px 12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+      minWidth: 140,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{name}</span>
+      </div>
+      <p style={{ margin: 0, fontSize: 12, color: '#111827' }}>
+        {value.toLocaleString('es-AR')} candidatos
+        {pct !== null && (
+          <span style={{ marginLeft: 6, fontWeight: 600, color: '#111827' }}>{pct}%</span>
+        )}
+      </p>
+    </div>
+  )
+}
+
 const TOOLTIP_STYLE = {
   contentStyle: {
     backgroundColor: '#1F2937',
@@ -457,7 +489,7 @@ export default function FormacionGraficos({ promoNombres }: Props) {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={statesData}
+                data={statesData.map((d) => ({ ...d, fill: stateColor(d.status) }))}
                 dataKey="count"
                 nameKey="status"
                 cx="50%"
@@ -470,10 +502,7 @@ export default function FormacionGraficos({ promoNombres }: Props) {
                   <Cell key={e.status} fill={stateColor(e.status)} />
                 ))}
               </Pie>
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={((v: number) => [v.toLocaleString('es-AR'), 'Candidatos']) as any}
-              />
+              <Tooltip content={<PieTooltip />} />
             </PieChart>
           </ResponsiveContainer>
         </DonutCard>
@@ -498,7 +527,7 @@ export default function FormacionGraficos({ promoNombres }: Props) {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
-                data={prefsData}
+                data={prefsData.map((d) => ({ ...d, fill: prefColor(d.preference) }))}
                 dataKey="count"
                 nameKey="preference"
                 cx="50%"
@@ -511,10 +540,7 @@ export default function FormacionGraficos({ promoNombres }: Props) {
                   <Cell key={e.preference} fill={prefColor(e.preference)} />
                 ))}
               </Pie>
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={((v: number) => [v.toLocaleString('es-AR'), 'Menciones']) as any}
-              />
+              <Tooltip content={<PieTooltip />} />
             </PieChart>
           </ResponsiveContainer>
         </DonutCard>
