@@ -1,87 +1,31 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { z } from 'zod'
-import { mcpSupabase } from '../supabase.js'
-
-const FORBIDDEN_PATTERN = /\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE)\b/i
 
 export function registerDatabaseTools(server: McpServer) {
   server.tool(
-    'query_database',
-    'Execute a SELECT-only SQL query against the KPI database. Returns up to 200 rows. Use schema://tables resource to understand available tables and columns.',
-    {
-      sql: z.string().describe('The SQL SELECT query to execute'),
-      description: z
-        .string()
-        .optional()
-        .describe('Optional human-readable description of what this query does'),
-    },
-    async ({ sql, description }) => {
-      if (FORBIDDEN_PATTERN.test(sql)) {
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: JSON.stringify(
-                {
-                  error:
-                    'Query rejected: only SELECT statements are allowed. Detected forbidden keyword.',
-                  sql,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        }
-      }
-
-      // Enforce row limit
-      const stripped = sql.trimEnd().replace(/;?\s*$/, '')
-      const finalSql = /\bLIMIT\b/i.test(stripped)
-        ? stripped
-        : `${stripped} LIMIT 200`
-
-      const { data, error } = await mcpSupabase.rpc('execute_sql', {
-        query: finalSql,
-      } as never)
-
-      if (error) {
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: JSON.stringify(
-                {
-                  error: error.message,
-                  hint: error.hint,
-                  sql: finalSql,
-                  description,
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        }
-      }
-
-      const rows = Array.isArray(data) ? data : []
+    'list_mcp_functions',
+    'Lists all available controlled SQL functions that can be called via the other tools. Use this to understand what data is available.',
+    {},
+    async () => {
       return {
-        content: [
-          {
-            type: 'text' as const,
-            text: JSON.stringify(
-              {
-                rows: rows.slice(0, 200),
-                row_count: Math.min(rows.length, 200),
-                sql: finalSql,
-                description,
-              },
-              null,
-              2
-            ),
-          },
-        ],
+        content: [{
+          type: 'text' as const,
+          text: JSON.stringify({
+            functions: [
+              'mcp_dashboard_summary() → overview KPIs',
+              'mcp_search_candidates(promo, status, limit) → filter candidates',
+              'mcp_get_candidate_history(candidate_id) → job history for one candidate',
+              'mcp_search_vacancies(title, is_principal, limit) → filter vacancies',
+              'mcp_get_vacancy_detail(vacancy_id) → full vacancy data + status + weekly CVs',
+              'mcp_get_promotion_list(active_only) → all promotions',
+              'mcp_get_promotion_detail(promo_id, promo_nombre) → full promotion data + students',
+              'mcp_get_weekly_cv_trend(weeks, vacancy_id) → CV trend over time',
+              'mcp_get_kpi_metrics(vacancy_id) → success/discard rates',
+              'mcp_get_germany_pipeline(stage) → Germany program pipeline',
+              'mcp_get_sync_logs(limit) → recent sync history',
+            ],
+            note: 'All functions use SECURITY DEFINER with anon key — tables are not directly accessible.',
+          }, null, 2),
+        }],
       }
     }
   )
