@@ -186,22 +186,26 @@ function getDeadlineInfo(
 }
 
 // ─── Tooltip ──────────────────────────────────────────────────────────────────
+// Uses position:fixed + getBoundingClientRect so it escapes any overflow:hidden parent
 function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
-  const [visible, setVisible] = useState(false)
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   return (
     <span
       style={{ position: 'relative', cursor: 'help' }}
-      onMouseEnter={() => setVisible(true)}
-      onMouseLeave={() => setVisible(false)}
+      onMouseEnter={(e) => {
+        const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+        setPos({ x: r.left + r.width / 2, y: r.top })
+      }}
+      onMouseLeave={() => setPos(null)}
     >
       {children}
-      {visible && (
+      {pos && (
         <span
           style={{
-            position: 'absolute',
-            bottom: 'calc(100% + 8px)',
-            left: '50%',
-            transform: 'translateX(-50%)',
+            position: 'fixed',
+            top: pos.y - 8,
+            left: pos.x,
+            transform: 'translate(-50%, -100%)',
             background: '#1c1917',
             color: '#fafaf9',
             fontSize: 11,
@@ -211,7 +215,7 @@ function Tooltip({ text, children }: { text: string; children: React.ReactNode }
             borderRadius: 7,
             whiteSpace: 'normal',
             width: 220,
-            zIndex: 50,
+            zIndex: 9999,
             pointerEvents: 'none',
             boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
           }}
