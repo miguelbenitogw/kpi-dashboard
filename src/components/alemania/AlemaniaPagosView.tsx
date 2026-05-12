@@ -402,7 +402,6 @@ export default function AlemaniaPagosView({ initialData }: { initialData?: Germa
                 {([
                   ['nombre', 'Nombre'],
                   ['promo_numero', 'Promo'],
-                  ['empresa', 'Empresa'],
                   ['opcion_financiacion', 'Opción pago'],
                 ] as [SortKey, string][]).map(([key, label]) => (
                   <th key={key} style={thStyle} onClick={() => toggleSort(key)}>
@@ -426,7 +425,7 @@ export default function AlemaniaPagosView({ initialData }: { initialData?: Germa
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={12} style={{ ...tdStyle, textAlign: 'center', color: T.light, padding: '32px 0' }}>
+                  <td colSpan={11} style={{ ...tdStyle, textAlign: 'center', color: T.light, padding: '32px 0' }}>
                     Sin resultados
                   </td>
                 </tr>
@@ -449,7 +448,6 @@ export default function AlemaniaPagosView({ initialData }: { initialData?: Germa
                             </span>
                           ) : '—'}
                         </td>
-                        <td style={tdStyle}>{row.empresa ?? '—'}</td>
                         <td style={tdStyle}>
                           {row.opcion_financiacion ? (
                             <span style={{ fontSize: 11, background: '#f5f1ea', borderRadius: 6, padding: '2px 6px', color: T.muted }}>
@@ -495,7 +493,7 @@ export default function AlemaniaPagosView({ initialData }: { initialData?: Germa
                       {/* Cuotas expandidas */}
                       {isExpanded && row.cuotas && row.cuotas.length > 0 && (
                         <tr key={`${row.id}-cuotas`} style={{ background: '#f0f4ff' }}>
-                          <td colSpan={12} style={{ padding: '8px 16px 12px 48px' }}>
+                          <td colSpan={11} style={{ padding: '8px 16px 12px 48px' }}>
                             <p style={{ fontSize: 11, fontWeight: 600, color: T.accent, margin: '0 0 6px' }}>
                               Cuotas — {row.nombre}
                             </p>
