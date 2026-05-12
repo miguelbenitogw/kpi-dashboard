@@ -8,7 +8,13 @@ import PromoVistaGeneral from '@/components/formacion/PromoVistaGeneral'
 import CandidatosFormacionView from '@/components/formacion/CandidatosFormacionView'
 import PromoVacancyDistributionChart from '@/components/formacion/PromoVacancyDistributionChart'
 import PromoVacancyLinksManager from '@/components/formacion/PromoVacancyLinksManager'
-import { getIntentosStats, getContinuidadStats, ContinuidadStats } from '@/lib/queries/formacion'
+import {
+  getIntentosStats,
+  getContinuidadStats,
+  getFormacionAvailableYears,
+  getFormacionPromoNamesByYear,
+  type ContinuidadStats,
+} from '@/lib/queries/formacion'
 
 type IntentosStats = {
   total: number
@@ -26,8 +32,29 @@ export default function FormacionPage() {
   const [intentosStats, setIntentosStats] = useState<IntentosStats | null>(null)
   const [continuidadStats, setContinuidadStats] = useState<ContinuidadStats | null>(null)
 
+  // Year filter
+  const [availableYears, setAvailableYears] = useState<number[]>([])
+  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const [yearPromoNames, setYearPromoNames] = useState<string[]>([])
+
+  useEffect(() => {
+    getFormacionAvailableYears().then((ys) => {
+      setAvailableYears(ys)
+      if (ys.length > 0) setSelectedYear(ys[ys.length - 1])
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!selectedYear) { setYearPromoNames([]); return }
+    getFormacionPromoNamesByYear(selectedYear).then(setYearPromoNames)
+    setSelectedPromos([]) // clear promo selection when year changes
+  }, [selectedYear])
+
   const hasSelection = selectedPromos.length > 0
-  const activeFilter = hasSelection ? selectedPromos : undefined
+  // When no promo selected but year is active, restrict to year's promos
+  const activeFilter = hasSelection
+    ? selectedPromos
+    : yearPromoNames.length > 0 ? yearPromoNames : undefined
 
   // Load trayectoria + continuidad stats when a single promo is selected
   useEffect(() => {
@@ -57,11 +84,44 @@ export default function FormacionPage() {
         overflow: 'hidden',
       }}
     >
+      {/* ── Year pills ── */}
+      {availableYears.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+          <span style={{ fontSize: 12, color: '#78716c', fontWeight: 500, marginRight: 2 }}>
+            Año promocional
+          </span>
+          {availableYears.map((y) => {
+            const active = selectedYear === y
+            const label = `${String(y).slice(2)}-${String(y + 1).slice(2)}`
+            return (
+              <button
+                key={y}
+                onClick={() => setSelectedYear(y)}
+                style={{
+                  borderRadius: 99,
+                  padding: '4px 14px',
+                  fontSize: 12,
+                  fontWeight: active ? 700 : 500,
+                  border: active ? '1px solid #1e4b9e' : '1px solid #e7e2d8',
+                  background: active ? '#eff6ff' : '#fff',
+                  color: active ? '#1e4b9e' : '#78716c',
+                  cursor: 'pointer',
+                  transition: 'all 120ms',
+                }}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {/* ── Header: siempre visible ── */}
       <RetentionOverview
         selectedPromos={selectedPromos}
         onToggle={togglePromo}
         onSelectAll={() => setSelectedPromos([])}
+        year={selectedYear}
       />
 
       {/* ── Nav strip: aparece solo cuando hay promo seleccionada ── */}
@@ -398,7 +458,7 @@ export default function FormacionPage() {
               >
                 Vista General por Promoción
               </h2>
-              <PromoVistaGeneral />
+              <PromoVistaGeneral year={selectedYear} />
             </div>
           </div>
 

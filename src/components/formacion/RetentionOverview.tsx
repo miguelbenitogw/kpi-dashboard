@@ -32,12 +32,14 @@ interface Props {
   selectedPromos: string[]
   onToggle: (nombre: string) => void
   onSelectAll: () => void
+  year?: number | null
 }
 
 export default function RetentionOverview({
   selectedPromos,
   onToggle,
   onSelectAll,
+  year,
 }: Props) {
   const [promos, setPromos] = useState<PromotionFormacionOverview[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,12 +49,12 @@ export default function RetentionOverview({
   const fetchPromos = useCallback(
     (filter: PromoFilter) => {
       setLoading(true)
-      getPromotionsFormacionOverview(filter).then((data) => {
+      getPromotionsFormacionOverview(filter, year).then((data) => {
         setPromos(data)
         setLoading(false)
       })
     },
-    []
+    [year]
   )
 
   useEffect(() => {

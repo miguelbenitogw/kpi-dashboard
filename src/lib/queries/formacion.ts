@@ -298,7 +298,8 @@ export async function getDropoutAnalysis(
 }
 
 export async function getPromotionsFormacionOverview(
-  filter: 'active' | 'finished' | 'all' = 'active'
+  filter: 'active' | 'finished' | 'all' = 'active',
+  year?: number | null,
 ): Promise<PromotionFormacionOverview[]> {
   let query = supabase
     .from('promotions_kpi')
@@ -309,6 +310,11 @@ export async function getPromotionsFormacionOverview(
 
   if (filter === 'active') query = query.eq('is_active', true)
   else if (filter === 'finished') query = query.eq('is_active', false)
+  if (year) {
+    query = (query as any)
+      .gte('fecha_inicio', `${year}-01-01`)
+      .lt('fecha_inicio', `${year + 1}-01-01`)
+  }
 
   const { data: promotions, error } = await query
 
@@ -473,6 +479,35 @@ export interface FormacionPromoCount {
   count: number
 }
 
+/** Returns distinct calendar years that have formación promotions (numero 100-199). */
+export async function getFormacionAvailableYears(): Promise<number[]> {
+  const { data } = await (supabase as any)
+    .from('promotions_kpi')
+    .select('fecha_inicio')
+    .gte('numero', 100)
+    .lte('numero', 199)
+    .not('fecha_inicio', 'is', null)
+  const years = new Set<number>()
+  for (const r of (data ?? []) as { fecha_inicio: string }[]) {
+    const y = new Date(r.fecha_inicio).getFullYear()
+    if (!isNaN(y)) years.add(y)
+  }
+  return Array.from(years).sort()
+}
+
+/** Returns promo names (nombre) for a given calendar year (by fecha_inicio). */
+export async function getFormacionPromoNamesByYear(year: number): Promise<string[]> {
+  const { data } = await (supabase as any)
+    .from('promotions_kpi')
+    .select('nombre')
+    .gte('numero', 100)
+    .lte('numero', 199)
+    .gte('fecha_inicio', `${year}-01-01`)
+    .lt('fecha_inicio', `${year + 1}-01-01`)
+    .not('nombre', 'is', null)
+  return (data ?? []).map((r: any) => r.nombre as string).filter(Boolean)
+}
+
 /** Returns all promos with candidate counts, sorted by name. */
 export async function getFormacionPromos(): Promise<FormacionPromoCount[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -575,7 +610,8 @@ export interface PromoVistaGeneralRow {
 const PROGRAM_STATUSES = ['Hired', 'In Training', 'Training Finished', 'To Place', 'Assigned', 'Next Project']
 
 export async function getPromoVistaGeneral(
-  filter: 'active' | 'finished' | 'all' = 'active'
+  filter: 'active' | 'finished' | 'all' = 'active',
+  year?: number | null,
 ): Promise<PromoVistaGeneralRow[]> {
   let query = (supabase as any)
     .from('promotions_kpi')
@@ -588,6 +624,11 @@ export async function getPromoVistaGeneral(
 
   if (filter === 'active') query = query.eq('is_active', true)
   else if (filter === 'finished') query = query.eq('is_active', false)
+  if (year) {
+    query = query
+      .gte('fecha_inicio', `${year}-01-01`)
+      .lt('fecha_inicio', `${year + 1}-01-01`)
+  }
 
   const { data: promotions, error } = await query as {
     data: Array<{

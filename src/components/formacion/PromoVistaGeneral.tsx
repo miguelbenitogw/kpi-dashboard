@@ -59,18 +59,18 @@ function LoadingSkeleton() {
   )
 }
 
-export default function PromoVistaGeneral() {
+export default function PromoVistaGeneral({ year }: { year?: number | null }) {
   const [filter, setFilter] = useState<PromoFilter>('active')
   const [rows, setRows] = useState<PromoVistaGeneralRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setLoading(true)
-    getPromoVistaGeneral(filter).then((data) => {
+    getPromoVistaGeneral(filter, year).then((data) => {
       setRows(data)
       setLoading(false)
     })
-  }, [filter])
+  }, [filter, year])
 
   // ── Totals row ────────────────────────────────────────────────────────────
   const totals = rows.reduce(
