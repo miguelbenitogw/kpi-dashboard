@@ -2,7 +2,7 @@ export function GET() {
   const BASE = 'https://kpi-dashboard-hazel-seven.vercel.app/api/gpt'
 
   const spec = {
-    openapi: '3.1.0',
+    openapi: '3.0.2',
     info: {
       title: 'GlobalWorking KPI API',
       description:
