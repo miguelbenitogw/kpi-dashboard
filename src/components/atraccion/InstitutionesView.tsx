@@ -523,6 +523,7 @@ export default function InstitutionesView() {
   const [profesionFilter, setProfesionFilter] = useState<InstitucionProfesion | 'todas'>('todas')
   const [comunidadFilter, setComunidadFilter] = useState<string>('todas')
   const [estadoFilter, setEstadoFilter] = useState<string>('todos')
+  const [tipoEventoFilter, setTipoEventoFilter] = useState<string>('todos')
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -540,6 +541,7 @@ export default function InstitutionesView() {
       if (profesionFilter !== 'todas' && inst.profesion !== profesionFilter) return false
       if (comunidadFilter !== 'todas' && inst.comunidad_autonoma !== comunidadFilter) return false
       if (estadoFilter !== 'todos' && inst.estado_charla !== estadoFilter) return false
+      if (tipoEventoFilter !== 'todos' && inst.tipo_evento !== tipoEventoFilter) return false
       if (search) {
         const q = search.toLowerCase()
         if (
@@ -665,6 +667,17 @@ export default function InstitutionesView() {
         >
           <option value="todos">Todos los estados</option>
           {data.estadosCharla.map(e => <option key={e} value={e}>{e}</option>)}
+        </select>
+        <select
+          value={tipoEventoFilter}
+          onChange={e => setTipoEventoFilter(e.target.value)}
+          style={{
+            background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 8,
+            color: '#1c1917', fontSize: 12, padding: '6px 12px', cursor: 'pointer',
+          }}
+        >
+          <option value="todos">Todos los tipos de evento</option>
+          {data.tiposEvento.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <span style={{ fontSize: 11, color: '#a8a29e', marginLeft: 4 }}>
           {totalFiltered === totalAll

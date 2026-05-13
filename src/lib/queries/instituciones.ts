@@ -65,6 +65,7 @@ export interface InstitutionSummary {
   byProfesion: Record<string, number>
   comunidades: string[]
   estadosCharla: string[]
+  tiposEvento: string[]
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -117,11 +118,13 @@ export async function getInstitutions(): Promise<InstitutionSummary> {
   const byProfesion: Record<string, number> = {}
   const comunidadesSet = new Set<string>()
   const estadosSet = new Set<string>()
+  const tiposEventoSet = new Set<string>()
 
   for (const inst of institutions) {
     byProfesion[inst.profesion] = (byProfesion[inst.profesion] ?? 0) + 1
     if (inst.comunidad_autonoma) comunidadesSet.add(inst.comunidad_autonoma)
     if (inst.estado_charla) estadosSet.add(inst.estado_charla)
+    if (inst.tipo_evento) tiposEventoSet.add(inst.tipo_evento)
   }
 
   return {
@@ -129,5 +132,6 @@ export async function getInstitutions(): Promise<InstitutionSummary> {
     byProfesion,
     comunidades: Array.from(comunidadesSet).sort(),
     estadosCharla: Array.from(estadosSet).sort(),
+    tiposEvento: Array.from(tiposEventoSet).sort(),
   }
 }
