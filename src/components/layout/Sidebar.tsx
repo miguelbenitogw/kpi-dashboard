@@ -106,7 +106,7 @@ function SyncDot({ collapsed }: { collapsed: boolean }) {
 
   return (
     <div className="flex items-center gap-2 px-3 py-2 text-xs" style={{ color: '#78716c' }}>
-      <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
+      <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0, boxShadow: '0 0 0 3px rgba(22, 163, 74, 0.15)' }} />
       <span>Sync · {time}</span>
     </div>
   )
@@ -143,7 +143,7 @@ export default function Sidebar() {
       <button
         onClick={() => setMobileOpen(true)}
         className="fixed top-4 left-4 z-50 rounded-lg p-2 lg:hidden"
-        style={{ background: '#ffffff', border: '1px solid #e7e2d8', color: '#1e4b9e' }}
+        style={{ background: '#ffffff', border: '1px solid #e7e2d8', color: '#1e4b9e', boxShadow: '0 2px 8px rgba(28, 25, 23, 0.12)' }}
         aria-label="Abrir menu"
       >
         <Menu className="h-5 w-5" />
@@ -170,6 +170,7 @@ export default function Sidebar() {
           transition: 'width 220ms ease, transform 200ms ease',
           background: '#ffffff',
           borderRight: '1px solid #e7e2d8',
+          boxShadow: '2px 0 12px rgba(28, 25, 23, 0.06)',
           overflow: 'hidden',
           flexShrink: 0,
         }}
@@ -194,7 +195,7 @@ export default function Sidebar() {
           >
             <span
               className="relative flex items-center justify-center rounded-lg text-white text-sm font-bold"
-              style={{ width: 34, height: 34, flexShrink: 0, background: '#1e4b9e' }}
+              style={{ width: 34, height: 34, flexShrink: 0, background: 'linear-gradient(135deg, #2563eb 0%, #1e4b9e 100%)' }}
             >
               <span
                 className="absolute top-0 left-0 right-0 rounded-t-lg"
@@ -254,8 +255,8 @@ export default function Sidebar() {
                   ? <div style={{ height: 1, margin: '4px 4px 6px', background: '#e7e2d8' }} />
                   : (
                     <p
-                      className="mb-1 px-2 text-[10px] font-bold tracking-widest uppercase"
-                      style={{ color: '#1e4b9e', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                      className="mb-1 px-2 text-[10px] font-bold tracking-[0.12em] uppercase"
+                      style={{ color: '#1e4b9e', whiteSpace: 'nowrap', overflow: 'hidden', letterSpacing: '0.12em' }}
                     >
                       {section.title}
                     </p>
@@ -278,12 +279,13 @@ export default function Sidebar() {
                         padding: collapsed ? '6px 0' : '6px 8px',
                         gap: collapsed ? 0 : 10,
                         borderLeft: active ? '3px solid #e55a2b' : '3px solid transparent',
-                        background: active ? '#f5f1ea' : 'transparent',
+                        background: active ? '#f0ece4' : 'transparent',
+                        borderRadius: active ? '0 8px 8px 0' : 8,
                         color: active ? '#1e4b9e' : '#57534e',
                         minWidth: 0,
                       }}
                       onMouseEnter={(e) => {
-                        if (!active) (e.currentTarget as HTMLAnchorElement).style.background = '#f5f1ea'
+                        if (!active) (e.currentTarget as HTMLAnchorElement).style.background = '#f9f7f4'
                       }}
                       onMouseLeave={(e) => {
                         if (!active) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'
