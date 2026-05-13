@@ -169,6 +169,18 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
     return [...sorted.slice(0, 12), { name: 'Otros', value: otros }]
   }, [institutions])
 
+  const tipoEventoData = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const inst of institutions) {
+      const val = (inst.tipo_evento ?? '').trim()
+      if (!val) continue
+      map.set(val, (map.get(val) ?? 0) + 1)
+    }
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+  }, [institutions])
+
   const recursosData = useMemo(() => {
     const map = new Map<string, number>()
     for (const inst of institutions) {
@@ -241,6 +253,20 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
               <PieChart>
                 <Pie data={feedbackData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={PctLabel}>
                   {feedbackData.map((d, i) => <Cell key={i} fill={feedbackFill(d.name)} />)}
+                </Pie>
+                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [v, 'instituciones']} />
+                <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )}
+
+        {tipoEventoData.length > 0 && (
+          <ChartCard title="Tipo de evento">
+            <ResponsiveContainer width="100%" height={CHART_H}>
+              <PieChart>
+                <Pie data={tipoEventoData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={PctLabel}>
+                  {tipoEventoData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [v, 'instituciones']} />
                 <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
