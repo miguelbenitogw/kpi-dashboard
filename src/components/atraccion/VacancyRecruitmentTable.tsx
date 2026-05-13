@@ -488,7 +488,7 @@ export default function VacancyRecruitmentTable({
                 <Fragment key={row.id}>
                   <tr
                     onClick={() => setExpandedId(isExpanded ? null : row.id)}
-                    className="cursor-pointer hover:bg-gray-700/20 transition-colors"
+                    className="table-row cursor-pointer hover:bg-gray-700/20 transition-colors"
                   >
                     <td className="sticky left-0 z-10 bg-gray-800/95 px-3 py-2">
                       <div className="font-medium text-gray-200 leading-snug">

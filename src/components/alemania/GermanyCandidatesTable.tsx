@@ -263,7 +263,7 @@ export default function GermanyCandidatesTable({
         }}
       >
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
             <tr>
               <th style={TH_STYLE}>Nombre</th>
               <th style={TH_STYLE}>Promo</th>
@@ -277,16 +277,20 @@ export default function GermanyCandidatesTable({
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={7}
-                  style={{
-                    ...TD_STYLE,
-                    textAlign: 'center',
-                    color: '#78716c',
-                    padding: '24px',
-                  }}
-                >
-                  No hay candidatos con esos filtros.
+                <td colSpan={7} style={{ padding: '48px 32px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 12,
+                      background: '#f1f0ec',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <svg width="20" height="20" fill="none" stroke="#a8a29e" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                      </svg>
+                    </div>
+                    <p style={{ fontSize: 13, color: '#a8a29e', margin: 0, fontWeight: 500 }}>Sin candidatos</p>
+                    <p style={{ fontSize: 12, color: '#c4b9a8', margin: 0 }}>No hay candidatos con los filtros aplicados</p>
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -295,6 +299,7 @@ export default function GermanyCandidatesTable({
                 return (
                   <tr
                     key={`${row.nombre}-${i}`}
+                    className="table-row"
                     style={{ transition: 'background 150ms' }}
                     onMouseEnter={(e) => {
                       ;(e.currentTarget as HTMLTableRowElement).style.background =
