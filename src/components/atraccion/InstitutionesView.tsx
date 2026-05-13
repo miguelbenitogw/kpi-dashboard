@@ -282,9 +282,14 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
                     formatter={(v: number) => [v, 'instituciones']}
                   />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={18}>
-                    {feedbackData.map((_, i) => (
-                      <Cell key={i} fill={BLUE_SHADES[i % BLUE_SHADES.length]} />
-                    ))}
+                    {feedbackData.map((d, i) => {
+                      const n = d.name.toLowerCase()
+                      const fill = n.includes('positiv') ? '#16a34a'
+                        : n.includes('negativ') ? '#dc2626'
+                        : n.includes('neutro') || n.includes('neutral') ? '#94a3b8'
+                        : BLUE_SHADES[i % BLUE_SHADES.length]
+                      return <Cell key={i} fill={fill} />
+                    })}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
