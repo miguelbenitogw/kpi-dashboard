@@ -48,9 +48,10 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 }
 
 const CARD_COLORS = {
-  blue:  { border: '#1e4b9e', bg: '#eff6ff', value: '#1e4b9e', label: '#3b82f6', sub: '#60a5fa' },
-  green: { border: '#16a34a', bg: '#f0fdf4', value: '#16a34a', label: '#22c55e', sub: '#4ade80' },
-  red:   { border: '#dc2626', bg: '#fef2f2', value: '#dc2626', label: '#ef4444', sub: '#f87171' },
+  blue:   { border: '#1e4b9e', bg: '#eff6ff', value: '#1e4b9e' },
+  green:  { border: '#16a34a', bg: '#f0fdf4', value: '#16a34a' },
+  purple: { border: '#7c3aed', bg: '#f5f3ff', value: '#7c3aed' },
+  amber:  { border: '#b45309', bg: '#fffbeb', value: '#b45309' },
 } as const
 
 function KpiCard({ label, value, sub, color = 'blue' }: {
@@ -70,7 +71,7 @@ function KpiCard({ label, value, sub, color = 'blue' }: {
       flex: '1 1 140px',
       minWidth: 0,
     }}>
-      <p style={{ fontSize: 11, color: c.border, fontWeight: 600, marginBottom: 4, opacity: 0.75 }}>{label}</p>
+      <p style={{ fontSize: 11, color: c.border, fontWeight: 600, marginBottom: 4, opacity: 0.8 }}>{label}</p>
       <p style={{ fontSize: 26, fontWeight: 800, color: c.value, lineHeight: 1 }}>{value}</p>
       {sub && <p style={{ fontSize: 11, color: c.border, marginTop: 5, opacity: 0.6 }}>{sub}</p>}
     </div>
@@ -183,7 +184,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
           sub="firmaron o mostraron interés"
         />
         <KpiCard
-          color="red"
+          color="purple"
           label="Conversión"
           value={`${pctConversion}%`}
           sub="interesados / asistentes"
