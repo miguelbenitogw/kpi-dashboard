@@ -339,19 +339,6 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
           </ChartCard>
         )}
 
-        {recursosData.length > 0 && (
-          <ChartCard title="Recursos entregados">
-            <ResponsiveContainer width="100%" height={CHART_H}>
-              <PieChart>
-                <Pie data={recursosData} dataKey="value" nameKey="name" cx="32%" outerRadius={78} labelLine={false} label={ValueLabel}>
-                  {recursosData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                </Pie>
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _: string, item: any) => [v, item.payload.name]} />
-                <Legend layout="vertical" align="right" verticalAlign="middle" iconSize={8} wrapperStyle={{ fontSize: 10, lineHeight: '18px' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        )}
 
       </div>
     </div>
