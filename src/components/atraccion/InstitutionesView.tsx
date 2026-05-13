@@ -259,15 +259,15 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
           sub="interesados / asistentes" />
       </div>
 
-      {/* ── 2×2 pie grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
+      {/* ── Fila 1: gráficos de barras (necesitan más ancho) ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 12 }}>
 
         {companeroData.length > 0 && (
           <ChartCard title="Compañero que asiste — nº de charlas">
-            <ResponsiveContainer width="100%" height={Math.max(200, companeroData.length * 36)}>
-              <BarChart data={companeroData} layout="vertical" margin={{ top: 4, right: 80, left: 4, bottom: 4 }}>
+            <ResponsiveContainer width="100%" height={Math.max(220, companeroData.length * 36)}>
+              <BarChart data={companeroData} layout="vertical" margin={{ top: 4, right: 90, left: 4, bottom: 4 }}>
                 <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#57534e' }} tickLine={false} axisLine={false} width={60} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#57534e' }} tickLine={false} axisLine={false} width={64} />
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _n: string, item: any) => [`${v} charlas (${item.payload.pct}%)`, item.payload.name]} />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={22}>
                   {companeroData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
@@ -280,8 +280,8 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
 
         {byProfesionData.length > 0 && (
           <ChartCard title="Asistentes e interesados por profesión">
-            <ResponsiveContainer width="100%" height={Math.max(200, byProfesionData.length * 40)}>
-              <ComposedChart data={byProfesionData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }} barCategoryGap="30%" barGap={3}>
+            <ResponsiveContainer width="100%" height={Math.max(220, byProfesionData.length * 48)}>
+              <ComposedChart data={byProfesionData} margin={{ top: 8, right: 32, left: 0, bottom: 8 }} barCategoryGap="28%" barGap={3}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f0ec" vertical={false} />
                 <XAxis dataKey="profesion" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                 <YAxis yAxisId="left" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
@@ -298,23 +298,28 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
                   wrapperStyle={{ fontSize: 10 }}
                   formatter={(v) => v === 'asistentes' ? 'Asistentes' : v === 'interesados' ? 'Interesados' : 'Conversión %'}
                 />
-                <Bar yAxisId="left" dataKey="asistentes" fill="#1e4b9e" radius={[3, 3, 0, 0]} maxBarSize={28} />
-                <Bar yAxisId="left" dataKey="interesados" fill="#e55a2b" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                <Bar yAxisId="left" dataKey="asistentes" fill="#1e4b9e" radius={[3, 3, 0, 0]} maxBarSize={32} />
+                <Bar yAxisId="left" dataKey="interesados" fill="#e55a2b" radius={[3, 3, 0, 0]} maxBarSize={32} />
                 <Line yAxisId="right" dataKey="conversion" type="monotone" stroke="#7c3aed" strokeWidth={2} dot={{ r: 4, fill: '#7c3aed' }} />
               </ComposedChart>
             </ResponsiveContainer>
           </ChartCard>
         )}
 
+      </div>
+
+      {/* ── Fila 2: gráficos circulares ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12 }}>
+
         {feedbackData.length > 0 && (
           <ChartCard title="Feedback del contacto principal">
             <ResponsiveContainer width="100%" height={CHART_H}>
               <PieChart>
-                <Pie data={feedbackData} dataKey="value" nameKey="name" cx="38%" outerRadius={85} labelLine={false} label={ValueLabel}>
+                <Pie data={feedbackData} dataKey="value" nameKey="name" cx="42%" outerRadius={88} labelLine={false} label={ValueLabel}>
                   {feedbackData.map((d, i) => <Cell key={i} fill={feedbackFill(d.name)} />)}
                 </Pie>
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _: string, item: any) => [v, item.payload.name]} />
-                <Legend layout="vertical" align="right" verticalAlign="middle" iconSize={8} wrapperStyle={{ fontSize: 10, lineHeight: '20px' }} />
+                <Legend layout="vertical" align="right" verticalAlign="middle" iconSize={8} wrapperStyle={{ fontSize: 10, lineHeight: '22px' }} />
               </PieChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -324,7 +329,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
           <ChartCard title="Tipo de evento">
             <ResponsiveContainer width="100%" height={CHART_H}>
               <PieChart>
-                <Pie data={tipoEventoData} dataKey="value" nameKey="name" cx="38%" outerRadius={85} labelLine={false} label={ValueLabel}>
+                <Pie data={tipoEventoData} dataKey="value" nameKey="name" cx="36%" outerRadius={82} labelLine={false} label={ValueLabel}>
                   {tipoEventoData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _: string, item: any) => [v, item.payload.name]} />
@@ -338,11 +343,11 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
           <ChartCard title="Recursos entregados">
             <ResponsiveContainer width="100%" height={CHART_H}>
               <PieChart>
-                <Pie data={recursosData} dataKey="value" nameKey="name" cx="38%" outerRadius={85} labelLine={false} label={ValueLabel}>
+                <Pie data={recursosData} dataKey="value" nameKey="name" cx="32%" outerRadius={78} labelLine={false} label={ValueLabel}>
                   {recursosData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _: string, item: any) => [v, item.payload.name]} />
-                <Legend layout="vertical" align="right" verticalAlign="middle" iconSize={8} wrapperStyle={{ fontSize: 10, lineHeight: '20px' }} />
+                <Legend layout="vertical" align="right" verticalAlign="middle" iconSize={8} wrapperStyle={{ fontSize: 10, lineHeight: '18px' }} />
               </PieChart>
             </ResponsiveContainer>
           </ChartCard>
