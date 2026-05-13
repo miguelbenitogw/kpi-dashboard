@@ -216,11 +216,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
                   {...TOOLTIP_STYLE}
                   formatter={(v: number) => [v, 'charlas']}
                 />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={20}>
-                  {companeroData.map((_, i) => (
-                    <Cell key={i} fill={BLUE_SHADES[i % BLUE_SHADES.length]} />
-                  ))}
-                </Bar>
+                <Bar dataKey="count" fill="#4f83d8" radius={[0, 4, 4, 0]} maxBarSize={20} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -229,7 +225,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
         {/* Asistentes e Interesados por profesión */}
         {byProfesionData.length > 0 && (
           <ChartCard title="Asistentes e interesados por profesión">
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={Math.max(140, byProfesionData.length * 38)}>
               <BarChart
                 data={byProfesionData}
                 margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
@@ -318,11 +314,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
                     {...TOOLTIP_STYLE}
                     formatter={(v: number) => [v, 'instituciones']}
                   />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={20}>
-                    {recursosData.map((_, i) => (
-                      <Cell key={i} fill={BLUE_SHADES[i % BLUE_SHADES.length]} />
-                    ))}
-                  </Bar>
+                  <Bar dataKey="value" fill="#4f83d8" radius={[0, 4, 4, 0]} maxBarSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
