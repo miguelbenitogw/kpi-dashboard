@@ -275,11 +275,11 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
           <ChartCard title="Feedback del contacto principal">
             <ResponsiveContainer width="100%" height={CHART_H}>
               <PieChart>
-                <Pie data={feedbackData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={ValueLabel}>
+                <Pie data={feedbackData} dataKey="value" nameKey="name" cx="38%" outerRadius={85} labelLine={false} label={ValueLabel}>
                   {feedbackData.map((d, i) => <Cell key={i} fill={feedbackFill(d.name)} />)}
                 </Pie>
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _: string, item: any) => [v, item.payload.name]} />
-                <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+                <Legend layout="vertical" align="right" verticalAlign="middle" iconSize={8} wrapperStyle={{ fontSize: 10, lineHeight: '20px' }} />
               </PieChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -289,11 +289,11 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
           <ChartCard title="Tipo de evento">
             <ResponsiveContainer width="100%" height={CHART_H}>
               <PieChart>
-                <Pie data={tipoEventoData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={ValueLabel}>
+                <Pie data={tipoEventoData} dataKey="value" nameKey="name" cx="38%" outerRadius={85} labelLine={false} label={ValueLabel}>
                   {tipoEventoData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _: string, item: any) => [v, item.payload.name]} />
-                <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+                <Legend layout="vertical" align="right" verticalAlign="middle" iconSize={8} wrapperStyle={{ fontSize: 10, lineHeight: '20px' }} />
               </PieChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -303,11 +303,11 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
           <ChartCard title="Recursos entregados">
             <ResponsiveContainer width="100%" height={CHART_H}>
               <PieChart>
-                <Pie data={recursosData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={ValueLabel}>
+                <Pie data={recursosData} dataKey="value" nameKey="name" cx="38%" outerRadius={85} labelLine={false} label={ValueLabel}>
                   {recursosData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _: string, item: any) => [v, item.payload.name]} />
-                <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+                <Legend layout="vertical" align="right" verticalAlign="middle" iconSize={8} wrapperStyle={{ fontSize: 10, lineHeight: '20px' }} />
               </PieChart>
             </ResponsiveContainer>
           </ChartCard>
