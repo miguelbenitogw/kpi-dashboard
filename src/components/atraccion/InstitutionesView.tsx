@@ -111,6 +111,25 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
       .sort((a, b) => b.asistentes - a.asistentes)
   }, [institutions])
 
+  // ── Feedback del contacto principal ───────────────────────────────────────
+  const feedbackData = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const inst of institutions) {
+      const c1 = inst.contacts.find(c => c.contact_number === 1)
+      if (!c1?.feedback) continue
+      const val = c1.feedback.trim()
+      if (!val) continue
+      map.set(val, (map.get(val) ?? 0) + 1)
+    }
+    const sorted = Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+    if (sorted.length <= 12) return sorted
+    const top = sorted.slice(0, 12)
+    const otros = sorted.slice(12).reduce((s, d) => s + d.value, 0)
+    return [...top, { name: 'Otros', value: otros }]
+  }, [institutions])
+
   // ── Recursos entregados ────────────────────────────────────────────────────
   const recursosData = useMemo(() => {
     const map = new Map<string, number>()
@@ -220,37 +239,71 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
         )}
       </div>
 
-      {/* ── Recursos entregados ── */}
-      {recursosData.length > 0 && (
+      {/* ── Recursos entregados + Feedback ── */}
+      {(recursosData.length > 0 || feedbackData.length > 0) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-          <ChartCard title="Recursos entregados — distribución">
-            <ResponsiveContainer width="100%" height={Math.max(160, recursosData.length * 32)}>
-              <BarChart
-                data={recursosData}
-                layout="vertical"
-                margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
-              >
-                <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={130}
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  {...TOOLTIP_STYLE}
-                  formatter={(v: number) => [v, 'instituciones']}
-                />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={20}>
-                  {recursosData.map((_, i) => (
-                    <Cell key={i} fill={BLUE_SHADES[i % BLUE_SHADES.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
+
+          {feedbackData.length > 0 && (
+            <ChartCard title="Feedback del contacto principal">
+              <ResponsiveContainer width="100%" height={Math.max(180, feedbackData.length * 30)}>
+                <BarChart
+                  data={feedbackData}
+                  layout="vertical"
+                  margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
+                >
+                  <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={160}
+                    tick={{ fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    {...TOOLTIP_STYLE}
+                    formatter={(v: number) => [v, 'instituciones']}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={18}>
+                    {feedbackData.map((_, i) => (
+                      <Cell key={i} fill={BLUE_SHADES[i % BLUE_SHADES.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          )}
+
+          {recursosData.length > 0 && (
+            <ChartCard title="Recursos entregados — distribución">
+              <ResponsiveContainer width="100%" height={Math.max(160, recursosData.length * 32)}>
+                <BarChart
+                  data={recursosData}
+                  layout="vertical"
+                  margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
+                >
+                  <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={130}
+                    tick={{ fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    {...TOOLTIP_STYLE}
+                    formatter={(v: number) => [v, 'instituciones']}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                    {recursosData.map((_, i) => (
+                      <Cell key={i} fill={BLUE_SHADES[i % BLUE_SHADES.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          )}
         </div>
       )}
     </div>
@@ -399,19 +452,28 @@ function InstitutionRow({ inst }: { inst: Institution }) {
           )}
         </td>
 
-        {/* Plazas */}
-        <td style={{ padding: '8px 12px', fontSize: 11, color: '#57534e', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>
+        {/* Nº visitas */}
+        <td style={{ padding: '8px 12px', fontSize: 12, color: '#57534e', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>
+          {inst.num_visitas != null ? inst.num_visitas : <span style={{ color: '#a8a29e' }}>—</span>}
+        </td>
+
+        {/* Alumnos Zoho */}
+        <td style={{ padding: '8px 12px', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>
+          {inst.alumnos_registrados_zoho != null ? (
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#1e4b9e' }}>
+              {inst.alumnos_registrados_zoho.toLocaleString('es-ES')}
+            </span>
+          ) : <span style={{ color: '#a8a29e', fontSize: 12 }}>—</span>}
+        </td>
+
+        {/* Plazas/año */}
+        <td style={{ padding: '8px 12px', fontSize: 12, color: '#57534e', verticalAlign: 'top', textAlign: 'right', whiteSpace: 'nowrap' }}>
           {inst.plazas_anio != null ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end' }}>
               <BookOpen size={10} style={{ color: '#a8a29e' }} />
               {inst.plazas_anio.toLocaleString('es-ES')}
             </div>
-          ) : '—'}
-          {inst.alumnos_registrados_zoho != null && (
-            <div style={{ fontSize: 10, color: '#1e4b9e', textAlign: 'right', marginTop: 1 }}>
-              {inst.alumnos_registrados_zoho} en Zoho
-            </div>
-          )}
+          ) : <span style={{ color: '#a8a29e' }}>—</span>}
         </td>
 
         {/* Contactos */}
@@ -427,7 +489,7 @@ function InstitutionRow({ inst }: { inst: Institution }) {
       {/* Expanded contacts */}
       {expanded && inst.contacts.length > 0 && (
         <tr style={{ background: '#fafaf9', borderBottom: '1px solid #f1f0ec' }}>
-          <td colSpan={7} style={{ padding: '6px 24px 10px 40px' }}>
+          <td colSpan={9} style={{ padding: '6px 24px 10px 40px' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {inst.contacts.map(c => (
                 <div
@@ -640,6 +702,8 @@ export default function InstitutionesView() {
               <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Estado charla</th>
               <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Última charla</th>
               <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Contacto facultad</th>
+              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Nº visitas</th>
+              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#1e4b9e', fontSize: 11, whiteSpace: 'nowrap' }}>Alumnos Zoho</th>
               <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Plazas/año</th>
               <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Contactos</th>
             </tr>
@@ -647,7 +711,7 @@ export default function InstitutionesView() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: '#a8a29e', fontSize: 13 }}>
+                <td colSpan={9} style={{ padding: '32px', textAlign: 'center', color: '#a8a29e', fontSize: 13 }}>
                   No hay instituciones con los filtros aplicados
                 </td>
               </tr>
