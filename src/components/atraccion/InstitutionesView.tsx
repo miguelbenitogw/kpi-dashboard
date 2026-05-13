@@ -548,6 +548,7 @@ export default function InstitutionesView() {
   const [comunidadFilter, setComunidadFilter] = useState<string>('todas')
   const [estadoFilter, setEstadoFilter] = useState<string>('todos')
   const [tipoEventoFilter, setTipoEventoFilter] = useState<string>('todos')
+  const [charlaFilter, setCharlaFilter] = useState<'todas' | 'con_charla' | 'sin_charla'>('todas')
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -566,6 +567,8 @@ export default function InstitutionesView() {
       if (comunidadFilter !== 'todas' && inst.comunidad_autonoma !== comunidadFilter) return false
       if (estadoFilter !== 'todos' && inst.estado_charla !== estadoFilter) return false
       if (tipoEventoFilter !== 'todos' && inst.tipo_evento !== tipoEventoFilter) return false
+      if (charlaFilter === 'con_charla' && !(inst.num_asistentes_charla != null && inst.num_asistentes_charla > 0)) return false
+      if (charlaFilter === 'sin_charla' && (inst.num_asistentes_charla != null && inst.num_asistentes_charla > 0)) return false
       if (search) {
         const q = search.toLowerCase()
         if (
@@ -576,7 +579,7 @@ export default function InstitutionesView() {
       }
       return true
     })
-  }, [data, profesionFilter, comunidadFilter, estadoFilter, tipoEventoFilter, search])
+  }, [data, profesionFilter, comunidadFilter, estadoFilter, tipoEventoFilter, charlaFilter, search])
 
   // ── Loading / Error ──
   if (loading) {
@@ -712,6 +715,42 @@ export default function InstitutionesView() {
 
       {/* ─── Gráficos (reactivos a los filtros) ─── */}
       <ChartsSection institutions={filtered} />
+
+      {/* ─── Filtro charla ─── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11, color: '#a8a29e', fontWeight: 500 }}>Charla:</span>
+        {([
+          { id: 'todas',      label: 'Todas' },
+          { id: 'con_charla', label: 'Con charla' },
+          { id: 'sin_charla', label: 'Sin charla' },
+        ] as const).map(({ id, label }) => {
+          const active = charlaFilter === id
+          return (
+            <button
+              key={id}
+              onClick={() => setCharlaFilter(id)}
+              style={{
+                padding: '4px 14px',
+                borderRadius: 99,
+                fontSize: 11,
+                fontWeight: active ? 600 : 400,
+                background: active ? '#1e4b9e' : '#ffffff',
+                color: active ? '#ffffff' : '#78716c',
+                border: `1px solid ${active ? '#1e4b9e' : '#e7e2d8'}`,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
+        {charlaFilter !== 'todas' && (
+          <span style={{ fontSize: 11, color: '#a8a29e' }}>
+            · {filtered.length} institución{filtered.length !== 1 ? 'es' : ''}
+          </span>
+        )}
+      </div>
 
       {/* ─── Tabla ─── */}
       <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e7e2d8' }}>
