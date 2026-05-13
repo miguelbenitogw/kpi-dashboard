@@ -278,7 +278,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
                 <Pie data={feedbackData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={ValueLabel}>
                   {feedbackData.map((d, i) => <Cell key={i} fill={feedbackFill(d.name)} />)}
                 </Pie>
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [v, 'instituciones']} />
+                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _: string, item: any) => [v, item.payload.name]} />
                 <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
               </PieChart>
             </ResponsiveContainer>
@@ -292,7 +292,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
                 <Pie data={tipoEventoData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={ValueLabel}>
                   {tipoEventoData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [v, 'instituciones']} />
+                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _: string, item: any) => [v, item.payload.name]} />
                 <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
               </PieChart>
             </ResponsiveContainer>
@@ -306,7 +306,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
                 <Pie data={recursosData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={ValueLabel}>
                   {recursosData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [v, 'instituciones']} />
+                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _: string, item: any) => [v, item.payload.name]} />
                 <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
               </PieChart>
             </ResponsiveContainer>
