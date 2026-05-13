@@ -313,3 +313,98 @@ export async function listSheets(
     gid: s.properties?.sheetId ?? 0,
   }))
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Two-level header support
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface TwoLevelHeaders {
+  /** 1-based row index of the group headers row (e.g. "Datos generales", "Contacto") */
+  groupRow: number
+  /** 1-based row index of the column headers row (e.g. "Nombre", "Email") */
+  columnRow: number
+  /** Separator between group and column name (default: '.') */
+  separator?: string
+}
+
+/**
+ * Reads a sheet tab with a two-level header structure (group row + column row).
+ * Merged group cells are forward-filled so every column has a group prefix.
+ * Duplicate composite keys get a column-index suffix to stay unique.
+ * Returns rows keyed by "Group.Column" composite headers.
+ *
+ * @example
+ * // Sheet layout:
+ * //   Row 2: ["Datos generales", "", "", "Contacto", ""]
+ * //   Row 3: ["Nombre", "DNI", "País", "Email", "Teléfono"]
+ * //   Row 4+: data
+ * const { headers, rows } = await readSheetWithTwoLevelHeaders(id, gid, { groupRow: 2, columnRow: 3 })
+ * // headers: ["Datos generales.Nombre", "Datos generales.DNI", ...]
+ */
+export async function readSheetWithTwoLevelHeaders(
+  spreadsheetId: string,
+  gid: number,
+  twoLevel: TwoLevelHeaders,
+): Promise<{ headers: string[]; rows: SheetRow[]; tabName: string }> {
+  const { groupRow, columnRow, separator = '.' } = twoLevel
+  const sheets = getSheetsClient()
+
+  const meta = await sheets.spreadsheets.get({ spreadsheetId })
+  const sheetMeta = meta.data.sheets?.find((s) => s.properties?.sheetId === gid)
+  if (!sheetMeta?.properties?.title) {
+    throw new Error(`No tab with gid=${gid} in spreadsheet ${spreadsheetId}`)
+  }
+  const tabName = sheetMeta.properties.title
+  const safeRange = `'${tabName.replace(/'/g, "''")}'`
+
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId, range: safeRange })
+  const allRows = res.data.values ?? []
+
+  const maxRow = Math.max(groupRow, columnRow)
+  if (allRows.length < maxRow) return { headers: [], rows: [], tabName }
+
+  // Raw group row — merged cells leave trailing cells empty
+  const rawGroups = (allRows[groupRow - 1] ?? []).map((h: unknown) =>
+    String(h ?? '').trim(),
+  )
+
+  // Forward-fill group name rightward into empty cells
+  let currentGroup = ''
+  const filledGroups = rawGroups.map((g) => {
+    if (g) currentGroup = g
+    return currentGroup
+  })
+
+  // Column names row
+  const columnNames = (allRows[columnRow - 1] ?? []).map((h: unknown) =>
+    String(h ?? '').trim(),
+  )
+
+  // Combine: "Group.Column" — deduplicate with column-index suffix
+  const maxCols = Math.max(filledGroups.length, columnNames.length)
+  const seenKeys = new Map<string, number>()
+  const headers: string[] = Array.from({ length: maxCols }, (_, i) => {
+    const group = filledGroups[i] ?? ''
+    const col = columnNames[i] ?? `col_${i}`
+    const base = group ? `${group}${separator}${col}` : col
+    if (seenKeys.has(base)) {
+      // Append column index to keep keys unique
+      seenKeys.set(base, (seenKeys.get(base) ?? 0) + 1)
+      return `${base}__${i}`
+    }
+    seenKeys.set(base, 1)
+    return base
+  })
+
+  // Data rows start after the last header row
+  const dataRows = allRows.slice(maxRow)
+  const rows: SheetRow[] = dataRows.map((row) => {
+    const obj: SheetRow = {}
+    headers.forEach((header, i) => {
+      obj[header] = row[i] != null ? String(row[i]).trim() : ''
+    })
+    return obj
+  })
+
+  return { headers, rows, tabName }
+}

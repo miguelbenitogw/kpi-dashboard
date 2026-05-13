@@ -48,6 +48,10 @@
     {
       "path": "/api/cron/sync-vacancy-stats",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/sync-institutions",
+      "schedule": "0 6 * * 1"
     }
   ]
 }
