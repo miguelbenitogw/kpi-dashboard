@@ -45,6 +45,8 @@ export interface Institution {
   num_asistentes_charla: number | null
   num_interesados_firmas: number | null
   global_worker_asiste: string | null
+  recursos_entregados: string | null
+  compañero_asiste: string | null
 
   // Centro
   ciudad: string | null
@@ -92,6 +94,7 @@ export async function getInstitutions(): Promise<InstitutionSummary> {
        email_facultad, telefono_facultad,
        ticker_agenda, persona_contacto_agenda, fecha_charla_visita, tipo_evento,
        num_asistentes_charla, num_interesados_firmas, global_worker_asiste,
+       recursos_entregados, compañero_asiste,
        ciudad, tipo_centro, web, correos_profesores_web, plazas_anio,
        synced_at,
        institution_contacts_kpi (

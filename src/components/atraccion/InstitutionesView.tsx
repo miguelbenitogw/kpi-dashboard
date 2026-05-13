@@ -3,12 +3,259 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Building2, ChevronDown, ChevronRight, Mail, Phone, MapPin, Users, BookOpen, ExternalLink } from 'lucide-react'
 import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  PieChart, Pie, Legend,
+} from 'recharts'
+import {
   getInstitutions,
   type Institution,
   type InstitutionSummary,
   INSTITUCION_PROFESIONES,
   type InstitucionProfesion,
 } from '@/lib/queries/instituciones'
+
+// ─── Paleta ───────────────────────────────────────────────────────────────────
+
+const BLUE_SHADES = ['#1e4b9e', '#2d62c8', '#4f83d8', '#7aa7e8', '#a8c5f3', '#d1e2fb']
+const ACCENT = '#e55a2b'
+
+const PROFESION_SHORT: Record<string, string> = {
+  'ENFERMERÍA':          'ENF',
+  'FISIOTERAPIA':        'FIS',
+  'EDUCACIÓN INFANTIL':  'EDU',
+  'VETERINARIA':         'VET',
+  'DENTISTAS':           'DEN',
+  'ÓPTICA-OPTOMETRÍA':   'ÓPT',
+  'TERAPIA OCUPACIONAL': 'TO',
+}
+
+// ─── Charts ───────────────────────────────────────────────────────────────────
+
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{
+      background: '#fff',
+      border: '1px solid #e7e2d8',
+      borderRadius: 10,
+      padding: '14px 16px',
+      flex: '1 1 340px',
+      minWidth: 0,
+    }}>
+      <p style={{ fontSize: 12, fontWeight: 600, color: '#57534e', marginBottom: 12 }}>{title}</p>
+      {children}
+    </div>
+  )
+}
+
+function KpiCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+  return (
+    <div style={{
+      background: '#fff',
+      border: '1px solid #e7e2d8',
+      borderRadius: 10,
+      padding: '14px 16px',
+      flex: '1 1 140px',
+      minWidth: 0,
+    }}>
+      <p style={{ fontSize: 11, color: '#a8a29e', fontWeight: 500, marginBottom: 4 }}>{label}</p>
+      <p style={{ fontSize: 24, fontWeight: 700, color: '#1e4b9e', lineHeight: 1 }}>{value}</p>
+      {sub && <p style={{ fontSize: 11, color: '#78716c', marginTop: 4 }}>{sub}</p>}
+    </div>
+  )
+}
+
+const TOOLTIP_STYLE = {
+  contentStyle: { background: '#fff', border: '1px solid #e7e2d8', borderRadius: 8, fontSize: 12 },
+  itemStyle: { color: '#1c1917' },
+  cursor: { fill: '#f5f1ea' },
+}
+
+function ChartsSection({ institutions }: { institutions: Institution[] }) {
+  // ── KPIs globales ──────────────────────────────────────────────────────────
+  const totalAsistentes = institutions.reduce((s, i) => s + (i.num_asistentes_charla ?? 0), 0)
+  const totalInteresados = institutions.reduce((s, i) => s + (i.num_interesados_firmas ?? 0), 0)
+  const pctConversion = totalAsistentes > 0 ? ((totalInteresados / totalAsistentes) * 100).toFixed(1) : '—'
+  const conCharla = institutions.filter(i => i.num_asistentes_charla != null && i.num_asistentes_charla > 0).length
+
+  // ── Compañero que asiste ───────────────────────────────────────────────────
+  const companeroData = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const inst of institutions) {
+      if (!inst.compañero_asiste) continue
+      // puede tener varios separados por coma o /
+      const names = inst.compañero_asiste.split(/[,/]+/).map(s => s.trim()).filter(Boolean)
+      for (const name of names) {
+        map.set(name, (map.get(name) ?? 0) + 1)
+      }
+    }
+    return Array.from(map.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+  }, [institutions])
+
+  // ── Asistentes e Interesados por profesión ─────────────────────────────────
+  const byProfesionData = useMemo(() => {
+    const map = new Map<string, { asistentes: number; interesados: number }>()
+    for (const inst of institutions) {
+      const key = PROFESION_SHORT[inst.profesion] ?? inst.profesion
+      const prev = map.get(key) ?? { asistentes: 0, interesados: 0 }
+      map.set(key, {
+        asistentes: prev.asistentes + (inst.num_asistentes_charla ?? 0),
+        interesados: prev.interesados + (inst.num_interesados_firmas ?? 0),
+      })
+    }
+    return Array.from(map.entries())
+      .map(([profesion, vals]) => ({ profesion, ...vals }))
+      .filter(d => d.asistentes > 0 || d.interesados > 0)
+      .sort((a, b) => b.asistentes - a.asistentes)
+  }, [institutions])
+
+  // ── Recursos entregados ────────────────────────────────────────────────────
+  const recursosData = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const inst of institutions) {
+      if (!inst.recursos_entregados) continue
+      const val = inst.recursos_entregados.trim()
+      if (!val) continue
+      map.set(val, (map.get(val) ?? 0) + 1)
+    }
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8)
+  }, [institutions])
+
+  if (institutions.length === 0) return null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* ── KPI cards ── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        <KpiCard
+          label="Charlas con asistentes"
+          value={conCharla}
+          sub={`de ${institutions.length} instituciones`}
+        />
+        <KpiCard
+          label="Total asistentes"
+          value={totalAsistentes.toLocaleString('es-ES')}
+          sub="acumulado"
+        />
+        <KpiCard
+          label="Total interesados"
+          value={totalInteresados.toLocaleString('es-ES')}
+          sub="firmaron o mostraron interés"
+        />
+        <KpiCard
+          label="Conversión"
+          value={`${pctConversion}%`}
+          sub="interesados / asistentes"
+        />
+      </div>
+
+      {/* ── Charts row 1 ── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+
+        {/* Compañero que asiste */}
+        {companeroData.length > 0 && (
+          <ChartCard title="Compañero que asiste — nº de charlas">
+            <ResponsiveContainer width="100%" height={Math.max(180, companeroData.length * 32)}>
+              <BarChart
+                data={companeroData}
+                layout="vertical"
+                margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
+              >
+                <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={110}
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  {...TOOLTIP_STYLE}
+                  formatter={(v: number) => [v, 'charlas']}
+                />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                  {companeroData.map((_, i) => (
+                    <Cell key={i} fill={BLUE_SHADES[i % BLUE_SHADES.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )}
+
+        {/* Asistentes e Interesados por profesión */}
+        {byProfesionData.length > 0 && (
+          <ChartCard title="Asistentes e interesados por profesión">
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart
+                data={byProfesionData}
+                margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
+                barCategoryGap="30%"
+                barGap={3}
+              >
+                <XAxis dataKey="profesion" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <Tooltip
+                  {...TOOLTIP_STYLE}
+                  formatter={(v: number, name: string) => [
+                    v.toLocaleString('es-ES'),
+                    name === 'asistentes' ? 'Asistentes' : 'Interesados',
+                  ]}
+                />
+                <Legend
+                  formatter={(value) => value === 'asistentes' ? 'Asistentes' : 'Interesados'}
+                  wrapperStyle={{ fontSize: 11 }}
+                />
+                <Bar dataKey="asistentes" fill={BLUE_SHADES[0]} radius={[3, 3, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="interesados" fill={ACCENT} radius={[3, 3, 0, 0]} maxBarSize={28} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )}
+      </div>
+
+      {/* ── Recursos entregados ── */}
+      {recursosData.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          <ChartCard title="Recursos entregados — distribución">
+            <ResponsiveContainer width="100%" height={Math.max(160, recursosData.length * 32)}>
+              <BarChart
+                data={recursosData}
+                layout="vertical"
+                margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
+              >
+                <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={130}
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  {...TOOLTIP_STYLE}
+                  formatter={(v: number) => [v, 'instituciones']}
+                />
+                <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                  {recursosData.map((_, i) => (
+                    <Cell key={i} fill={BLUE_SHADES[i % BLUE_SHADES.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -277,14 +524,13 @@ export default function InstitutionesView() {
     )
   }
 
-  // ── Summary bar ──
   const totalFiltered = filtered.length
   const totalAll = data.institutions.length
 
   return (
     <div className="space-y-4">
 
-      {/* ─── Stats by profesión ─── */}
+      {/* ─── Chips de profesión ─── */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {INSTITUCION_PROFESIONES.map(prof => {
           const count = data.byProfesion[prof] ?? 0
@@ -334,9 +580,8 @@ export default function InstitutionesView() {
         )}
       </div>
 
-      {/* ─── Filter row ─── */}
+      {/* ─── Filtros ─── */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-        {/* Search */}
         <input
           type="text"
           placeholder="Buscar universidad, ciudad…"
@@ -353,48 +598,28 @@ export default function InstitutionesView() {
             outline: 'none',
           }}
         />
-
-        {/* Comunidad */}
         <select
           value={comunidadFilter}
           onChange={e => setComunidadFilter(e.target.value)}
           style={{
-            background: '#ffffff',
-            border: '1px solid #e7e2d8',
-            borderRadius: 8,
-            color: '#1c1917',
-            fontSize: 12,
-            padding: '6px 12px',
-            cursor: 'pointer',
+            background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 8,
+            color: '#1c1917', fontSize: 12, padding: '6px 12px', cursor: 'pointer',
           }}
         >
           <option value="todas">Todas las comunidades</option>
-          {data.comunidades.map(c => (
-            <option key={c} value={c}>{c}</option>
-          ))}
+          {data.comunidades.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
-
-        {/* Estado charla */}
         <select
           value={estadoFilter}
           onChange={e => setEstadoFilter(e.target.value)}
           style={{
-            background: '#ffffff',
-            border: '1px solid #e7e2d8',
-            borderRadius: 8,
-            color: '#1c1917',
-            fontSize: 12,
-            padding: '6px 12px',
-            cursor: 'pointer',
+            background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 8,
+            color: '#1c1917', fontSize: 12, padding: '6px 12px', cursor: 'pointer',
           }}
         >
           <option value="todos">Todos los estados</option>
-          {data.estadosCharla.map(e => (
-            <option key={e} value={e}>{e}</option>
-          ))}
+          {data.estadosCharla.map(e => <option key={e} value={e}>{e}</option>)}
         </select>
-
-        {/* Result count */}
         <span style={{ fontSize: 11, color: '#a8a29e', marginLeft: 4 }}>
           {totalFiltered === totalAll
             ? `${totalAll} instituciones`
@@ -402,7 +627,10 @@ export default function InstitutionesView() {
         </span>
       </div>
 
-      {/* ─── Table ─── */}
+      {/* ─── Gráficos (reactivos a los filtros) ─── */}
+      <ChartsSection institutions={filtered} />
+
+      {/* ─── Tabla ─── */}
       <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e7e2d8' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
           <thead>
