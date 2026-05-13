@@ -117,11 +117,18 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
   const conCharla = institutions.filter(i => i.num_asistentes_charla != null && i.num_asistentes_charla > 0).length
 
   const companeroData = useMemo(() => {
+    const SKIP = new Set(['y', 'e', 'o', 'con', 'y/o'])
     const map = new Map<string, number>()
     for (const inst of institutions) {
       if (!inst.compañero_asiste) continue
-      inst.compañero_asiste.split(/[,/]+/).map(s => s.trim()).filter(Boolean)
-        .forEach(name => map.set(name, (map.get(name) ?? 0) + 1))
+      // Split on: comma, slash, " y ", " e " — then also split remaining tokens
+      // on space (names in this dataset are single first-names)
+      const tokens = inst.compañero_asiste
+        .split(/[,/]|\s+y\s+|\s+e\s+/i)
+        .flatMap(part => part.trim().split(/\s+/))
+        .map(s => s.trim())
+        .filter(s => s.length > 1 && !SKIP.has(s.toLowerCase()))
+      tokens.forEach(name => map.set(name, (map.get(name) ?? 0) + 1))
     }
     return Array.from(map.entries())
       .map(([name, value]) => ({ name, value }))
