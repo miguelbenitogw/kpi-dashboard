@@ -17,6 +17,7 @@ import {
   Globe,
   Wallet,
   Wifi,
+  Building2,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
@@ -43,8 +44,9 @@ const navSections: NavSection[] = [
   {
     title: 'OPERACIÓN · ATRACCIÓN',
     items: [
-      { href: '/dashboard/atraccion', label: 'Atracción', icon: Users },
-      { href: '/dashboard/web-rrss', label: 'Web y RRSS', icon: Wifi },
+      { href: '/dashboard/atraccion',      label: 'Atracción',     icon: Users },
+      { href: '/dashboard/web-rrss',       label: 'Web y RRSS',    icon: Wifi },
+      { href: '/dashboard/instituciones',  label: 'Instituciones', icon: Building2 },
     ],
   },
   {

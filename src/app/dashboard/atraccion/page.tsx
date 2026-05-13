@@ -7,18 +7,16 @@ import VacancyStatusCharts from '@/components/atraccion/VacancyStatusCharts'
 import ReceivedCvsByVacancyView from '@/components/atraccion/ReceivedCvsByVacancyView'
 import ClosedVacancyCvsView from '@/components/atraccion/ClosedVacancyCvsView'
 import AtraccionResumen from '@/components/atraccion/AtraccionResumen'
-import InstitutionesView from '@/components/atraccion/InstitutionesView'
 import { type TipoProfesional, PROFESION_LABELS } from '@/lib/utils/vacancy-profession'
 import { type VacancyCountry } from '@/lib/utils/vacancy-country'
 
-type Tab = 'resumen' | 'vacantes' | 'cvs' | 'cerradas' | 'instituciones'
+type Tab = 'resumen' | 'vacantes' | 'cvs' | 'cerradas'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'resumen',        label: 'Resumen' },
-  { id: 'vacantes',       label: 'Vacantes activas' },
-  { id: 'cvs',            label: 'CVs recibidos' },
-  { id: 'cerradas',       label: 'Vacantes cerradas' },
-  { id: 'instituciones',  label: 'Instituciones' },
+  { id: 'resumen',   label: 'Resumen' },
+  { id: 'vacantes',  label: 'Vacantes activas' },
+  { id: 'cvs',       label: 'CVs recibidos' },
+  { id: 'cerradas',  label: 'Vacantes cerradas' },
 ]
 
 const ALL_PROFESIONES = Object.keys(PROFESION_LABELS) as TipoProfesional[]
@@ -146,8 +144,8 @@ export default function AtraccionPage() {
         })}
       </div>
 
-      {/* Filters bar — profesión pills + país select (not shown for resumen or instituciones) */}
-      {tab !== 'resumen' && tab !== 'instituciones' && (
+      {/* Filters bar — profesión pills + país select */}
+      {tab !== 'resumen' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {/* Profesión pills */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
@@ -237,9 +235,6 @@ export default function AtraccionPage() {
       {tab === 'cerradas' && (
         <ClosedVacancyCvsView profesionFilter={profesionFilter} countryFilter={countryFilter} />
       )}
-
-      {/* ─── INSTITUCIONES ─── */}
-      {tab === 'instituciones' && <InstitutionesView />}
     </div>
   )
 }
