@@ -5,6 +5,7 @@ import { Building2, ChevronDown, ChevronRight, Mail, Phone, MapPin, Users, BookO
 import {
   Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend,
+  ComposedChart, Bar, XAxis, YAxis, Line, CartesianGrid,
 } from 'recharts'
 import {
   getInstitutions,
@@ -136,7 +137,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
       .slice(0, 12)
   }, [institutions])
 
-  const profesionPieData = useMemo(() => {
+  const byProfesionData = useMemo(() => {
     const map = new Map<string, { asistentes: number; interesados: number }>()
     for (const inst of institutions) {
       const key = PROFESION_SHORT[inst.profesion] ?? inst.profesion
@@ -147,9 +148,16 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
       })
     }
     return Array.from(map.entries())
-      .map(([name, vals]) => ({ name, value: vals.asistentes, interesados: vals.interesados }))
-      .filter(d => d.value > 0)
-      .sort((a, b) => b.value - a.value)
+      .map(([profesion, vals]) => ({
+        profesion,
+        asistentes: vals.asistentes,
+        interesados: vals.interesados,
+        conversion: vals.asistentes > 0
+          ? Math.round((vals.interesados / vals.asistentes) * 100)
+          : 0,
+      }))
+      .filter(d => d.asistentes > 0 || d.interesados > 0)
+      .sort((a, b) => b.asistentes - a.asistentes)
   }, [institutions])
 
   const feedbackData = useMemo(() => {
@@ -227,22 +235,30 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
           </ChartCard>
         )}
 
-        {profesionPieData.length > 0 && (
-          <ChartCard title="Asistentes por profesión">
+        {byProfesionData.length > 0 && (
+          <ChartCard title="Asistentes e interesados por profesión">
             <ResponsiveContainer width="100%" height={CHART_H}>
-              <PieChart>
-                <Pie data={profesionPieData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={PctLabel}>
-                  {profesionPieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                </Pie>
+              <ComposedChart data={byProfesionData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }} barCategoryGap="30%" barGap={3}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f0ec" vertical={false} />
+                <XAxis dataKey="profesion" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                <YAxis yAxisId="left" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis yAxisId="right" orientation="right" unit="%" domain={[0, 100]} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                 <Tooltip
                   {...TOOLTIP_STYLE}
-                  formatter={(v: number, _n: string, item: any) => [
-                    `${v.toLocaleString('es-ES')} asist. · ${item.payload.interesados} inter.`,
-                    item.payload.name,
-                  ]}
+                  formatter={(v: number, name: string) =>
+                    name === 'conversion'
+                      ? [`${v}%`, 'Conversión']
+                      : [v.toLocaleString('es-ES'), name === 'asistentes' ? 'Asistentes' : 'Interesados']
+                  }
                 />
-                <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
-              </PieChart>
+                <Legend
+                  wrapperStyle={{ fontSize: 10 }}
+                  formatter={(v) => v === 'asistentes' ? 'Asistentes' : v === 'interesados' ? 'Interesados' : 'Conversión %'}
+                />
+                <Bar yAxisId="left" dataKey="asistentes" fill="#1e4b9e" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                <Bar yAxisId="left" dataKey="interesados" fill="#e55a2b" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                <Line yAxisId="right" dataKey="conversion" type="monotone" stroke="#7c3aed" strokeWidth={2} dot={{ r: 4, fill: '#7c3aed' }} />
+              </ComposedChart>
             </ResponsiveContainer>
           </ChartCard>
         )}
