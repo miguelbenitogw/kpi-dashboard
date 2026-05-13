@@ -34,7 +34,7 @@ const PROFESION_SHORT: Record<string, string> = {
 
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{
+    <div className="card-lift" style={{
       background: '#fff',
       border: '1px solid #e7e2d8',
       borderRadius: 10,
@@ -63,7 +63,7 @@ function KpiCard({ label, value, sub, color = 'blue' }: {
 }) {
   const c = CARD_COLORS[color]
   return (
-    <div style={{
+    <div className="card-lift" style={{
       background: c.bg,
       border: `1px solid ${c.border}22`,
       borderLeft: `4px solid ${c.border}`,
@@ -388,7 +388,7 @@ function InstitutionRow({ inst }: { inst: Institution }) {
 
   return (
     <>
-      <tr style={{ borderBottom: '1px solid #f1f0ec' }}>
+      <tr className="table-row" style={{ borderBottom: '1px solid #f1f0ec' }}>
         {/* Universidad */}
         <td style={{ padding: '8px 12px', verticalAlign: 'top' }}>
           <div style={{ fontWeight: 500, fontSize: 12, color: '#1c1917', lineHeight: 1.4 }}>
@@ -550,6 +550,7 @@ export default function InstitutionesView() {
   const [tipoEventoFilter, setTipoEventoFilter] = useState<string>('todos')
   const [charlaFilter, setCharlaFilter] = useState<'todas' | 'con_charla' | 'sin_charla'>('todas')
   const [search, setSearch] = useState('')
+  const [searchFocused, setSearchFocused] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -662,15 +663,18 @@ export default function InstitutionesView() {
           placeholder="Buscar universidad, ciudad…"
           value={search}
           onChange={e => setSearch(e.target.value)}
+          onFocus={() => setSearchFocused(true)}
+          onBlur={() => setSearchFocused(false)}
           style={{
             background: '#ffffff',
-            border: '1px solid #e7e2d8',
+            border: `1px solid ${searchFocused ? '#1e4b9e' : '#e7e2d8'}`,
             borderRadius: 8,
             color: '#1c1917',
             fontSize: 12,
             padding: '6px 12px',
             width: 220,
             outline: 'none',
+            boxShadow: searchFocused ? '0 0 0 3px rgba(30, 75, 158, 0.10)' : 'none',
           }}
         />
         <select
@@ -679,6 +683,7 @@ export default function InstitutionesView() {
           style={{
             background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 8,
             color: '#1c1917', fontSize: 12, padding: '6px 12px', cursor: 'pointer',
+            transition: 'border-color 150ms ease, box-shadow 150ms ease',
           }}
         >
           <option value="todas">Todas las comunidades</option>
@@ -690,6 +695,7 @@ export default function InstitutionesView() {
           style={{
             background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 8,
             color: '#1c1917', fontSize: 12, padding: '6px 12px', cursor: 'pointer',
+            transition: 'border-color 150ms ease, box-shadow 150ms ease',
           }}
         >
           <option value="todos">Todos los estados</option>
@@ -701,6 +707,7 @@ export default function InstitutionesView() {
           style={{
             background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 8,
             color: '#1c1917', fontSize: 12, padding: '6px 12px', cursor: 'pointer',
+            transition: 'border-color 150ms ease, box-shadow 150ms ease',
           }}
         >
           <option value="todos">Todos los tipos de evento</option>
@@ -755,8 +762,13 @@ export default function InstitutionesView() {
       {/* ─── Tabla ─── */}
       <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e7e2d8' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead>
-            <tr style={{ background: '#faf9f7', borderBottom: '1px solid #e7e2d8' }}>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+            <tr style={{
+              background: 'rgba(250, 249, 247, 0.97)',
+              borderBottom: '1px solid #e7e2d8',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+            }}>
               <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Universidad</th>
               <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Comunidad / Ciudad</th>
               <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Estado charla</th>
@@ -771,8 +783,20 @@ export default function InstitutionesView() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={9} style={{ padding: '32px', textAlign: 'center', color: '#a8a29e', fontSize: 13 }}>
-                  No hay instituciones con los filtros aplicados
+                <td colSpan={9} style={{ padding: '48px 32px', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 12,
+                      background: '#f1f0ec',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <svg width="20" height="20" fill="none" stroke="#a8a29e" strokeWidth="1.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                    </div>
+                    <p style={{ fontSize: 13, color: '#a8a29e', margin: 0, fontWeight: 500 }}>Sin resultados</p>
+                    <p style={{ fontSize: 12, color: '#c4b9a8', margin: 0 }}>No hay instituciones con los filtros aplicados</p>
+                  </div>
                 </td>
               </tr>
             ) : (
