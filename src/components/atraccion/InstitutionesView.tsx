@@ -245,7 +245,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
 
         {byProfesionData.length > 0 && (
           <ChartCard title="Asistentes e interesados por profesión">
-            <ResponsiveContainer width="100%" height={CHART_H}>
+            <ResponsiveContainer width="100%" height={Math.max(200, byProfesionData.length * 40)}>
               <ComposedChart data={byProfesionData} margin={{ top: 8, right: 24, left: 0, bottom: 0 }} barCategoryGap="30%" barGap={3}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f0ec" vertical={false} />
                 <XAxis dataKey="profesion" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />

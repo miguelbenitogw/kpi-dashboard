@@ -70,7 +70,7 @@ function getSheetsClient() {
 // Tab configurations
 // ---------------------------------------------------------------------------
 
-type Family = 'ENF' | 'A' | 'B'
+type Family = 'ENF' | 'A' | 'B' | 'VET'
 
 interface TabConfig {
   gid: number
@@ -82,7 +82,7 @@ const TABS: TabConfig[] = [
   { gid: 0,          profesion: 'ENFERMERÍA',          family: 'ENF' },
   { gid: 1305711796, profesion: 'FISIOTERAPIA',         family: 'B'   },
   { gid: 799493312,  profesion: 'EDUCACIÓN INFANTIL',   family: 'A'   },
-  { gid: 1245976136, profesion: 'VETERINARIA',          family: 'A'   },
+  { gid: 1245976136, profesion: 'VETERINARIA',          family: 'VET' },
   { gid: 170511999,  profesion: 'DENTISTAS',            family: 'B'   },
   { gid: 731218405,  profesion: 'ÓPTICA-OPTOMETRÍA',    family: 'B'   },
   { gid: 1547393928, profesion: 'TERAPIA OCUPACIONAL',  family: 'B'   },
@@ -116,7 +116,7 @@ const TABS: TabConfig[] = [
  *   AD=29(ASISTENTES)  AE=30(INTERESADOS)  AF=31(GLOBAL WORKER)  AG=32(RECURSOS)
  *   AH=33(CIUDAD)  AI=34(UBICACIÓN)  AJ=35(TIPO)  AK=36(WEB)  AL=37(CORREOS)  AM=38(PLAZAS)
  *
- * FAMILY A (EDUCACIÓN INFANTIL + VETERINARIA — adds F=TIPO EVENTO ÚLTIMA, G=FECHA ÚLTIMA, shifts all +2):
+ * FAMILY A (EDUCACIÓN INFANTIL — adds F=TIPO EVENTO ÚLTIMA, G=FECHA ÚLTIMA, 5 contacts, shifts all +2):
  *   A=0  B=1  C=2  D=3  E=4  F=5(TIPO EVENTO ÚLTIMA)  G=6(FECHA ÚLTIMA)
  *   H=7(TICKER)  I=8(ESTADO)  J=9(COMENTARIOS)  K=10(MES)  L=11(MENSAJE)
  *   M=12(1.NOMBRE)  N=13(CONTACTO)  O=14(FEEDBACK)
@@ -126,6 +126,17 @@ const TABS: TabConfig[] = [
  *   AE=30(TIPO EVENTO)  AF=31(COMPAÑERO)  AG=32(DURACIÓN)
  *   AH=33(ASISTENTES)  AI=34(INTERESADOS)  AJ=35(GLOBAL WORKER)  AK=36(RECURSOS)
  *   AL=37(CIUDAD)  AM=38(UBICACIÓN)  AN=39(TIPO)  AO=40(WEB)  AP=41(CORREOS)  AQ=42(PLAZAS)
+ *
+ * FAMILY VET (VETERINARIA — same header prefix as A but only 4 contacts, so agenda block starts 2 cols earlier):
+ *   A=0  B=1  C=2  D=3  E=4  F=5(TIPO EVENTO ÚLTIMA)  G=6(FECHA ÚLTIMA)
+ *   H=7(TICKER)  I=8(ESTADO)  J=9(COMENTARIOS)  K=10(MES)  L=11(MENSAJE)
+ *   M=12(1.NOMBRE)  N=13(CONTACTO)  O=14(FEEDBACK)
+ *   P=15(2.NOMBRE)  Q=16  R=17(3.NOMBRE)  S=18  T=19(4.NOMBRE)  U=20
+ *   V=21(EMAIL)  W=22(TEL)
+ *   X=23(TICKER agenda)  Y=24(PERSONA)  Z=25(FECHA)  AA=26(HORA)  AB=27(LUGAR)
+ *   AC=28(TIPO EVENTO)  AD=29(COMPAÑERO)  AE=30(DURACIÓN)
+ *   AF=31(ASISTENTES)  AG=32(INTERESADOS)  AH=33(GLOBAL WORKER)  AI=34(RECURSOS)
+ *   AJ=35(CIUDAD)  AK=36(UBICACIÓN)  AL=37(TIPO)  AM=38(WEB)  AN=39(CORREOS)  AO=40(PLAZAS)
  */
 
 interface FieldOffsets {
@@ -266,6 +277,43 @@ const COL: Record<Family, FieldOffsets> = {
     correos_profesores: 41,
     plazas_anio: 42,
   },
+  // VETERINARIA: same header prefix as A (F+G = last-event cols, COMENTARIOS at J)
+  // but only 4 contacts (M-U, indices 12-20), so email/tel and all agenda columns
+  // start 2 positions earlier than family A.
+  VET: {
+    comunidad: 0,
+    universidad: 1,
+    num_visitas: 2,
+    años_visitas_ponentes: 3,
+    alumnos_registrados_zoho: 4,
+    tipo_evento_ultima_charla: 5,
+    fecha_ultima_charla: 6,
+    ticker_estado: 7,
+    estado_charla: 8,
+    comentarios: 9,
+    mes_contactar_de_nuevo: 10,
+    mensaje_programado: 11,
+    email_facultad: 21,
+    telefono_facultad: 22,
+    ticker_agenda: 23,
+    persona_contacto_agenda: 24,
+    fecha_charla_visita: 25,
+    hora_charla: 26,
+    lugar_concreto: 27,
+    tipo_evento: 28,
+    compañero_asiste: 29,
+    duracion_charla: 30,
+    num_asistentes_charla: 31,
+    num_interesados_firmas: 32,
+    global_worker_asiste: 33,
+    recursos_entregados: 34,
+    ciudad: 35,
+    ubicacion: 36,
+    tipo_centro: 37,
+    web: 38,
+    correos_profesores: 39,
+    plazas_anio: 40,
+  },
 }
 
 // ---------------------------------------------------------------------------
@@ -298,6 +346,13 @@ const CONTACTS: Record<Family, ContactCols[]> = {
     { nombre_cargo: 17, contacto: 18, feedback: null }, // contact 3 (R,S)
     { nombre_cargo: 19, contacto: 20, feedback: null }, // contact 4 (T,U)
     { nombre_cargo: 21, contacto: 22, feedback: null }, // contact 5 (V,W)
+  ],
+  // VETERINARIA: 4 contacts only (M-U, indices 12-20); no 5th contact pair
+  VET: [
+    { nombre_cargo: 12, contacto: 13, feedback: 14 },  // contact 1 (M,N,O)
+    { nombre_cargo: 15, contacto: 16, feedback: null }, // contact 2 (P,Q)
+    { nombre_cargo: 17, contacto: 18, feedback: null }, // contact 3 (R,S)
+    { nombre_cargo: 19, contacto: 20, feedback: null }, // contact 4 (T,U)
   ],
 }
 
