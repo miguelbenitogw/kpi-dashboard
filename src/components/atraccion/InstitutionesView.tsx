@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Building2, ChevronDown, ChevronRight, Mail, Phone, MapPin, Users, BookOpen, ExternalLink } from 'lucide-react'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend,
 } from 'recharts'
 import {
@@ -84,32 +84,52 @@ const TOOLTIP_STYLE = {
   cursor: { fill: '#f5f1ea' },
 }
 
+const PIE_COLORS = [
+  '#1e4b9e', '#16a34a', '#7c3aed', '#b45309',
+  '#0d9488', '#db2777', '#ea580c', '#0284c7',
+  '#65a30d', '#d97706', '#0891b2', '#9333ea',
+]
+
+function feedbackFill(name: string) {
+  const n = name.toLowerCase()
+  if (n.includes('positiv')) return '#16a34a'
+  if (n.includes('negativ')) return '#dc2626'
+  if (n.includes('neutro') || n.includes('neutral')) return '#94a3b8'
+  return '#4f83d8'
+}
+
+function PctLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
+  if (percent < 0.05) return null
+  const r = innerRadius + (outerRadius - innerRadius) * 0.55
+  const x = cx + r * Math.cos(-midAngle * (Math.PI / 180))
+  const y = cy + r * Math.sin(-midAngle * (Math.PI / 180))
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={700}>
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  )
+}
+
 function ChartsSection({ institutions }: { institutions: Institution[] }) {
-  // ── KPIs globales ──────────────────────────────────────────────────────────
   const totalAsistentes = institutions.reduce((s, i) => s + (i.num_asistentes_charla ?? 0), 0)
   const totalInteresados = institutions.reduce((s, i) => s + (i.num_interesados_firmas ?? 0), 0)
   const pctConversion = totalAsistentes > 0 ? ((totalInteresados / totalAsistentes) * 100).toFixed(1) : '—'
   const conCharla = institutions.filter(i => i.num_asistentes_charla != null && i.num_asistentes_charla > 0).length
 
-  // ── Compañero que asiste ───────────────────────────────────────────────────
   const companeroData = useMemo(() => {
     const map = new Map<string, number>()
     for (const inst of institutions) {
       if (!inst.compañero_asiste) continue
-      // puede tener varios separados por coma o /
-      const names = inst.compañero_asiste.split(/[,/]+/).map(s => s.trim()).filter(Boolean)
-      for (const name of names) {
-        map.set(name, (map.get(name) ?? 0) + 1)
-      }
+      inst.compañero_asiste.split(/[,/]+/).map(s => s.trim()).filter(Boolean)
+        .forEach(name => map.set(name, (map.get(name) ?? 0) + 1))
     }
     return Array.from(map.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 12)
   }, [institutions])
 
-  // ── Asistentes e Interesados por profesión ─────────────────────────────────
-  const byProfesionData = useMemo(() => {
+  const profesionPieData = useMemo(() => {
     const map = new Map<string, { asistentes: number; interesados: number }>()
     for (const inst of institutions) {
       const key = PROFESION_SHORT[inst.profesion] ?? inst.profesion
@@ -120,12 +140,11 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
       })
     }
     return Array.from(map.entries())
-      .map(([profesion, vals]) => ({ profesion, ...vals }))
-      .filter(d => d.asistentes > 0 || d.interesados > 0)
-      .sort((a, b) => b.asistentes - a.asistentes)
+      .map(([name, vals]) => ({ name, value: vals.asistentes, interesados: vals.interesados }))
+      .filter(d => d.value > 0)
+      .sort((a, b) => b.value - a.value)
   }, [institutions])
 
-  // ── Feedback del contacto principal ───────────────────────────────────────
   const feedbackData = useMemo(() => {
     const map = new Map<string, number>()
     for (const inst of institutions) {
@@ -139,12 +158,10 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
     if (sorted.length <= 12) return sorted
-    const top = sorted.slice(0, 12)
     const otros = sorted.slice(12).reduce((s, d) => s + d.value, 0)
-    return [...top, { name: 'Otros', value: otros }]
+    return [...sorted.slice(0, 12), { name: 'Otros', value: otros }]
   }, [institutions])
 
-  // ── Recursos entregados ────────────────────────────────────────────────────
   const recursosData = useMemo(() => {
     const map = new Map<string, number>()
     for (const inst of institutions) {
@@ -156,171 +173,90 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
     return Array.from(map.entries())
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 8)
+      .slice(0, 10)
   }, [institutions])
 
   if (institutions.length === 0) return null
 
+  const CHART_H = 280
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
       {/* ── KPI cards ── */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-        <KpiCard
-          color="blue"
-          label="Charlas con asistentes"
-          value={conCharla}
-          sub={`de ${institutions.length} instituciones`}
-        />
-        <KpiCard
-          color="blue"
-          label="Total asistentes"
-          value={totalAsistentes.toLocaleString('es-ES')}
-          sub="acumulado"
-        />
-        <KpiCard
-          color="green"
-          label="Total interesados"
-          value={totalInteresados.toLocaleString('es-ES')}
-          sub="firmaron o mostraron interés"
-        />
-        <KpiCard
-          color="purple"
-          label="Conversión"
-          value={`${pctConversion}%`}
-          sub="interesados / asistentes"
-        />
+        <KpiCard color="blue"   label="Charlas con asistentes" value={conCharla}                               sub={`de ${institutions.length} instituciones`} />
+        <KpiCard color="blue"   label="Total asistentes"       value={totalAsistentes.toLocaleString('es-ES')} sub="acumulado" />
+        <KpiCard color="green"  label="Total interesados"      value={totalInteresados.toLocaleString('es-ES')} sub="firmaron o mostraron interés" />
+        <KpiCard color="purple" label="Conversión"             value={`${pctConversion}%`}                     sub="interesados / asistentes" />
       </div>
 
-      {/* ── Charts row 1 ── */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+      {/* ── 2×2 pie grid ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 12 }}>
 
-        {/* Compañero que asiste */}
         {companeroData.length > 0 && (
           <ChartCard title="Compañero que asiste — nº de charlas">
-            <ResponsiveContainer width="100%" height={Math.max(180, companeroData.length * 32)}>
-              <BarChart
-                data={companeroData}
-                layout="vertical"
-                margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
-              >
-                <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={110}
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  {...TOOLTIP_STYLE}
-                  formatter={(v: number) => [v, 'charlas']}
-                />
-                <Bar dataKey="count" fill="#4f83d8" radius={[0, 4, 4, 0]} maxBarSize={20} />
-              </BarChart>
+            <ResponsiveContainer width="100%" height={CHART_H}>
+              <PieChart>
+                <Pie data={companeroData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={PctLabel}>
+                  {companeroData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                </Pie>
+                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [v, 'charlas']} />
+                <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+              </PieChart>
             </ResponsiveContainer>
           </ChartCard>
         )}
 
-        {/* Asistentes e Interesados por profesión */}
-        {byProfesionData.length > 0 && (
-          <ChartCard title="Asistentes e interesados por profesión">
-            <ResponsiveContainer width="100%" height={Math.max(140, byProfesionData.length * 38)}>
-              <BarChart
-                data={byProfesionData}
-                margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
-                barCategoryGap="30%"
-                barGap={3}
-              >
-                <XAxis dataKey="profesion" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+        {profesionPieData.length > 0 && (
+          <ChartCard title="Asistentes por profesión">
+            <ResponsiveContainer width="100%" height={CHART_H}>
+              <PieChart>
+                <Pie data={profesionPieData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={PctLabel}>
+                  {profesionPieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                </Pie>
                 <Tooltip
                   {...TOOLTIP_STYLE}
-                  formatter={(v: number, name: string) => [
-                    v.toLocaleString('es-ES'),
-                    name === 'asistentes' ? 'Asistentes' : 'Interesados',
+                  formatter={(v: number, _n: string, item: any) => [
+                    `${v.toLocaleString('es-ES')} asist. · ${item.payload.interesados} inter.`,
+                    item.payload.name,
                   ]}
                 />
-                <Legend
-                  formatter={(value) => value === 'asistentes' ? 'Asistentes' : 'Interesados'}
-                  wrapperStyle={{ fontSize: 11 }}
-                />
-                <Bar dataKey="asistentes" fill={BLUE_SHADES[0]} radius={[3, 3, 0, 0]} maxBarSize={28} />
-                <Bar dataKey="interesados" fill={ACCENT} radius={[3, 3, 0, 0]} maxBarSize={28} />
-              </BarChart>
+                <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+              </PieChart>
             </ResponsiveContainer>
           </ChartCard>
         )}
+
+        {feedbackData.length > 0 && (
+          <ChartCard title="Feedback del contacto principal">
+            <ResponsiveContainer width="100%" height={CHART_H}>
+              <PieChart>
+                <Pie data={feedbackData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={PctLabel}>
+                  {feedbackData.map((d, i) => <Cell key={i} fill={feedbackFill(d.name)} />)}
+                </Pie>
+                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [v, 'instituciones']} />
+                <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )}
+
+        {recursosData.length > 0 && (
+          <ChartCard title="Recursos entregados">
+            <ResponsiveContainer width="100%" height={CHART_H}>
+              <PieChart>
+                <Pie data={recursosData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={PctLabel}>
+                  {recursosData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                </Pie>
+                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [v, 'instituciones']} />
+                <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )}
+
       </div>
-
-      {/* ── Recursos entregados + Feedback ── */}
-      {(recursosData.length > 0 || feedbackData.length > 0) && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-
-          {feedbackData.length > 0 && (
-            <ChartCard title="Feedback del contacto principal">
-              <ResponsiveContainer width="100%" height={Math.max(180, feedbackData.length * 30)}>
-                <BarChart
-                  data={feedbackData}
-                  layout="vertical"
-                  margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
-                >
-                  <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={160}
-                    tick={{ fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    {...TOOLTIP_STYLE}
-                    formatter={(v: number) => [v, 'instituciones']}
-                  />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={18}>
-                    {feedbackData.map((d, i) => {
-                      const n = d.name.toLowerCase()
-                      const fill = n.includes('positiv') ? '#16a34a'
-                        : n.includes('negativ') ? '#dc2626'
-                        : n.includes('neutro') || n.includes('neutral') ? '#94a3b8'
-                        : BLUE_SHADES[i % BLUE_SHADES.length]
-                      return <Cell key={i} fill={fill} />
-                    })}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          )}
-
-          {recursosData.length > 0 && (
-            <ChartCard title="Recursos entregados — distribución">
-              <ResponsiveContainer width="100%" height={Math.max(160, recursosData.length * 32)}>
-                <BarChart
-                  data={recursosData}
-                  layout="vertical"
-                  margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
-                >
-                  <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={130}
-                    tick={{ fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    {...TOOLTIP_STYLE}
-                    formatter={(v: number) => [v, 'instituciones']}
-                  />
-                  <Bar dataKey="value" fill="#4f83d8" radius={[0, 4, 4, 0]} maxBarSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          )}
-        </div>
-      )}
     </div>
   )
 }
