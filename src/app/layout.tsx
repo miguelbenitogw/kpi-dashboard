@@ -6,6 +6,8 @@ import Sidebar from "@/components/layout/Sidebar";
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+  display: 'swap',
+  weight: ['400', '500', '600', '700'],
 });
 
 export const metadata: Metadata = {
@@ -23,7 +25,7 @@ export default function RootLayout({
       <body className="flex h-full text-stone-900" style={{ background: '#f5f1ea' }}>
         <Sidebar />
         <main className="flex-1 overflow-y-auto lg:pl-0">
-          <div className="w-full px-4 py-6 pt-16 lg:pt-6">
+          <div className="w-full max-w-[1600px] mx-auto px-4 py-6 pt-16 lg:pt-6">
             {children}
           </div>
         </main>
