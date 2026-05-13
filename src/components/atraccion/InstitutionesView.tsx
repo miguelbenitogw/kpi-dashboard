@@ -112,10 +112,31 @@ function ValueLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, value
 }
 
 function ChartsSection({ institutions }: { institutions: Institution[] }) {
+  const today = new Date().toISOString().split('T')[0]!
+
+  // ── Métricas existentes ──────────────────────────────────────────────────────
   const totalAsistentes = institutions.reduce((s, i) => s + (i.num_asistentes_charla ?? 0), 0)
   const totalInteresados = institutions.reduce((s, i) => s + (i.num_interesados_firmas ?? 0), 0)
   const pctConversion = totalAsistentes > 0 ? ((totalInteresados / totalAsistentes) * 100).toFixed(1) : '—'
-  const conCharla = institutions.filter(i => i.num_asistentes_charla != null && i.num_asistentes_charla > 0).length
+
+  // ── Nuevas métricas del Cuadro de Mando (I, J, K, L, M, N, O, Q, R) ────────
+  const isPresencial = (i: Institution) => (i.tipo_evento ?? '').toLowerCase().includes('presencial')
+  const isOnline     = (i: Institution) => (i.tipo_evento ?? '').toLowerCase().includes('online')
+
+  const realizados         = institutions.filter(i => i.fecha_charla_visita && i.fecha_charla_visita <= today)
+  const agendados          = institutions.filter(i => i.fecha_charla_visita && i.fecha_charla_visita > today)
+  const conCharlaPuesta    = institutions.filter(i => i.fecha_charla_visita != null) // O = K + N
+
+  const realizadosPresencial = realizados.filter(isPresencial).length  // I
+  const realizadosOnline     = realizados.filter(isOnline).length      // J
+  const totalRealizados      = realizados.length                       // K
+  const agendadosPresencial  = agendados.filter(isPresencial).length   // L
+  const agendadosOnline      = agendados.filter(isOnline).length       // M
+  const totalAgendados       = agendados.length                        // N
+  const totalConCharla       = conCharlaPuesta.length                  // O
+  const totalInstituciones   = institutions.length                     // Q
+  const tasaExito            = totalInstituciones > 0
+    ? Math.round((totalConCharla / totalInstituciones) * 100) : 0     // R
 
   const companeroData = useMemo(() => {
     const SKIP = new Set(['y', 'e', 'o', 'con', 'y/o'])
@@ -216,12 +237,26 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-      {/* ── KPI cards ── */}
+      {/* ── KPI cards — fila 1: instituciones y eventos ── */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-        <KpiCard color="blue"   label="Charlas con asistentes" value={conCharla}                               sub={`de ${institutions.length} instituciones`} />
-        <KpiCard color="blue"   label="Total asistentes"       value={totalAsistentes.toLocaleString('es-ES')} sub="acumulado" />
-        <KpiCard color="green"  label="Total interesados"      value={totalInteresados.toLocaleString('es-ES')} sub="firmaron o mostraron interés" />
-        <KpiCard color="purple" label="Conversión"             value={`${pctConversion}%`}                     sub="interesados / asistentes" />
+        <KpiCard color="blue"   label="Total instituciones"   value={totalInstituciones}
+          sub="en BBDD" />
+        <KpiCard color="green"  label="Con charla puesta"     value={totalConCharla}
+          sub={`tasa de éxito: ${tasaExito}%`} />
+        <KpiCard color="blue"   label="Realizados"            value={totalRealizados}
+          sub={`${realizadosPresencial} pres · ${realizadosOnline} online`} />
+        <KpiCard color="amber"  label="Agendados"             value={totalAgendados}
+          sub={`${agendadosPresencial} pres · ${agendadosOnline} online`} />
+      </div>
+
+      {/* ── KPI cards — fila 2: resultados de charlas ── */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        <KpiCard color="blue"   label="Total asistentes"      value={totalAsistentes.toLocaleString('es-ES')}
+          sub="acumulado en charlas realizadas" />
+        <KpiCard color="green"  label="Total interesados"     value={totalInteresados.toLocaleString('es-ES')}
+          sub="firmaron o mostraron interés" />
+        <KpiCard color="purple" label="Conversión"            value={`${pctConversion}%`}
+          sub="interesados / asistentes" />
       </div>
 
       {/* ── 2×2 pie grid ── */}
