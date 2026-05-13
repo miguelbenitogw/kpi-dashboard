@@ -5,7 +5,7 @@ import { Building2, ChevronDown, ChevronRight, Mail, Phone, MapPin, Users, BookO
 import {
   Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend,
-  ComposedChart, Bar, XAxis, YAxis, Line, CartesianGrid,
+  ComposedChart, BarChart, Bar, XAxis, YAxis, Line, CartesianGrid, LabelList,
 } from 'recharts'
 import {
   getInstitutions,
@@ -99,14 +99,14 @@ function feedbackFill(name: string) {
   return '#4f83d8'
 }
 
-function PctLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
+function ValueLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }: any) {
   if (percent < 0.05) return null
   const r = innerRadius + (outerRadius - innerRadius) * 0.55
   const x = cx + r * Math.cos(-midAngle * (Math.PI / 180))
   const y = cy + r * Math.sin(-midAngle * (Math.PI / 180))
   return (
     <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={700}>
-      {`${(percent * 100).toFixed(0)}%`}
+      {value}
     </text>
   )
 }
@@ -131,10 +131,16 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
         .filter(s => s.length > 1 && !SKIP.has(s.toLowerCase()))
       tokens.forEach(name => map.set(name, (map.get(name) ?? 0) + 1))
     }
-    return Array.from(map.entries())
+    const entries = Array.from(map.entries())
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 12)
+    const total = entries.reduce((s, d) => s + d.value, 0)
+    return entries.map(d => ({
+      ...d,
+      pct: total > 0 ? Math.round((d.value / total) * 100) : 0,
+      label: `${d.value} (${total > 0 ? Math.round((d.value / total) * 100) : 0}%)`,
+    }))
   }, [institutions])
 
   const byProfesionData = useMemo(() => {
@@ -223,14 +229,16 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
 
         {companeroData.length > 0 && (
           <ChartCard title="Compañero que asiste — nº de charlas">
-            <ResponsiveContainer width="100%" height={CHART_H}>
-              <PieChart>
-                <Pie data={companeroData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={PctLabel}>
+            <ResponsiveContainer width="100%" height={Math.max(200, companeroData.length * 36)}>
+              <BarChart data={companeroData} layout="vertical" margin={{ top: 4, right: 80, left: 4, bottom: 4 }}>
+                <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#57534e' }} tickLine={false} axisLine={false} width={60} />
+                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _n: string, item: any) => [`${v} charlas (${item.payload.pct}%)`, item.payload.name]} />
+                <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={22}>
                   {companeroData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                </Pie>
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [v, 'charlas']} />
-                <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
-              </PieChart>
+                  <LabelList dataKey="label" position="right" style={{ fontSize: 10, fill: '#57534e', fontWeight: 500 }} />
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </ChartCard>
         )}
@@ -267,7 +275,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
           <ChartCard title="Feedback del contacto principal">
             <ResponsiveContainer width="100%" height={CHART_H}>
               <PieChart>
-                <Pie data={feedbackData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={PctLabel}>
+                <Pie data={feedbackData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={ValueLabel}>
                   {feedbackData.map((d, i) => <Cell key={i} fill={feedbackFill(d.name)} />)}
                 </Pie>
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [v, 'instituciones']} />
@@ -281,7 +289,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
           <ChartCard title="Tipo de evento">
             <ResponsiveContainer width="100%" height={CHART_H}>
               <PieChart>
-                <Pie data={tipoEventoData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={PctLabel}>
+                <Pie data={tipoEventoData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={ValueLabel}>
                   {tipoEventoData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [v, 'instituciones']} />
@@ -295,7 +303,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
           <ChartCard title="Recursos entregados">
             <ResponsiveContainer width="100%" height={CHART_H}>
               <PieChart>
-                <Pie data={recursosData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={PctLabel}>
+                <Pie data={recursosData} dataKey="value" nameKey="name" outerRadius={90} labelLine={false} label={ValueLabel}>
                   {recursosData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [v, 'instituciones']} />
@@ -568,7 +576,7 @@ export default function InstitutionesView() {
       }
       return true
     })
-  }, [data, profesionFilter, comunidadFilter, estadoFilter, search])
+  }, [data, profesionFilter, comunidadFilter, estadoFilter, tipoEventoFilter, search])
 
   // ── Loading / Error ──
   if (loading) {
