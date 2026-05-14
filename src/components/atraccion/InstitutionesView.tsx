@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { Building2, CalendarDays, LayoutList, ChevronDown, ChevronRight, Mail, Phone, MapPin, Users, BookOpen, ExternalLink } from 'lucide-react'
 import {
   Tooltip, ResponsiveContainer, Cell,
@@ -29,6 +29,18 @@ const PROFESION_SHORT: Record<string, string> = {
   'DENTISTAS':           'DEN',
   'ÓPTICA-OPTOMETRÍA':   'ÓPT',
   'TERAPIA OCUPACIONAL': 'TO',
+}
+
+// ─── Shared helpers (module-level para usar en filtros del padre) ─────────────
+
+const SKIP_WORDS = new Set(['y', 'e', 'o', 'con', 'y/o', 'grabación', 'grabacion'])
+
+function tokenizePersonas(raw: string): string[] {
+  return raw
+    .split(/[,/]|\s+y\s+|\s+e\s+/i)
+    .flatMap(part => part.trim().split(/\s+/))
+    .map(s => s.trim())
+    .filter(s => s.length > 1 && !SKIP_WORDS.has(s.toLowerCase()))
 }
 
 // ─── Charts ───────────────────────────────────────────────────────────────────
@@ -116,7 +128,11 @@ function ValueLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, value
   )
 }
 
-function ChartsSection({ institutions }: { institutions: Institution[] }) {
+function ChartsSection({ institutions, onCompaneroClick, onTipoClick }: {
+  institutions: Institution[]
+  onCompaneroClick: (name: string) => void
+  onTipoClick: (tipo: string) => void
+}) {
   // ── Métricas existentes ──────────────────────────────────────────────────────
   const totalAsistentes = institutions.reduce((s, i) => s + (i.num_asistentes_charla ?? 0), 0)
   const totalInteresados = institutions.reduce((s, i) => s + (i.num_interesados_firmas ?? 0), 0)
@@ -141,17 +157,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
   const tasaExito            = totalInstituciones > 0
     ? Math.round((totalConCharla / totalInstituciones) * 100) : 0     // R
 
-  // ── Tokenizador de nombres (compartido) ──────────────────────────────────────
-  const SKIP_WORDS = new Set(['y', 'e', 'o', 'con', 'y/o', 'grabación', 'grabacion'])
-
-  function tokenizePersonas(raw: string): string[] {
-    return raw
-      .split(/[,/]|\s+y\s+|\s+e\s+/i)
-      .flatMap(part => part.trim().split(/\s+/))
-      .map(s => s.trim())
-      .filter(s => s.length > 1 && !SKIP_WORDS.has(s.toLowerCase()))
-  }
-
+  // tipoIsOnline / tipoIsPresencial siguen usándose en los KPI cards
   function tipoIsOnline(tipo: string | null): boolean {
     if (!tipo) return false
     const t = tipo.toLowerCase()
@@ -162,42 +168,37 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
     return tipo.toLowerCase().includes('presencial')
   }
 
-  // ── Charlas por compañero — presencial + online + tipo desconocido (unificado) ─
-  // Nota: cada fila en `institutions` es un contacto/visita a una institución.
-  // Para eventos online con varias universidades en la misma sesión, cada una
-  // tiene su propia fila → se cuentan por separado (una charla por institución).
-  // El total de este gráfico siempre coincide con el nº real de apariciones del
-  // compañero en el dataset, sin descartar ningún tipo de evento.
+  // ── Tipos de evento distintos en el dataset ───────────────────────────────────
+  const allTipos = useMemo(() => {
+    const set = new Set<string>()
+    for (const inst of institutions) {
+      set.add(inst.tipo_evento?.trim() || 'Sin tipo')
+    }
+    return Array.from(set).sort()
+  }, [institutions])
+
+  // ── Charlas por compañero: una columna por tipo_evento real ──────────────────
+  // Total siempre igual al número real de apariciones del compañero.
   const companeroUnifiedData = useMemo(() => {
-    const map = new Map<string, { presencial: number; online: number; other: number }>()
+    const map = new Map<string, Record<string, number>>()
     for (const inst of institutions) {
       if (!inst.compañero_asiste) continue
-      const isOnline     = tipoIsOnline(inst.tipo_evento)
-      const isPresencial = tipoIsPresencial(inst.tipo_evento)
-      const isOther      = !isOnline && !isPresencial
+      const tipo = inst.tipo_evento?.trim() || 'Sin tipo'
       tokenizePersonas(inst.compañero_asiste).forEach(name => {
-        const prev = map.get(name) ?? { presencial: 0, online: 0, other: 0 }
-        map.set(name, {
-          presencial: prev.presencial + (isPresencial ? 1 : 0),
-          online:     prev.online     + (isOnline     ? 1 : 0),
-          other:      prev.other      + (isOther      ? 1 : 0),
-        })
+        const prev = map.get(name) ?? {}
+        map.set(name, { ...prev, [tipo]: (prev[tipo] ?? 0) + 1 })
       })
     }
     return Array.from(map.entries())
       .map(([name, counts]) => ({
         name,
-        presencial: counts.presencial,
-        online:     counts.online,
-        other:      counts.other,
-        total:      counts.presencial + counts.online + counts.other,
+        ...counts,
+        total: Object.values(counts).reduce((a, b) => a + b, 0),
       }))
       .filter(d => d.total > 0)
       .sort((a, b) => b.total - a.total)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [institutions])
-
-  const hasOtherTipo = companeroUnifiedData.some(d => d.other > 0)
 
   const byProfesionData = useMemo(() => {
     const map = new Map<string, { asistentes: number; interesados: number }>()
@@ -316,22 +317,15 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
         )}
 
         {companeroUnifiedData.length > 0 && (
-          <ChartCard title="Charlas por compañero — presencial · online · otro">
-            <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 11 }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 2, background: '#1e4b9e', display: 'inline-block' }} />
-                <span style={{ color: '#57534e', fontWeight: 500 }}>Presencial</span>
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 2, background: '#16a34a', display: 'inline-block' }} />
-                <span style={{ color: '#57534e', fontWeight: 500 }}>Online / Webinar</span>
-              </span>
-              {hasOtherTipo && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 2, background: '#94a3b8', display: 'inline-block' }} />
-                  <span style={{ color: '#57534e', fontWeight: 500 }}>Tipo desconocido</span>
+          <ChartCard title="Charlas por compañero — haz clic para filtrar la tabla">
+            {/* Leyenda dinámica de tipos */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginBottom: 10 }}>
+              {allTipos.map((tipo, i) => (
+                <span key={tipo} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: PIE_COLORS[i % PIE_COLORS.length], display: 'inline-block', flexShrink: 0 }} />
+                  <span style={{ color: '#57534e' }}>{tipo}</span>
                 </span>
-              )}
+              ))}
             </div>
             <ResponsiveContainer width="100%" height={Math.max(220, companeroUnifiedData.length * 36)}>
               <BarChart
@@ -339,6 +333,11 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
                 layout="vertical"
                 margin={{ top: 4, right: 56, left: 4, bottom: 4 }}
                 barSize={20}
+                style={{ cursor: 'pointer' }}
+                onClick={(data) => {
+                  const name = data?.activePayload?.[0]?.payload?.name
+                  if (name) onCompaneroClick(name)
+                }}
               >
                 <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#57534e' }} tickLine={false} axisLine={false} width={64} />
@@ -346,23 +345,22 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
                   {...TOOLTIP_STYLE}
                   formatter={(v: number, name: string) => [
                     `${v} charla${v !== 1 ? 's' : ''}`,
-                    name === 'presencial' ? 'Presencial' : name === 'online' ? 'Online / Webinar' : 'Tipo desconocido',
+                    name === 'total' ? 'Total' : name,
                   ]}
                 />
-                {/* Presencial — azul, primer segmento */}
-                <Bar dataKey="presencial" stackId="tipo" fill="#1e4b9e" radius={[0, 0, 0, 0]} />
-                {/* Online — verde; redondeado al final solo si no hay "other" */}
-                <Bar dataKey="online" stackId="tipo" fill="#16a34a" radius={hasOtherTipo ? [0, 0, 0, 0] : [0, 4, 4, 0]}>
-                  {!hasOtherTipo && (
-                    <LabelList dataKey="total" position="right" style={{ fontSize: 10, fill: '#57534e', fontWeight: 600 }} />
-                  )}
-                </Bar>
-                {/* Tipo desconocido — gris, solo si existe en el dataset */}
-                {hasOtherTipo && (
-                  <Bar dataKey="other" stackId="tipo" fill="#94a3b8" radius={[0, 4, 4, 0]}>
-                    <LabelList dataKey="total" position="right" style={{ fontSize: 10, fill: '#57534e', fontWeight: 600 }} />
+                {allTipos.map((tipo, i) => (
+                  <Bar
+                    key={tipo}
+                    dataKey={tipo}
+                    stackId="tipo"
+                    fill={PIE_COLORS[i % PIE_COLORS.length]}
+                    radius={i === allTipos.length - 1 ? [0, 4, 4, 0] : [0, 0, 0, 0]}
+                  >
+                    {i === allTipos.length - 1 && (
+                      <LabelList dataKey="total" position="right" style={{ fontSize: 10, fill: '#57534e', fontWeight: 600 }} />
+                    )}
                   </Bar>
-                )}
+                ))}
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -402,10 +400,20 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12 }}>
 
         {tipoEventoData.length > 0 && (
-          <ChartCard title="Tipo de evento">
+          <ChartCard title="Tipo de evento — haz clic para filtrar la tabla">
             <ResponsiveContainer width="100%" height={CHART_H}>
               <PieChart>
-                <Pie data={tipoEventoData} dataKey="value" nameKey="name" cx="36%" outerRadius={82} labelLine={false} label={ValueLabel}>
+                <Pie
+                  data={tipoEventoData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="36%"
+                  outerRadius={82}
+                  labelLine={false}
+                  label={ValueLabel}
+                  style={{ cursor: 'pointer' }}
+                  onClick={(data) => { if (data?.name) onTipoClick(data.name) }}
+                >
                   {tipoEventoData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                 </Pie>
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _: string, item: any) => [v, item.payload.name]} />
@@ -732,9 +740,13 @@ export default function InstitutionesView() {
   const [comunidadFilter, setComunidadFilter] = useState<string>('todas')
   const [estadoFilter, setEstadoFilter] = useState<string>('todos')
   const [tipoEventoFilter, setTipoEventoFilter] = useState<string>('todos')
+  const [companeroFilter, setCompaneroFilter] = useState<string>('')
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [viewMode, setViewMode] = useState<'tabla' | 'calendario'>('tabla')
+
+  // Ref para hacer scroll a la tabla cuando se activa un filtro desde un gráfico
+  const tableRef = React.useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -752,6 +764,11 @@ export default function InstitutionesView() {
       if (comunidadFilter !== 'todas' && inst.comunidad_autonoma !== comunidadFilter) return false
       if (estadoFilter !== 'todos' && inst.estado_charla !== estadoFilter) return false
       if (tipoEventoFilter !== 'todos' && inst.tipo_evento !== tipoEventoFilter) return false
+      // Filtro por compañero: match exacto de token (primer nombre)
+      if (companeroFilter) {
+        const tokens = tokenizePersonas(inst.compañero_asiste ?? '')
+        if (!tokens.some(t => t.toLowerCase() === companeroFilter.toLowerCase())) return false
+      }
       if (search) {
         const q = search.toLowerCase()
         if (
@@ -762,7 +779,19 @@ export default function InstitutionesView() {
       }
       return true
     })
-  }, [data, profesionFilter, comunidadFilter, estadoFilter, tipoEventoFilter, search])
+  }, [data, profesionFilter, comunidadFilter, estadoFilter, tipoEventoFilter, companeroFilter, search])
+
+  // ── Handlers de click desde gráficos ─────────────────────────────────────────
+  const handleCompaneroClick = (name: string) => {
+    setCompaneroFilter(prev => prev === name ? '' : name)
+    // Scroll suave a la tabla tras el re-render
+    setTimeout(() => tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
+  }
+
+  const handleTipoClick = (tipo: string) => {
+    setTipoEventoFilter(prev => prev === tipo ? 'todos' : tipo)
+    setTimeout(() => tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
+  }
 
   // ── Loading / Error ──
   if (loading) {
@@ -900,6 +929,20 @@ export default function InstitutionesView() {
             ? `${totalAll} instituciones`
             : `${totalFiltered} de ${totalAll}`}
         </span>
+        {/* Chip filtro compañero activo */}
+        {companeroFilter && (
+          <button
+            onClick={() => setCompaneroFilter('')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+              background: '#eff6ff', color: '#1e4b9e',
+              border: '1px solid #bfdbfe', cursor: 'pointer',
+            }}
+          >
+            👤 {companeroFilter} ✕
+          </button>
+        )}
         {/* ─── Toggle tabla / calendario ─── */}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 2, background: '#f1f0ec', borderRadius: 8, padding: 2 }}>
           {(['tabla', 'calendario'] as const).map(mode => {
@@ -931,10 +974,14 @@ export default function InstitutionesView() {
       {viewMode === 'tabla' && (
         <>
           {/* ─── Gráficos (reactivos a los filtros) ─── */}
-          <ChartsSection institutions={filtered} />
+          <ChartsSection
+            institutions={filtered}
+            onCompaneroClick={handleCompaneroClick}
+            onTipoClick={handleTipoClick}
+          />
 
           {/* ─── Tabla ─── */}
-          <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e7e2d8' }}>
+          <div ref={tableRef} style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e7e2d8' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
                 <tr style={{
