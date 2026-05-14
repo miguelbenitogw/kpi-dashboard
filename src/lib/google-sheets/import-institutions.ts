@@ -445,6 +445,13 @@ async function importTab(
         continue
       }
 
+      // Skip summary/aggregation rows embedded in the sheet
+      // (e.g. totals row "126", header "Nº Unis/Estado", percentage rows)
+      if (/^\d+$/.test(universidad.trim()) || universidad.trim() === 'Nº Unis/Estado') {
+        result.skipped++
+        continue
+      }
+
       const comunidad_autonoma = cell(row, cols.comunidad) || null
 
       // Build institution payload

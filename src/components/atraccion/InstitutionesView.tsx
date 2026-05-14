@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { Building2, ChevronDown, ChevronRight, Mail, Phone, MapPin, Users, BookOpen, ExternalLink } from 'lucide-react'
+import { Building2, CalendarDays, LayoutList, ChevronDown, ChevronRight, Mail, Phone, MapPin, Users, BookOpen, ExternalLink } from 'lucide-react'
 import {
   Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend,
@@ -14,6 +14,7 @@ import {
   INSTITUCION_PROFESIONES,
   type InstitucionProfesion,
 } from '@/lib/queries/instituciones'
+import InstitutionCalendarView from './InstitutionCalendarView'
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 
@@ -664,6 +665,7 @@ export default function InstitutionesView() {
   const [tipoEventoFilter, setTipoEventoFilter] = useState<string>('todos')
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
+  const [viewMode, setViewMode] = useState<'tabla' | 'calendario'>('tabla')
 
   useEffect(() => {
     setLoading(true)
@@ -829,59 +831,93 @@ export default function InstitutionesView() {
             ? `${totalAll} instituciones`
             : `${totalFiltered} de ${totalAll}`}
         </span>
+        {/* ─── Toggle tabla / calendario ─── */}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 2, background: '#f1f0ec', borderRadius: 8, padding: 2 }}>
+          {(['tabla', 'calendario'] as const).map(mode => {
+            const active = viewMode === mode
+            return (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: active ? 600 : 400,
+                  background: active ? '#fff' : 'transparent',
+                  color: active ? '#1e4b9e' : '#78716c',
+                  border: active ? '1px solid #e7e2d8' : '1px solid transparent',
+                  cursor: 'pointer',
+                  boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 150ms ease',
+                }}
+              >
+                {mode === 'tabla'
+                  ? <><LayoutList size={13} /> Tabla</>
+                  : <><CalendarDays size={13} /> Calendario</>}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      {/* ─── Gráficos (reactivos a los filtros) ─── */}
-      <ChartsSection institutions={filtered} />
+      {viewMode === 'tabla' && (
+        <>
+          {/* ─── Gráficos (reactivos a los filtros) ─── */}
+          <ChartsSection institutions={filtered} />
 
-      {/* ─── Tabla ─── */}
-      <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e7e2d8' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
-            <tr style={{
-              background: 'rgba(250, 249, 247, 0.97)',
-              borderBottom: '1px solid #e7e2d8',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-            }}>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Universidad</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Comunidad / Ciudad</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Estado charla</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Última charla</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Contacto facultad</th>
-              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Nº visitas</th>
-              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#1e4b9e', fontSize: 11, whiteSpace: 'nowrap' }}>Alumnos Zoho</th>
-              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Plazas/año</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Contactos</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={9} style={{ padding: '48px 32px', textAlign: 'center' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      width: 44, height: 44, borderRadius: 12,
-                      background: '#f1f0ec',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <svg width="20" height="20" fill="none" stroke="#a8a29e" strokeWidth="1.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                      </svg>
-                    </div>
-                    <p style={{ fontSize: 13, color: '#a8a29e', margin: 0, fontWeight: 500 }}>Sin resultados</p>
-                    <p style={{ fontSize: 12, color: '#c4b9a8', margin: 0 }}>No hay instituciones con los filtros aplicados</p>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              filtered.map(inst => (
-                <InstitutionRow key={inst.id} inst={inst} />
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+          {/* ─── Tabla ─── */}
+          <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e7e2d8' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+                <tr style={{
+                  background: 'rgba(250, 249, 247, 0.97)',
+                  borderBottom: '1px solid #e7e2d8',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                }}>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Universidad</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Comunidad / Ciudad</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Estado charla</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Última charla</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Contacto facultad</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Nº visitas</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#1e4b9e', fontSize: 11, whiteSpace: 'nowrap' }}>Alumnos Zoho</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Plazas/año</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#78716c', fontSize: 11, whiteSpace: 'nowrap' }}>Contactos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} style={{ padding: '48px 32px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 44, height: 44, borderRadius: 12,
+                          background: '#f1f0ec',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <svg width="20" height="20" fill="none" stroke="#a8a29e" strokeWidth="1.5" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                          </svg>
+                        </div>
+                        <p style={{ fontSize: 13, color: '#a8a29e', margin: 0, fontWeight: 500 }}>Sin resultados</p>
+                        <p style={{ fontSize: 12, color: '#c4b9a8', margin: 0 }}>No hay instituciones con los filtros aplicados</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map(inst => (
+                    <InstitutionRow key={inst.id} inst={inst} />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {viewMode === 'calendario' && (
+        <InstitutionCalendarView filtered={filtered} />
+      )}
     </div>
   )
 }
