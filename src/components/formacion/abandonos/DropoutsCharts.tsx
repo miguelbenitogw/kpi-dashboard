@@ -137,18 +137,36 @@ export default function DropoutsCharts({ rows }: Props) {
       .map(([name, count]) => ({ name, count }))
   }, [rows])
 
-  // 5. Etiquetas
-  const byTag = useMemo(() => {
-    const map = new Map<string, number>()
+  // 5. Etiquetas — split by category
+  const { tagsByChannel, tagsBySource, tagsByRecruiter } = useMemo(() => {
+    const channelMap = new Map<string, number>()
+    const sourceMap = new Map<string, number>()
+    const recruiterMap = new Map<string, number>()
+
     for (const r of rows) {
       for (const tag of r.tags) {
-        if (tag) map.set(tag, (map.get(tag) ?? 0) + 1)
+        if (!tag) continue
+        if (tag.startsWith('GW')) {
+          recruiterMap.set(tag, (recruiterMap.get(tag) ?? 0) + 1)
+        } else if (tag.startsWith('CP')) {
+          sourceMap.set(tag, (sourceMap.get(tag) ?? 0) + 1)
+        } else if (tag.startsWith('FR')) {
+          channelMap.set(tag, (channelMap.get(tag) ?? 0) + 1)
+        }
       }
     }
-    return Array.from(map.entries())
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 10)
-      .map(([tag, count]) => ({ tag, count }))
+
+    const toSorted = (m: Map<string, number>) =>
+      Array.from(m.entries())
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([tag, count]) => ({ tag, count }))
+
+    return {
+      tagsByChannel: toSorted(channelMap),
+      tagsBySource: toSorted(sourceMap),
+      tagsByRecruiter: toSorted(recruiterMap),
+    }
   }, [rows])
 
   // 6. StackedBar: nivel × motivo
@@ -193,7 +211,9 @@ export default function DropoutsCharts({ rows }: Props) {
   }, [rows])
 
   const reasonHeight = Math.min(Math.max(120, byReason.length * 36), 280)
-  const tagHeight = Math.min(Math.max(120, byTag.length * 36), 320)
+  const channelHeight = Math.min(Math.max(100, tagsByChannel.length * 32), 280)
+  const sourceHeight = Math.min(Math.max(100, tagsBySource.length * 32), 280)
+  const recruiterHeight = Math.min(Math.max(100, tagsByRecruiter.length * 32), 280)
 
   if (rows.length === 0) {
     return (
@@ -307,27 +327,50 @@ export default function DropoutsCharts({ rows }: Props) {
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* 5. Etiquetas */}
-      <ChartCard title="Etiquetas de los que abandonan">
-        <ResponsiveContainer width="100%" height={tagHeight}>
-          <BarChart data={byTag} layout="vertical" margin={{ left: 8, right: 16 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
-            <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
-            <YAxis
-              type="category"
-              dataKey="tag"
-              width={100}
-              tick={{ fill: '#9CA3AF', fontSize: 10 }}
-            />
-            <Tooltip {...TOOLTIP_STYLE} />
-            <Bar dataKey="count" radius={[0, 3, 3, 0]}>
-              {byTag.map((entry, i) => (
-                <Cell key={i} fill={tagColor(entry.tag)} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+      {/* 5a. Canal de llegada (FR*) */}
+      {tagsByChannel.length > 0 && (
+        <ChartCard title="Canal de llegada (FR)">
+          <ResponsiveContainer width="100%" height={channelHeight}>
+            <BarChart data={tagsByChannel} layout="vertical" margin={{ left: 8, right: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+              <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
+              <YAxis type="category" dataKey="tag" width={110} tick={{ fill: '#9CA3AF', fontSize: 10 }} />
+              <Tooltip {...TOOLTIP_STYLE} />
+              <Bar dataKey="count" fill={TAG_COLORS.FR} radius={[0, 3, 3, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+
+      {/* 5b. Cómo nos conocieron (CP*) */}
+      {tagsBySource.length > 0 && (
+        <ChartCard title="Cómo nos conocieron (CP)">
+          <ResponsiveContainer width="100%" height={sourceHeight}>
+            <BarChart data={tagsBySource} layout="vertical" margin={{ left: 8, right: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+              <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
+              <YAxis type="category" dataKey="tag" width={110} tick={{ fill: '#9CA3AF', fontSize: 10 }} />
+              <Tooltip {...TOOLTIP_STYLE} />
+              <Bar dataKey="count" fill={TAG_COLORS.CP} radius={[0, 3, 3, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+
+      {/* 5c. Reclutador (GW*) */}
+      {tagsByRecruiter.length > 0 && (
+        <ChartCard title="Reclutador (GW)">
+          <ResponsiveContainer width="100%" height={recruiterHeight}>
+            <BarChart data={tagsByRecruiter} layout="vertical" margin={{ left: 8, right: 16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" horizontal={false} />
+              <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 11 }} />
+              <YAxis type="category" dataKey="tag" width={110} tick={{ fill: '#9CA3AF', fontSize: 10 }} />
+              <Tooltip {...TOOLTIP_STYLE} />
+              <Bar dataKey="count" fill={TAG_COLORS.GW} radius={[0, 3, 3, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
 
       {/* 6. Nivel de idioma × Motivo (stacked) */}
       <ChartCard title="Nivel de idioma × Motivo de baja">
