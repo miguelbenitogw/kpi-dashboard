@@ -53,9 +53,7 @@ const T = {
   outBg: '#ede9e0',
 } as const
 
-// ─── Classification (CORRECTED — no exact match) ──────────────────────────────
-
-type DayType = 'online' | 'presencial' | 'mixed' | 'other' | 'empty'
+// ─── Classification ───────────────────────────────────────────────────────────
 
 function clasificaTipo(tipo: string | null): 'online' | 'presencial' | 'other' {
   if (!tipo) return 'other'
@@ -67,26 +65,40 @@ function clasificaTipo(tipo: string | null): 'online' | 'presencial' | 'other' {
   return 'other'
 }
 
-function getDayType(insts: Institution[]): DayType {
-  if (insts.length === 0) return 'empty'
-  const hasOnline    = insts.some(i => clasificaTipo(i.tipo_evento) === 'online')
-  const hasPresencial = insts.some(i => clasificaTipo(i.tipo_evento) === 'presencial')
-  if (hasOnline && hasPresencial) return 'mixed'
-  if (hasOnline)    return 'online'
-  if (hasPresencial) return 'presencial'
-  return 'other'
-}
-
-function cellColors(type: DayType, past: boolean) {
-  if (type === 'presencial') return { bg: past ? T.presencialBgPast : T.presencialBg, text: T.presencialText, chip: T.presencialChip }
-  if (type === 'online')     return { bg: past ? T.onlineBgPast     : T.onlineBg,     text: T.onlineText,     chip: T.onlineChip     }
-  if (type === 'mixed')      return { bg: past ? T.mixtoBgPast      : T.mixtoBg,      text: T.mixtoText,      chip: T.mixtoChip      }
-  return { bg: T.cardBg, text: T.textMuted, chip: '#6b7280' }
-}
 
 function isWeekend(date: Date): boolean {
   const d = getDay(date)
   return d === 0 || d === 6
+}
+
+// ─── Profesión colors (borde izquierdo, prominente) ──────────────────────────
+
+const PROF_MIXED_ENF_FIS = '#dc2626'  // red-600
+
+function getProfColor(profesion: string | null): string {
+  if (!profesion) return '#78716c'
+  const p = profesion.toUpperCase()
+  if (p.includes('ENFERMER'))                             return '#1e40af'  // blue-800
+  if (p.includes('EDUCACI') && p.includes('INFANTIL'))   return '#166534'  // green-800
+  if (p.includes('FISIO'))                               return '#b45309'  // amber-700
+  if (p.includes('VETERIN'))                             return '#0369a1'  // sky-700 (celeste)
+  return '#78716c'  // stone (otros: Dentistas, Óptica, TO…)
+}
+
+/** Rojo si en el mismo día hay tanto Enfermería como Fisioterapia */
+function hasMixedEnfFis(insts: Institution[]): boolean {
+  const hasEnf = insts.some(i => (i.profesion ?? '').toUpperCase().includes('ENFERMER'))
+  const hasFis = insts.some(i => (i.profesion ?? '').toUpperCase().includes('FISIO'))
+  return hasEnf && hasFis
+}
+
+// ─── Tipo evento colors (borde derecho, tono claro / secundario) ──────────────
+
+function getTipoRightColor(tipo: string | null): string {
+  const t = clasificaTipo(tipo)
+  if (t === 'presencial') return '#93c5fd'  // blue-300  (claro, para no confundir con ENF)
+  if (t === 'online')     return '#6ee7b7'  // emerald-300
+  return '#fcd34d'                          // amber-300 / otro
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -102,71 +114,84 @@ function capitalizeFirst(s: string) {
 // ─── Legend ───────────────────────────────────────────────────────────────────
 
 function Legend() {
-  const items = [
-    { bg: T.presencialBg, chip: T.presencialChip, label: 'Presencial' },
-    { bg: T.onlineBg,     chip: T.onlineChip,     label: 'Online / Webinar' },
-    { bg: T.mixtoBg,      chip: T.mixtoChip,       label: 'Mixto' },
-    { bg: T.cardBg,       chip: T.border,          label: 'Sin charla' },
+  const profItems = [
+    { color: '#1e40af',          label: 'Enfermería' },
+    { color: '#166534',          label: 'Educ. Infantil' },
+    { color: '#b45309',          label: 'Fisioterapia' },
+    { color: '#0369a1',          label: 'Veterinaria' },
+    { color: PROF_MIXED_ENF_FIS, label: 'Enf. + Fisio.' },
+    { color: '#78716c',          label: 'Otros' },
+  ]
+  const tipoItems = [
+    { color: '#93c5fd', label: 'Presencial' },
+    { color: '#6ee7b7', label: 'Online / Webinar' },
+    { color: '#fcd34d', label: 'Otro tipo' },
   ]
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', flexWrap: 'wrap',
-      gap: 18, padding: '7px 16px',
-      borderBottom: `1px solid ${T.border}`, background: '#faf9f7',
-    }}>
-      {items.map(({ bg, chip, label }) => (
-        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{
-            width: 14, height: 14, borderRadius: 3,
-            background: bg, border: `1.5px solid ${chip}`,
-            display: 'inline-block', flexShrink: 0,
-          }} />
-          <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 500 }}>{label}</span>
-        </div>
-      ))}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-        <span style={{
-          width: 14, height: 14, borderRadius: 3,
-          background: T.presencialBgPast, border: `1.5px dashed ${T.presencialChip}`,
-          display: 'inline-block', flexShrink: 0,
-        }} />
-        <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 500 }}>Pasado (tono claro)</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '7px 16px', borderBottom: `1px solid ${T.border}`, background: '#faf9f7' }}>
+      {/* Fila 1: profesión (borde izquierdo) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color: T.textSubtle, textTransform: 'uppercase' as const, letterSpacing: '0.5px', minWidth: 56, flexShrink: 0 }}>
+          ← Profesión
+        </span>
+        {profItems.map(({ color, label }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 12, height: 12, borderRadius: 2, background: color, display: 'inline-block', flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 500 }}>{label}</span>
+          </div>
+        ))}
+      </div>
+      {/* Fila 2: tipo evento (borde derecho) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color: T.textSubtle, textTransform: 'uppercase' as const, letterSpacing: '0.5px', minWidth: 56, flexShrink: 0 }}>
+          Tipo →
+        </span>
+        {tipoItems.map(({ color, label }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ width: 12, height: 12, borderRadius: 2, background: color, display: 'inline-block', flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 500 }}>{label}</span>
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
-// ─── EventBlock (non-compact) — rich text, like Excel ─────────────────────────
+// ─── EventBlock (non-compact) ─────────────────────────────────────────────────
+// Borde izquierdo (4px, oscuro) = profesión
+// Borde derecho (2px, claro)   = tipo de evento
 
 interface EventBlockProps {
   inst: Institution
-  dayType: DayType
+  profBorderColor: string  // calculado a nivel del día (rojo si ENF+FIS mixto)
   past: boolean
   onClick: () => void
 }
 
-function EventBlock({ inst, dayType, past, onClick }: EventBlockProps) {
-  const { text } = cellColors(dayType, past)
-  const tipoClase = clasificaTipo(inst.tipo_evento)
-
-  // Per-event text color (in case of mixed day, use the individual event's color)
-  const evColor = tipoClase === 'online' ? T.onlineText : tipoClase === 'presencial' ? T.presencialText : T.mixtoText
+function EventBlock({ inst, profBorderColor, past, onClick }: EventBlockProps) {
+  const rightColor = getTipoRightColor(inst.tipo_evento)
+  const tipoTextColor = clasificaTipo(inst.tipo_evento) === 'online'
+    ? T.onlineText
+    : clasificaTipo(inst.tipo_evento) === 'presencial'
+      ? T.presencialText
+      : T.mixtoText
 
   return (
     <div
       role="button"
       tabIndex={0}
-      title={`${inst.universidad} · ${inst.tipo_evento ?? ''}`}
+      title={`${inst.universidad} · ${inst.tipo_evento ?? ''} · ${inst.profesion ?? ''}`}
       onClick={(e) => { e.stopPropagation(); onClick() }}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onClick() } }}
       style={{
-        background: 'rgba(255,255,255,0.72)',
+        background: 'rgba(255,255,255,0.88)',
         borderRadius: 4,
         padding: '3px 5px',
         marginBottom: 3,
         cursor: 'pointer',
-        opacity: past ? 0.8 : 1,
-        borderLeft: `3px solid ${evColor}`,
+        opacity: past ? 0.75 : 1,
+        borderLeft: `4px solid ${profBorderColor}`,
+        borderRight: `2px solid ${rightColor}`,
         userSelect: 'none' as const,
       }}
     >
@@ -176,7 +201,7 @@ function EventBlock({ inst, dayType, past, onClick }: EventBlockProps) {
       </div>
       {/* Tipo evento */}
       {inst.tipo_evento && (
-        <div style={{ fontSize: 9, fontWeight: 500, color: evColor, lineHeight: 1.25, marginTop: 1 }}>
+        <div style={{ fontSize: 9, fontWeight: 500, color: tipoTextColor, lineHeight: 1.25, marginTop: 1 }}>
           {truncate(inst.tipo_evento, 24)}
         </div>
       )}
@@ -192,19 +217,18 @@ function EventBlock({ inst, dayType, past, onClick }: EventBlockProps) {
 
 // ─── CompactChip (compact mode — 3-4 months) ─────────────────────────────────
 
-function CompactChip({ inst, dayType, past, onClick }: EventBlockProps) {
-  const { chip } = cellColors(dayType, past)
+function CompactChip({ inst, profBorderColor, past, onClick }: EventBlockProps) {
   const label = inst.compañero_asiste?.split(/[\s,y/]+/)[0] ?? inst.tipo_evento ?? '—'
 
   return (
     <div
       role="button"
       tabIndex={0}
-      title={`${inst.universidad} · ${inst.tipo_evento ?? ''}`}
+      title={`${inst.universidad} · ${inst.tipo_evento ?? ''} · ${inst.profesion ?? ''}`}
       onClick={(e) => { e.stopPropagation(); onClick() }}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onClick() } }}
       style={{
-        background: chip, color: '#fff',
+        background: profBorderColor, color: '#fff',
         borderRadius: 3, padding: '2px 4px',
         fontSize: 8, fontWeight: 700,
         display: 'block', marginBottom: 2,
@@ -374,17 +398,23 @@ function MonthPanel({ month, eventsByDay, compact, onSelectInst, onSelectDay }: 
             const past  = isBefore(startOfDay(date), startOfDay(new Date()))
             const weekend = isWeekend(date)
             const dayInsts = eventsByDay.get(key) ?? []
-            const dayType = getDayType(dayInsts)
-            const { bg, text: textColor, chip } = cellColors(dayType, past)
             const visible = dayInsts.slice(0, maxEvents)
             const overflow = dayInsts.length > maxEvents ? dayInsts.length - maxEvents : 0
             const hasAny = dayInsts.length > 0
 
-            // Base background: event color > weekend tint > normal
-            let cellBg = T.cardBg
-            if (!inMonth) cellBg = T.outBg
-            else if (dayType !== 'empty') cellBg = bg
-            else if (weekend) cellBg = T.weekendBg
+            // Fondo de celda: uniforme — solo distingue fuera-de-mes y weekend
+            const cellBg = !inMonth ? T.outBg : (weekend ? T.weekendBg : T.cardBg)
+
+            // Color de borde izquierdo para los eventos de este día
+            // Si hay tanto ENF como FIS → todos se pintan de rojo
+            const mixedEnfFis = hasMixedEnfFis(dayInsts)
+            const getInstProfColor = (inst: Institution) =>
+              mixedEnfFis ? PROF_MIXED_ENF_FIS : getProfColor(inst.profesion)
+
+            // Color del botón de overflow: profesión dominante (o rojo si mixto)
+            const overflowColor = mixedEnfFis
+              ? PROF_MIXED_ENF_FIS
+              : getProfColor(dayInsts[0]?.profesion ?? null)
 
             const dayNumColor = !inMonth ? '#9e9489' : past ? '#6b7280' : T.textPrimary
 
@@ -407,8 +437,8 @@ function MonthPanel({ month, eventsByDay, compact, onSelectInst, onSelectDay }: 
                   overflow: 'hidden',
                 }}
               >
-                {/* Day number */}
-                <div style={{ marginBottom: compact ? 2 : 4 }}>
+                {/* Day number — punto rojo si ENF+FIS mixto */}
+                <div style={{ marginBottom: compact ? 2 : 4, display: 'flex', alignItems: 'center', gap: 3 }}>
                   {today ? (
                     <span style={{ width: compact ? 18 : 21, height: compact ? 18 : 21, borderRadius: '50%', background: T.blue, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: compact ? 9 : 10, fontWeight: 800 }}>
                       {format(date, 'd')}
@@ -418,19 +448,22 @@ function MonthPanel({ month, eventsByDay, compact, onSelectInst, onSelectDay }: 
                       {format(date, 'd')}
                     </span>
                   )}
+                  {mixedEnfFis && (
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: PROF_MIXED_ENF_FIS, display: 'inline-block', flexShrink: 0 }} title="Día con Enfermería + Fisioterapia" />
+                  )}
                 </div>
 
                 {/* Events */}
                 {visible.map(inst => compact
-                  ? <CompactChip key={inst.id} inst={inst} dayType={getDayType([inst])} past={past} onClick={() => onSelectInst(inst)} />
-                  : <EventBlock  key={inst.id} inst={inst} dayType={getDayType([inst])} past={past} onClick={() => onSelectInst(inst)} />
+                  ? <CompactChip key={inst.id} inst={inst} profBorderColor={getInstProfColor(inst)} past={past} onClick={() => onSelectInst(inst)} />
+                  : <EventBlock  key={inst.id} inst={inst} profBorderColor={getInstProfColor(inst)} past={past} onClick={() => onSelectInst(inst)} />
                 )}
 
                 {/* Overflow */}
                 {overflow > 0 && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onSelectDay(key) }}
-                    style={{ fontSize: compact ? 8 : 9, color: '#fff', background: chip, cursor: 'pointer', padding: '2px 5px', borderRadius: 3, border: 'none', fontWeight: 700, display: 'block', marginTop: 1, opacity: past ? 0.75 : 1 }}
+                    style={{ fontSize: compact ? 8 : 9, color: '#fff', background: overflowColor, cursor: 'pointer', padding: '2px 5px', borderRadius: 3, border: 'none', fontWeight: 700, display: 'block', marginTop: 1, opacity: past ? 0.75 : 1 }}
                   >
                     +{overflow} más
                   </button>
