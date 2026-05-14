@@ -20,6 +20,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  CalendarDays,
 } from 'lucide-react'
 
 type NavItem = {
@@ -64,6 +65,12 @@ const navSections: NavSection[] = [
       { href: '/dashboard/alemania', label: 'Alemania', icon: Globe },
       { href: '/dashboard/alemania/abandonos', label: 'Abandonos', icon: TrendingDown },
       { href: '/dashboard/alemania/pagos', label: 'Pagos', icon: Wallet },
+    ],
+  },
+  {
+    title: 'EQUIPO INTERNO',
+    items: [
+      { href: '/dashboard/equipo-interno/vacaciones', label: 'Vacaciones', icon: CalendarDays },
     ],
   },
   {
