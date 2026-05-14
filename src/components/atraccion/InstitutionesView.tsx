@@ -141,19 +141,33 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
   const tasaExito            = totalInstituciones > 0
     ? Math.round((totalConCharla / totalInstituciones) * 100) : 0     // R
 
+  // ── Tokenizador de nombres (compartido) ──────────────────────────────────────
+  const SKIP_WORDS = new Set(['y', 'e', 'o', 'con', 'y/o', 'grabación', 'grabacion'])
+
+  function tokenizePersonas(raw: string): string[] {
+    return raw
+      .split(/[,/]|\s+y\s+|\s+e\s+/i)
+      .flatMap(part => part.trim().split(/\s+/))
+      .map(s => s.trim())
+      .filter(s => s.length > 1 && !SKIP_WORDS.has(s.toLowerCase()))
+  }
+
+  function tipoIsOnline(tipo: string | null): boolean {
+    if (!tipo) return false
+    const t = tipo.toLowerCase()
+    return t.includes('online') || t.includes('webinar')
+  }
+  function tipoIsPresencial(tipo: string | null): boolean {
+    if (!tipo) return false
+    return tipo.toLowerCase().includes('presencial')
+  }
+
   const companeroData = useMemo(() => {
-    const SKIP = new Set(['y', 'e', 'o', 'con', 'y/o'])
     const map = new Map<string, number>()
     for (const inst of institutions) {
       if (!inst.compañero_asiste) continue
-      // Split on: comma, slash, " y ", " e " — then also split remaining tokens
-      // on space (names in this dataset are single first-names)
-      const tokens = inst.compañero_asiste
-        .split(/[,/]|\s+y\s+|\s+e\s+/i)
-        .flatMap(part => part.trim().split(/\s+/))
-        .map(s => s.trim())
-        .filter(s => s.length > 1 && !SKIP.has(s.toLowerCase()))
-      tokens.forEach(name => map.set(name, (map.get(name) ?? 0) + 1))
+      tokenizePersonas(inst.compañero_asiste)
+        .forEach(name => map.set(name, (map.get(name) ?? 0) + 1))
     }
     const entries = Array.from(map.entries())
       .map(([name, value]) => ({ name, value }))
@@ -165,6 +179,35 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
       pct: total > 0 ? Math.round((d.value / total) * 100) : 0,
       label: `${d.value} (${total > 0 ? Math.round((d.value / total) * 100) : 0}%)`,
     }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [institutions])
+
+  // ── Online vs Presencial por persona (stacked) ───────────────────────────────
+  const companeroByTipoData = useMemo(() => {
+    const map = new Map<string, { presencial: number; online: number }>()
+    for (const inst of institutions) {
+      if (!inst.compañero_asiste || !inst.tipo_evento) continue
+      const online = tipoIsOnline(inst.tipo_evento)
+      const presencial = tipoIsPresencial(inst.tipo_evento)
+      if (!online && !presencial) continue
+      tokenizePersonas(inst.compañero_asiste).forEach(name => {
+        const prev = map.get(name) ?? { presencial: 0, online: 0 }
+        map.set(name, {
+          presencial: prev.presencial + (presencial ? 1 : 0),
+          online: prev.online + (online ? 1 : 0),
+        })
+      })
+    }
+    return Array.from(map.entries())
+      .map(([name, counts]) => ({
+        name,
+        presencial: counts.presencial,
+        online: counts.online,
+        total: counts.presencial + counts.online,
+      }))
+      .filter(d => d.total > 0)
+      .sort((a, b) => b.total - a.total)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [institutions])
 
   const byProfesionData = useMemo(() => {
@@ -293,6 +336,62 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
                 <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={22}>
                   {companeroData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   <LabelList dataKey="label" position="right" style={{ fontSize: 10, fill: '#57534e', fontWeight: 500 }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )}
+
+        {companeroByTipoData.length > 0 && (
+          <ChartCard title="Online vs Presencial por persona — charlas acumuladas">
+            <div style={{ display: 'flex', gap: 16, marginBottom: 10, fontSize: 11 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: '#1e4b9e', display: 'inline-block' }} />
+                <span style={{ color: '#57534e', fontWeight: 500 }}>Presencial</span>
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 2, background: '#16a34a', display: 'inline-block' }} />
+                <span style={{ color: '#57534e', fontWeight: 500 }}>Online / Webinar</span>
+              </span>
+            </div>
+            <ResponsiveContainer width="100%" height={Math.max(220, companeroByTipoData.length * 36)}>
+              <BarChart
+                data={companeroByTipoData}
+                layout="vertical"
+                margin={{ top: 4, right: 56, left: 4, bottom: 4 }}
+                barSize={20}
+              >
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 10 }}
+                  tickLine={false}
+                  axisLine={false}
+                  allowDecimals={false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: '#57534e' }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={64}
+                />
+                <Tooltip
+                  {...TOOLTIP_STYLE}
+                  formatter={(v: number, name: string) => [
+                    `${v} charla${v !== 1 ? 's' : ''}`,
+                    name === 'presencial' ? 'Presencial' : 'Online / Webinar',
+                  ]}
+                />
+                {/* Presencial — azul, primer segmento */}
+                <Bar dataKey="presencial" stackId="tipo" fill="#1e4b9e" radius={[0, 0, 0, 0]} />
+                {/* Online — verde, segundo segmento (lleva el label del total) */}
+                <Bar dataKey="online" stackId="tipo" fill="#16a34a" radius={[0, 4, 4, 0]}>
+                  <LabelList
+                    dataKey="total"
+                    position="right"
+                    style={{ fontSize: 10, fill: '#57534e', fontWeight: 600 }}
+                  />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
