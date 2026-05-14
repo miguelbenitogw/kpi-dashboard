@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   PLATFORM_ORDER,
   PLATFORM_LABELS,
@@ -9,6 +9,13 @@ import {
   type SocialPlatform,
 } from '@/lib/social-media/accounts'
 import { getLatestRRSSSnapshots, type RRSSSnapshot, type YouTubeVideoSnapshot } from '@/lib/queries/rrss'
+import AnalyticsKpiCards from '@/components/analytics/AnalyticsKpiCards'
+import SessionsTimeChart from '@/components/analytics/SessionsTimeChart'
+import TrafficSourcesChart from '@/components/analytics/TrafficSourcesChart'
+import TopLandingPages from '@/components/analytics/TopLandingPages'
+import GeoBreakdownTable from '@/components/analytics/GeoBreakdownTable'
+import DateRangeSelector from '@/components/analytics/DateRangeSelector'
+import type { DailyMetrics, TrafficSource, LandingPage, GeoBreakdown, OverviewMetrics } from '@/lib/google-analytics/client'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -319,6 +326,81 @@ function GenericPlatformTab({
   )
 }
 
+// ─── GA4 / Web helpers ────────────────────────────────────────────────────────
+
+function rangeToGaDates(range: string): { start: string; end: string } {
+  if (range === '7d') return { start: '7daysAgo', end: 'today' }
+  if (range === '90d') return { start: '90daysAgo', end: 'today' }
+  return { start: '30daysAgo', end: 'today' }
+}
+
+async function fetchGA4<T>(metric: string, startDate: string, endDate: string): Promise<T> {
+  const apiKey = process.env.NEXT_PUBLIC_SYNC_API_KEY
+  if (!apiKey) throw new Error('NEXT_PUBLIC_SYNC_API_KEY no configurada')
+  const params = new URLSearchParams({ metric, start_date: startDate, end_date: endDate })
+  const res = await fetch(`/api/analytics/ga4?${params}`, { headers: { 'x-api-key': apiKey } })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as { error?: string }
+    throw new Error(body.error ?? `GA4 error ${res.status}`)
+  }
+  return (await res.json()).data as T
+}
+
+// ─── Web tab — GA4 analytics ──────────────────────────────────────────────────
+
+function WebTab() {
+  const [range, setRange] = useState('30d')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [overview, setOverview] = useState<OverviewMetrics | null>(null)
+  const [sessions, setSessions] = useState<DailyMetrics[]>([])
+  const [traffic, setTraffic] = useState<TrafficSource[]>([])
+  const [pages, setPages] = useState<LandingPage[]>([])
+  const [geo, setGeo] = useState<GeoBreakdown[]>([])
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    const { start, end } = rangeToGaDates(range)
+    try {
+      const [ov, sess, traf, pgs, g] = await Promise.all([
+        fetchGA4<OverviewMetrics>('overview', start, end),
+        fetchGA4<DailyMetrics[]>('sessions', start, end),
+        fetchGA4<TrafficSource[]>('traffic', start, end),
+        fetchGA4<LandingPage[]>('pages', start, end),
+        fetchGA4<GeoBreakdown[]>('geo', start, end),
+      ])
+      setOverview(ov); setSessions(sess); setTraffic(traf); setPages(pgs); setGeo(g)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error cargando datos GA4')
+    } finally {
+      setLoading(false)
+    }
+  }, [range])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  return (
+    <div className="space-y-5">
+      <div className="flex justify-end">
+        <DateRangeSelector selected={range} onChange={setRange} />
+      </div>
+      {error && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-400">
+          {error}
+        </div>
+      )}
+      <AnalyticsKpiCards overview={overview} loading={loading} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <SessionsTimeChart data={sessions} loading={loading} />
+        <TrafficSourcesChart data={traffic} loading={loading} />
+      </div>
+      <TopLandingPages data={pages} loading={loading} />
+      <GeoBreakdownTable data={geo} loading={loading} />
+    </div>
+  )
+}
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function SkeletonTab() {
@@ -337,7 +419,7 @@ function SkeletonTab() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function RRSSOverview() {
-  const [activeTab, setActiveTab] = useState<SocialPlatform>('youtube')
+  const [activeTab, setActiveTab] = useState<'web' | SocialPlatform>('youtube')
   const [snapshots, setSnapshots] = useState<Map<string, RRSSSnapshot>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -353,6 +435,24 @@ export default function RRSSOverview() {
     <div className="rounded-xl border border-gray-700/50 bg-gray-800/30">
       {/* Tab bar */}
       <div className="flex overflow-x-auto border-b border-gray-700/50 px-4 gap-1 scrollbar-none">
+        {/* Web / GA4 */}
+        <button
+          onClick={() => setActiveTab('web')}
+          data-active={activeTab === 'web'}
+          className={[
+            'flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-3 text-xs font-medium transition-colors whitespace-nowrap',
+            activeTab === 'web'
+              ? 'border-emerald-400 text-emerald-400 border-current'
+              : 'border-transparent text-gray-500 hover:text-gray-300',
+          ].join(' ')}
+        >
+          <span>🌐</span>
+          <span>Web</span>
+          <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-400">
+            GA4
+          </span>
+        </button>
+
         {PLATFORM_ORDER.map((platform) => {
           const colors = PLATFORM_COLORS[platform]
           const isActive = activeTab === platform
@@ -392,10 +492,12 @@ export default function RRSSOverview() {
 
         {loading ? (
           <SkeletonTab />
+        ) : activeTab === 'web' ? (
+          <WebTab />
         ) : activeTab === 'youtube' ? (
           <YouTubeTab snapshots={snapshots} />
         ) : (
-          <GenericPlatformTab platform={activeTab} snapshots={snapshots} />
+          <GenericPlatformTab platform={activeTab as SocialPlatform} snapshots={snapshots} />
         )}
       </div>
     </div>
