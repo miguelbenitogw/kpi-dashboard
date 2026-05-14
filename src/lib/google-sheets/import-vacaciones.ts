@@ -664,5 +664,23 @@ export async function importVacaciones(): Promise<VacacionesImportResult> {
     }
   }
 
+  // ── Deactivate members not found in any Calendario or TARDE LARGA ─────
+  // Members from the old import (individual tabs) that no longer appear
+  // in the Calendario get marked as inactive automatically.
+  const knownNames = new Set([...vacationsByMember.keys(), ...tardeLargaMap.keys()])
+  const { data: allExistingMembers } = await supabaseAdmin
+    .from('team_members_kpi' as any)
+    .select('id, name, is_active')
+
+  for (const member of (allExistingMembers ?? []) as Array<{ id: number; name: string; is_active: boolean }>) {
+    if (knownNames.has(member.name)) continue
+    if (!member.is_active) continue
+
+    await supabaseAdmin
+      .from('team_members_kpi' as any)
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', member.id)
+  }
+
   return result
 }
