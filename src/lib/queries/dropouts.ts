@@ -36,8 +36,7 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
 
     supabase
       .from('candidates_kpi')
-      .select('email, full_name, tags')
-      .not('tags', 'is', null),
+      .select('email, full_name, tags, zoho_candidate_id'),
   ])
 
   if (dropoutsRes.error) {
@@ -45,32 +44,36 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
     return []
   }
 
-  const byEmail = new Map<string, string[]>()
-  const byName = new Map<string, string[]>()
+  const byEmail = new Map<string, { tags: string[]; zohoId: string | null }>()
+  const byName = new Map<string, { tags: string[]; zohoId: string | null }>()
 
   for (const c of candidatesRes.data ?? []) {
     const tags: string[] = Array.isArray(c.tags) ? c.tags : []
-    if (c.email) byEmail.set(c.email.toLowerCase().trim(), tags)
-    if (c.full_name) byName.set(c.full_name.toLowerCase().trim(), tags)
+    const zohoId: string | null = c.zoho_candidate_id ?? null
+    if (c.email) byEmail.set(c.email.toLowerCase().trim(), { tags, zohoId })
+    if (c.full_name) byName.set(c.full_name.toLowerCase().trim(), { tags, zohoId })
   }
 
-  const dropouts = (dropoutsRes.data ?? []).map((d: any) => ({
-    id: d.id,
-    zoho_candidate_id: d.zoho_candidate_id ?? null,
-    full_name: d.full_name ?? null,
-    email: d.email ?? null,
-    nationality: d.nationality ?? null,
-    promocion_nombre: d.promocion_nombre ?? null,
-    sheet_status: d.sheet_status ?? null,
-    dropout_reason: d.dropout_reason ?? null,
-    dropout_date: d.dropout_date ?? null,
-    dropout_language_level: d.dropout_language_level ?? null,
-    dropout_interest_future: d.dropout_interest_future ?? null,
-    dropout_days_of_training: d.dropout_days_of_training ?? null,
-    dropout_modality: d.dropout_modality ?? null,
-    dropout_notes: d.dropout_notes ?? null,
-    tags: byEmail.get(d.email?.toLowerCase().trim() ?? '') ?? byName.get(d.full_name?.toLowerCase().trim() ?? '') ?? [],
-  }))
+  const dropouts = (dropoutsRes.data ?? []).map((d: any) => {
+    const match = byEmail.get(d.email?.toLowerCase().trim() ?? '') ?? byName.get(d.full_name?.toLowerCase().trim() ?? '') ?? null
+    return {
+      id: d.id,
+      zoho_candidate_id: d.zoho_candidate_id ?? match?.zohoId ?? null,
+      full_name: d.full_name ?? null,
+      email: d.email ?? null,
+      nationality: d.nationality ?? null,
+      promocion_nombre: d.promocion_nombre ?? null,
+      sheet_status: d.sheet_status ?? null,
+      dropout_reason: d.dropout_reason ?? null,
+      dropout_date: d.dropout_date ?? null,
+      dropout_language_level: d.dropout_language_level ?? null,
+      dropout_interest_future: d.dropout_interest_future ?? null,
+      dropout_days_of_training: d.dropout_days_of_training ?? null,
+      dropout_modality: d.dropout_modality ?? null,
+      dropout_notes: d.dropout_notes ?? null,
+      tags: match?.tags ?? [],
+    }
+  })
 
   // Enrich with payment data
   const emails = dropouts.map((d) => d.email).filter(Boolean) as string[]
