@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import type { GermanyDropoutStats, GermanyDropoutRow } from '@/lib/queries/germany'
+import GermanyCandidateDrawer from './GermanyCandidateDrawer'
 
 // ---------------------------------------------------------------------------
 // Design tokens
@@ -165,6 +166,8 @@ const ALL_STATUS = 'Todos'
 export default function GermanyAbandonosView({ stats, initialRows }: Props) {
   const [filterPromo, setFilterPromo] = useState<string>(ALL_PROMOS)
   const [filterStatus, setFilterStatus] = useState<string>(ALL_STATUS)
+  const [selectedZohoId, setSelectedZohoId] = useState<string | null>(null)
+  const [selectedCandidateName, setSelectedCandidateName] = useState<string | null>(null)
 
   // Derive unique promos and statuses for selects
   const promoOptions = useMemo(() => {
@@ -204,6 +207,12 @@ export default function GermanyAbandonosView({ stats, initialRows }: Props) {
   }
 
   return (
+    <>
+    <GermanyCandidateDrawer
+      zohoId={selectedZohoId}
+      candidateName={selectedCandidateName}
+      onClose={() => setSelectedZohoId(null)}
+    />
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* ------------------------------------------------------------------ */}
       {/* KPI Cards                                                            */}
@@ -475,7 +484,7 @@ export default function GermanyAbandonosView({ stats, initialRows }: Props) {
               <tr style={{ borderBottom: `2px solid ${T.border}` }}>
                 {[
                   'Nombre', 'Promo', 'Status', 'Perfil', 'Modalidad',
-                  'Días formación', 'Motivo', 'Interés futuro', 'Pago'
+                  'Días formación', 'Motivo', 'Interés futuro', 'Pago', ''
                 ].map((h) => (
                   <th
                     key={h}
@@ -497,7 +506,7 @@ export default function GermanyAbandonosView({ stats, initialRows }: Props) {
               {filteredRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     style={{ padding: '32px', textAlign: 'center', color: T.muted, fontSize: '13px' }}
                   >
                     No hay registros con los filtros seleccionados.
@@ -559,6 +568,49 @@ export default function GermanyAbandonosView({ stats, initialRows }: Props) {
                         <span style={{ color: T.muted, fontSize: 12 }}>—</span>
                       )}
                     </td>
+                    {/* Ver detalle */}
+                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                      {row.zoho_candidate_id ? (
+                        <button
+                          onClick={() => {
+                            setSelectedZohoId(row.zoho_candidate_id ?? null)
+                            setSelectedCandidateName(row.nombre)
+                          }}
+                          title="Ver cronología del candidato"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            padding: '3px 10px',
+                            borderRadius: 6,
+                            border: `1px solid ${T.border}`,
+                            background: T.bg,
+                            color: T.muted,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            transition: 'background 120ms, border-color 120ms',
+                          }}
+                          onMouseEnter={(e) => {
+                            const btn = e.currentTarget
+                            btn.style.background = '#dbeafe'
+                            btn.style.borderColor = T.accent
+                            btn.style.color = T.accent
+                          }}
+                          onMouseLeave={(e) => {
+                            const btn = e.currentTarget
+                            btn.style.background = T.bg
+                            btn.style.borderColor = T.border
+                            btn.style.color = T.muted
+                          }}
+                        >
+                          Ver detalle
+                        </button>
+                      ) : (
+                        <span style={{ color: T.border, fontSize: 12 }}>—</span>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}
@@ -567,5 +619,6 @@ export default function GermanyAbandonosView({ stats, initialRows }: Props) {
         </div>
       </div>
     </div>
+    </>
   )
 }

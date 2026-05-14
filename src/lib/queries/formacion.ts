@@ -1370,3 +1370,33 @@ export async function getFormacionCandidateNotes(
 
   return data ?? []
 }
+
+// ---------------------------------------------------------------------------
+// Norway candidate cronología (drawer)
+// ---------------------------------------------------------------------------
+
+export interface NorwayCandidateCronologia {
+  candidate: {
+    full_name: string | null
+    current_status: string | null
+    promocion_nombre: string | null
+    nationality: string | null
+  }
+  vacancies: Array<{
+    job_opening_title: string | null
+    candidate_status: string | null
+    fetched_at: string | null
+  }>
+  stage_history: Array<{
+    job_opening_title: string | null
+    from_status: string | null
+    to_status: string | null
+    changed_at: string | null
+  }>
+  notes: Array<{
+    note_title: string | null
+    note_content: string | null
+    note_owner: string | null
+    created_at: string | null
+  }>
+}

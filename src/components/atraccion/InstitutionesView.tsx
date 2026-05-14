@@ -91,12 +91,16 @@ const PIE_COLORS = [
   '#65a30d', '#d97706', '#0891b2', '#9333ea',
 ]
 
-function feedbackFill(name: string) {
+function estadoFill(name: string) {
   const n = name.toLowerCase()
-  if (n.includes('positiv')) return '#16a34a'
-  if (n.includes('negativ')) return '#dc2626'
-  if (n.includes('neutro') || n.includes('neutral')) return '#94a3b8'
-  return '#4f83d8'
+  if (n.includes('realizada'))           return '#16a34a' // verde
+  if (n.includes('cerrada'))             return '#1d4ed8' // azul
+  if (n.includes('cerrando'))            return '#3b82f6' // azul claro
+  if (n.includes('iniciamos'))           return '#d97706' // ámbar
+  if (n.includes('sin respuesta'))       return '#94a3b8' // gris
+  if (n.includes('no hemos'))            return '#78716c' // stone
+  if (n.includes('no quieren') || n.includes('no podemos')) return '#ef4444' // rojo
+  return '#a8a29e'
 }
 
 function ValueLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, value }: any) {
@@ -112,8 +116,6 @@ function ValueLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, value
 }
 
 function ChartsSection({ institutions }: { institutions: Institution[] }) {
-  const today = new Date().toISOString().split('T')[0]!
-
   // ── Métricas existentes ──────────────────────────────────────────────────────
   const totalAsistentes = institutions.reduce((s, i) => s + (i.num_asistentes_charla ?? 0), 0)
   const totalInteresados = institutions.reduce((s, i) => s + (i.num_interesados_firmas ?? 0), 0)
@@ -123,9 +125,9 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
   const isPresencial = (i: Institution) => (i.tipo_evento ?? '').toLowerCase().includes('presencial')
   const isOnline     = (i: Institution) => (i.tipo_evento ?? '').toLowerCase().includes('online')
 
-  const realizados         = institutions.filter(i => i.fecha_charla_visita && i.fecha_charla_visita <= today)
-  const agendados          = institutions.filter(i => i.fecha_charla_visita && i.fecha_charla_visita > today)
-  const conCharlaPuesta    = institutions.filter(i => i.fecha_charla_visita != null) // O = K + N
+  const realizados         = institutions.filter(i => i.estado_charla === 'Charla realizada')
+  const agendados          = institutions.filter(i => i.estado_charla === 'Fecha cerrada' || i.estado_charla === 'Cerrando fecha')
+  const conCharlaPuesta    = [...realizados, ...agendados] // O = K + N
 
   const realizadosPresencial = realizados.filter(isPresencial).length  // I
   const realizadosOnline     = realizados.filter(isOnline).length      // J
@@ -133,7 +135,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
   const agendadosPresencial  = agendados.filter(isPresencial).length   // L
   const agendadosOnline      = agendados.filter(isOnline).length       // M
   const totalAgendados       = agendados.length                        // N
-  const totalConCharla       = conCharlaPuesta.length                  // O
+  const totalConCharla       = conCharlaPuesta.length                  // O = realizadas + agendadas
   const totalInstituciones   = institutions.length                     // Q
   const tasaExito            = totalInstituciones > 0
     ? Math.round((totalConCharla / totalInstituciones) * 100) : 0     // R
@@ -187,21 +189,23 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
       .sort((a, b) => b.asistentes - a.asistentes)
   }, [institutions])
 
-  const feedbackData = useMemo(() => {
+  const estadoData = useMemo(() => {
     const map = new Map<string, number>()
     for (const inst of institutions) {
-      const c1 = inst.contacts.find(c => c.contact_number === 1)
-      if (!c1?.feedback) continue
-      const val = c1.feedback.trim()
-      if (!val) continue
+      const val = (inst.estado_charla ?? '').trim()
+      // Filtrar valores basura (numéricos o textos que no son estados reales)
+      if (!val || /^\d+$/.test(val) || val.length > 40) continue
       map.set(val, (map.get(val) ?? 0) + 1)
     }
-    const sorted = Array.from(map.entries())
-      .map(([name, value]) => ({ name, value }))
+    const total = Array.from(map.values()).reduce((s, n) => s + n, 0)
+    return Array.from(map.entries())
+      .map(([name, value]) => ({
+        name,
+        value,
+        pct: total > 0 ? Math.round((value / total) * 100) : 0,
+        label: `${value} (${total > 0 ? Math.round((value / total) * 100) : 0}%)`,
+      }))
       .sort((a, b) => b.value - a.value)
-    if (sorted.length <= 12) return sorted
-    const otros = sorted.slice(12).reduce((s, d) => s + d.value, 0)
-    return [...sorted.slice(0, 12), { name: 'Otros', value: otros }]
   }, [institutions])
 
   const tipoEventoData = useMemo(() => {
@@ -241,7 +245,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
         <KpiCard color="blue"   label="Total instituciones"   value={totalInstituciones}
           sub="en BBDD" />
-        <KpiCard color="green"  label="Con charla puesta"     value={totalConCharla}
+        <KpiCard color="green"  label="Charlas realizadas y agendadas" value={totalConCharla}
           sub={`tasa de éxito: ${tasaExito}%`} />
         <KpiCard color="blue"   label="Realizados"            value={totalRealizados}
           sub={`${realizadosPresencial} pres · ${realizadosOnline} online`} />
@@ -251,7 +255,7 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
 
       {/* ── KPI cards — fila 2: resultados de charlas ── */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-        <KpiCard color="blue"   label="Total asistentes"      value={totalAsistentes.toLocaleString('es-ES')}
+        <KpiCard color="blue"   label="Estimación total de asistentes"      value={totalAsistentes.toLocaleString('es-ES')}
           sub="acumulado en charlas realizadas" />
         <KpiCard color="green"  label="Total interesados"     value={totalInteresados.toLocaleString('es-ES')}
           sub="firmaron o mostraron interés" />
@@ -261,6 +265,22 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
 
       {/* ── Fila 1: gráficos de barras (necesitan más ancho) ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 12 }}>
+
+        {estadoData.length > 0 && (
+          <ChartCard title="Estado de contacto — instituciones">
+            <ResponsiveContainer width="100%" height={Math.max(220, estadoData.length * 36)}>
+              <BarChart data={estadoData} layout="vertical" margin={{ top: 4, right: 110, left: 4, bottom: 4 }}>
+                <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#57534e' }} tickLine={false} axisLine={false} width={148} />
+                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _n: string, item: any) => [`${v} instituciones (${item.payload.pct}%)`, item.payload.name]} />
+                <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={22}>
+                  {estadoData.map((d) => <Cell key={d.name} fill={estadoFill(d.name)} />)}
+                  <LabelList dataKey="label" position="right" style={{ fontSize: 10, fill: '#57534e', fontWeight: 500 }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        )}
 
         {companeroData.length > 0 && (
           <ChartCard title="Compañero que asiste — nº de charlas">
@@ -310,20 +330,6 @@ function ChartsSection({ institutions }: { institutions: Institution[] }) {
 
       {/* ── Fila 2: gráficos circulares ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 12 }}>
-
-        {feedbackData.length > 0 && (
-          <ChartCard title="Feedback del contacto principal">
-            <ResponsiveContainer width="100%" height={CHART_H}>
-              <PieChart>
-                <Pie data={feedbackData} dataKey="value" nameKey="name" cx="42%" outerRadius={88} labelLine={false} label={ValueLabel}>
-                  {feedbackData.map((d, i) => <Cell key={i} fill={feedbackFill(d.name)} />)}
-                </Pie>
-                <Tooltip {...TOOLTIP_STYLE} formatter={(v: number, _: string, item: any) => [v, item.payload.name]} />
-                <Legend layout="vertical" align="right" verticalAlign="middle" iconSize={8} wrapperStyle={{ fontSize: 10, lineHeight: '22px' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        )}
 
         {tipoEventoData.length > 0 && (
           <ChartCard title="Tipo de evento">
@@ -404,6 +410,72 @@ function ContactsCell({ contacts, expanded, onToggle }: {
         {contacts.length} contacto{contacts.length !== 1 ? 's' : ''}
         {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
       </button>
+    </div>
+  )
+}
+
+// ─── Charla detail helpers ────────────────────────────────────────────────────
+
+function hasCharlaData(inst: Institution): boolean {
+  return inst.fecha_charla_visita != null || inst.estado_charla === 'Charla realizada'
+}
+
+function fmt(label: string, value: string | number | null | undefined): { label: string; value: string } | null {
+  if (value == null || value === '') return null
+  return { label, value: String(value) }
+}
+
+function fmtDate(label: string, value: string | null | undefined): { label: string; value: string } | null {
+  if (!value) return null
+  const d = new Date(value)
+  return {
+    label,
+    value: isNaN(d.getTime())
+      ? value
+      : d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+  }
+}
+
+function CharlaDetail({ inst }: { inst: Institution }) {
+  if (!hasCharlaData(inst)) {
+    return (
+      <div style={{ fontSize: 11, color: '#a8a29e', fontStyle: 'italic', padding: '6px 0' }}>
+        Sin charla registrada
+      </div>
+    )
+  }
+
+  const fields = [
+    fmtDate('Fecha charla/visita', inst.fecha_charla_visita),
+    fmt('Tipo de evento', inst.tipo_evento),
+    fmt('Estado charla', inst.estado_charla),
+    fmt('Ticker estado', inst.ticker_estado),
+    fmt('Persona agenda', inst.persona_contacto_agenda),
+    fmt('Ticker agenda', inst.ticker_agenda),
+    fmtDate('Última charla', inst.fecha_ultima_charla),
+    fmt('Tipo evento última charla', inst.tipo_evento_ultima_charla),
+    fmt('Nº asistentes', inst.num_asistentes_charla),
+    fmt('Nº interesados / firmas', inst.num_interesados_firmas),
+    fmt('Compañero que asiste', inst.compañero_asiste),
+    fmt('Global Worker asiste', inst.global_worker_asiste),
+    fmt('Recursos entregados', inst.recursos_entregados),
+    fmt('Ciudad visita', inst.ciudad),
+    fmt('Comentarios', inst.comentarios),
+  ].filter((f): f is { label: string; value: string } => f !== null)
+
+  return (
+    <div>
+      <p style={{ fontSize: 11, fontWeight: 600, color: '#1e4b9e', marginBottom: 8 }}>
+        Detalle de la charla
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '6px 16px' }}>
+        {fields.map(({ label, value }) => (
+          <div key={label} style={{ fontSize: 11 }}>
+            <span style={{ color: '#a8a29e', fontWeight: 500 }}>{label}: </span>
+            <span style={{ color: '#1c1917' }}>{value}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -521,40 +593,55 @@ function InstitutionRow({ inst }: { inst: Institution }) {
         </td>
       </tr>
 
-      {/* Expanded contacts */}
-      {expanded && inst.contacts.length > 0 && (
+      {/* Expanded: contacts + charla detail */}
+      {expanded && (
         <tr style={{ background: '#fafaf9', borderBottom: '1px solid #f1f0ec' }}>
-          <td colSpan={9} style={{ padding: '6px 24px 10px 40px' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {inst.contacts.map(c => (
-                <div
-                  key={c.contact_number}
-                  style={{
-                    background: '#fff',
-                    border: '1px solid #e7e2d8',
-                    borderRadius: 8,
-                    padding: '6px 10px',
-                    fontSize: 11,
-                    minWidth: 160,
-                    maxWidth: 240,
-                  }}
-                >
-                  <div style={{ fontWeight: 600, color: '#1c1917', marginBottom: 2 }}>
-                    Contacto {c.contact_number}
-                    {c.nombre_cargo && (
-                      <span style={{ fontWeight: 400, color: '#78716c', marginLeft: 4 }}>— {c.nombre_cargo}</span>
-                    )}
+          <td colSpan={9} style={{ padding: '10px 24px 14px 40px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+              {/* Contacts */}
+              {inst.contacts.length > 0 && (
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#57534e', marginBottom: 8 }}>Contactos</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {inst.contacts.map(c => (
+                      <div
+                        key={c.contact_number}
+                        style={{
+                          background: '#fff',
+                          border: '1px solid #e7e2d8',
+                          borderRadius: 8,
+                          padding: '6px 10px',
+                          fontSize: 11,
+                          minWidth: 160,
+                          maxWidth: 240,
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, color: '#1c1917', marginBottom: 2 }}>
+                          Contacto {c.contact_number}
+                          {c.nombre_cargo && (
+                            <span style={{ fontWeight: 400, color: '#78716c', marginLeft: 4 }}>— {c.nombre_cargo}</span>
+                          )}
+                        </div>
+                        {c.contacto && (
+                          <div style={{ color: '#57534e', wordBreak: 'break-word' }}>{c.contacto}</div>
+                        )}
+                        {c.feedback && (
+                          <div style={{ color: '#78716c', fontStyle: 'italic', marginTop: 2, borderTop: '1px solid #f1f0ec', paddingTop: 2 }}>
+                            {c.feedback}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  {c.contacto && (
-                    <div style={{ color: '#57534e', wordBreak: 'break-word' }}>{c.contacto}</div>
-                  )}
-                  {c.feedback && (
-                    <div style={{ color: '#78716c', fontStyle: 'italic', marginTop: 2, borderTop: '1px solid #f1f0ec', paddingTop: 2 }}>
-                      {c.feedback}
-                    </div>
-                  )}
                 </div>
-              ))}
+              )}
+
+              {/* Charla detail */}
+              <div style={{ borderTop: inst.contacts.length > 0 ? '1px solid #f1f0ec' : undefined, paddingTop: inst.contacts.length > 0 ? 10 : 0 }}>
+                <CharlaDetail inst={inst} />
+              </div>
+
             </div>
           </td>
         </tr>
@@ -575,7 +662,6 @@ export default function InstitutionesView() {
   const [comunidadFilter, setComunidadFilter] = useState<string>('todas')
   const [estadoFilter, setEstadoFilter] = useState<string>('todos')
   const [tipoEventoFilter, setTipoEventoFilter] = useState<string>('todos')
-  const [charlaFilter, setCharlaFilter] = useState<'todas' | 'con_charla' | 'sin_charla'>('todas')
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
 
@@ -595,8 +681,6 @@ export default function InstitutionesView() {
       if (comunidadFilter !== 'todas' && inst.comunidad_autonoma !== comunidadFilter) return false
       if (estadoFilter !== 'todos' && inst.estado_charla !== estadoFilter) return false
       if (tipoEventoFilter !== 'todos' && inst.tipo_evento !== tipoEventoFilter) return false
-      if (charlaFilter === 'con_charla' && !(inst.num_asistentes_charla != null && inst.num_asistentes_charla > 0)) return false
-      if (charlaFilter === 'sin_charla' && (inst.num_asistentes_charla != null && inst.num_asistentes_charla > 0)) return false
       if (search) {
         const q = search.toLowerCase()
         if (
@@ -607,7 +691,7 @@ export default function InstitutionesView() {
       }
       return true
     })
-  }, [data, profesionFilter, comunidadFilter, estadoFilter, tipoEventoFilter, charlaFilter, search])
+  }, [data, profesionFilter, comunidadFilter, estadoFilter, tipoEventoFilter, search])
 
   // ── Loading / Error ──
   if (loading) {
@@ -687,7 +771,7 @@ export default function InstitutionesView() {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
         <input
           type="text"
-          placeholder="Buscar universidad, ciudad…"
+          placeholder="Buscar por nombre, ciudad…"
           value={search}
           onChange={e => setSearch(e.target.value)}
           onFocus={() => setSearchFocused(true)}
@@ -749,42 +833,6 @@ export default function InstitutionesView() {
 
       {/* ─── Gráficos (reactivos a los filtros) ─── */}
       <ChartsSection institutions={filtered} />
-
-      {/* ─── Filtro charla ─── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: '#a8a29e', fontWeight: 500 }}>Charla:</span>
-        {([
-          { id: 'todas',      label: 'Todas' },
-          { id: 'con_charla', label: 'Con charla' },
-          { id: 'sin_charla', label: 'Sin charla' },
-        ] as const).map(({ id, label }) => {
-          const active = charlaFilter === id
-          return (
-            <button
-              key={id}
-              onClick={() => setCharlaFilter(id)}
-              style={{
-                padding: '4px 14px',
-                borderRadius: 99,
-                fontSize: 11,
-                fontWeight: active ? 600 : 400,
-                background: active ? '#1e4b9e' : '#ffffff',
-                color: active ? '#ffffff' : '#78716c',
-                border: `1px solid ${active ? '#1e4b9e' : '#e7e2d8'}`,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-            >
-              {label}
-            </button>
-          )
-        })}
-        {charlaFilter !== 'todas' && (
-          <span style={{ fontSize: 11, color: '#a8a29e' }}>
-            · {filtered.length} institución{filtered.length !== 1 ? 'es' : ''}
-          </span>
-        )}
-      </div>
 
       {/* ─── Tabla ─── */}
       <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e7e2d8' }}>

@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase/client'
 
 export interface DropoutRow {
   id: string
+  zoho_candidate_id: string | null
   full_name: string | null
   email: string | null
   nationality: string | null
@@ -29,7 +30,7 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
     (supabase as any)
       .from('promo_students_kpi')
       .select(
-        'id, full_name, email, nationality, promocion_nombre, sheet_status, dropout_reason, dropout_date, dropout_language_level, dropout_interest_future, dropout_days_of_training, dropout_modality, dropout_notes',
+        'id, zoho_candidate_id, full_name, email, nationality, promocion_nombre, sheet_status, dropout_reason, dropout_date, dropout_language_level, dropout_interest_future, dropout_days_of_training, dropout_modality, dropout_notes',
       )
       .eq('tab_name', 'Dropouts'),
 
@@ -55,6 +56,7 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
 
   const dropouts = (dropoutsRes.data ?? []).map((d: any) => ({
     id: d.id,
+    zoho_candidate_id: d.zoho_candidate_id ?? null,
     full_name: d.full_name ?? null,
     email: d.email ?? null,
     nationality: d.nationality ?? null,

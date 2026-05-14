@@ -78,19 +78,10 @@ function toIsoDate(date: Date): string {
 function getIsoWeekStart(date: Date): string {
   const utcDate = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
   const day = utcDate.getUTCDay()
-
-  // Semana laboral: lunes a viernes.
-  // Si cae fin de semana, lo atribuimos al viernes previo para que
-  // el agrupado semanal siempre represente la semana laboral vigente.
-  if (day === 6) {
-    utcDate.setUTCDate(utcDate.getUTCDate() - 1)
-  } else if (day === 0) {
-    utcDate.setUTCDate(utcDate.getUTCDate() - 2)
-  }
-
-  const adjustedDay = utcDate.getUTCDay()
-  const diffToMonday = adjustedDay === 0 ? -6 : 1 - adjustedDay
-  utcDate.setUTCDate(utcDate.getUTCDate() + diffToMonday)
+  // Weeks run Fri–Thu: snap to the most recent Friday
+  // (day - 5 + 7) % 7 gives days elapsed since last Friday
+  const diffToFriday = (day - 5 + 7) % 7
+  utcDate.setUTCDate(utcDate.getUTCDate() - diffToFriday)
   return toIsoDate(utcDate)
 }
 

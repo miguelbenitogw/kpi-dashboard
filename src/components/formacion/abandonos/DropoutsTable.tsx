@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import type { DropoutRow } from '@/lib/queries/dropouts'
+import NorwayCandidateDrawer from './NorwayCandidateDrawer'
 
 interface Props {
   rows: DropoutRow[]
@@ -162,6 +163,8 @@ export default function DropoutsTable({ rows }: Props) {
   const [page, setPage] = useState(0)
   const [sortKey, setSortKey] = useState<SortKey>('dropout_date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null)
+  const [selectedCandidateName, setSelectedCandidateName] = useState<string | null>(null)
 
   function handleSort(key: SortKey) {
     if (key === sortKey) {
@@ -196,6 +199,12 @@ export default function DropoutsTable({ rows }: Props) {
   const to = Math.min((page + 1) * PAGE_SIZE, sorted.length)
 
   return (
+    <>
+    <NorwayCandidateDrawer
+      candidateId={selectedCandidateId}
+      candidateName={selectedCandidateName}
+      onClose={() => setSelectedCandidateId(null)}
+    />
     <div style={{ borderRadius: 12, border: '1px solid #e7e2d8', background: '#ffffff', overflow: 'hidden' }}>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -229,12 +238,13 @@ export default function DropoutsTable({ rows }: Props) {
                   ) : null}
                 </span>
               </th>
+              <th style={TH_STATIC}></th>
             </tr>
           </thead>
           <tbody>
             {pageRows.length === 0 && (
               <tr>
-                <td colSpan={10} style={{ padding: '32px 12px', textAlign: 'center', color: '#a8a29e', fontSize: 13 }}>
+                <td colSpan={11} style={{ padding: '32px 12px', textAlign: 'center', color: '#a8a29e', fontSize: 13 }}>
                   Sin resultados
                 </td>
               </tr>
@@ -309,6 +319,49 @@ export default function DropoutsTable({ rows }: Props) {
                 <td style={TD_STYLE}>
                   <PagoBadge row={row} />
                 </td>
+                {/* Ver detalle */}
+                <td style={{ ...TD_STYLE, whiteSpace: 'nowrap' }}>
+                  {row.zoho_candidate_id ? (
+                    <button
+                      onClick={() => {
+                        setSelectedCandidateId(row.zoho_candidate_id ?? null)
+                        setSelectedCandidateName(row.full_name)
+                      }}
+                      title="Ver cronología del candidato"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '3px 10px',
+                        borderRadius: 6,
+                        border: '1px solid #e7e2d8',
+                        background: '#f9f7f4',
+                        color: '#78716c',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'background 120ms, border-color 120ms',
+                      }}
+                      onMouseEnter={(e) => {
+                        const btn = e.currentTarget
+                        btn.style.background = '#ecfeff'
+                        btn.style.borderColor = '#0e7490'
+                        btn.style.color = '#0e7490'
+                      }}
+                      onMouseLeave={(e) => {
+                        const btn = e.currentTarget
+                        btn.style.background = '#f9f7f4'
+                        btn.style.borderColor = '#e7e2d8'
+                        btn.style.color = '#78716c'
+                      }}
+                    >
+                      Ver detalle
+                    </button>
+                  ) : (
+                    <span style={{ color: '#d4cfc8', fontSize: 12 }}>—</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -361,5 +414,6 @@ export default function DropoutsTable({ rows }: Props) {
         </div>
       </div>
     </div>
+    </>
   )
 }

@@ -167,8 +167,9 @@ export function getCurrentIsoWeekMonday(referenceDate = new Date()): string {
   )
 
   const day = utcDate.getUTCDay()
-  const diff = day === 0 ? -6 : 1 - day
-  utcDate.setUTCDate(utcDate.getUTCDate() + diff)
+  // Weeks run Fri–Thu: snap to the most recent Friday
+  const diff = (day - 5 + 7) % 7
+  utcDate.setUTCDate(utcDate.getUTCDate() - diff)
 
   return utcDate.toISOString().split('T')[0]
 }
@@ -197,8 +198,9 @@ function normalizeToIsoMonday(input: unknown): string | null {
 
   const date = new Date(iso)
   const day = date.getUTCDay()
-  const diff = day === 0 ? -6 : 1 - day
-  date.setUTCDate(date.getUTCDate() + diff)
+  // Weeks run Fri–Thu: snap to the most recent Friday
+  const diff = (day - 5 + 7) % 7
+  date.setUTCDate(date.getUTCDate() - diff)
 
   return date.toISOString().split('T')[0]
 }

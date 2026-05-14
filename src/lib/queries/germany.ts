@@ -282,6 +282,8 @@ export interface GermanyDropoutRow {
   absence_percentage: number | null
   reason_for_dropout: string | null
   interest_in_future: string | null
+  // Zoho candidate ID — for opening the candidate drawer
+  zoho_candidate_id: string | null
   // Payment enrichment
   pago_importe_total: number | null
   pago_importe_pendiente: number | null
@@ -498,17 +500,30 @@ export async function getGermanyDropoutRows(filters?: {
 
   const rawRows = data ?? []
 
-  // Enrich with germany_payments_kpi (join by nombre)
+  // Enrich with germany_payments_kpi + germany_candidates_kpi (join by nombre)
   const nombres = rawRows.map((r) => r.nombre).filter(Boolean) as string[]
+
   let pagosMap = new Map<string, { importe_total: number | null; importe_pendiente: number | null }>()
+  let zohoMap = new Map<string, string>() // nombre → zoho_candidate_id
 
   if (nombres.length > 0) {
-    const { data: pagos } = await (supabase as any)
-      .from('germany_payments_kpi')
-      .select('nombre, importe_total, importe_pendiente')
-      .in('nombre', nombres) as { data: Array<{ nombre: string | null; importe_total: number | null; importe_pendiente: number | null }> | null }
+    const [pagosRes, candidatesRes] = await Promise.all([
+      (supabase as any)
+        .from('germany_payments_kpi')
+        .select('nombre, importe_total, importe_pendiente')
+        .in('nombre', nombres) as Promise<{ data: Array<{ nombre: string | null; importe_total: number | null; importe_pendiente: number | null }> | null }>,
+      (supabase as any)
+        .from('germany_candidates_kpi')
+        .select('nombre, zoho_candidate_id')
+        .in('nombre', nombres) as Promise<{ data: Array<{ nombre: string | null; zoho_candidate_id: string | null }> | null }>,
+    ])
 
-    pagosMap = new Map((pagos ?? []).map((p) => [p.nombre ?? '', p]))
+    pagosMap = new Map((pagosRes.data ?? []).map((p) => [p.nombre ?? '', p]))
+    zohoMap = new Map(
+      (candidatesRes.data ?? [])
+        .filter((c) => c.nombre && c.zoho_candidate_id)
+        .map((c) => [c.nombre!, c.zoho_candidate_id!])
+    )
   }
 
   return rawRows.map((r): GermanyDropoutRow => {
@@ -527,6 +542,7 @@ export async function getGermanyDropoutRows(filters?: {
 
     return {
       ...r,
+      zoho_candidate_id: r.nombre ? zohoMap.get(r.nombre) ?? null : null,
       pago_importe_total: pago?.importe_total ?? null,
       pago_importe_pendiente: pago?.importe_pendiente ?? null,
       pago_estado,
