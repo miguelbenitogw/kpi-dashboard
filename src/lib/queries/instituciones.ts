@@ -39,7 +39,10 @@ export interface Institution {
   ticker_agenda: string | null
   persona_contacto_agenda: string | null
   fecha_charla_visita: string | null
+  hora_charla: string | null
+  lugar_concreto: string | null
   tipo_evento: string | null
+  duracion_charla: string | null
 
   // Actualización del evento
   num_asistentes_charla: number | null
@@ -93,7 +96,7 @@ export async function getInstitutions(): Promise<InstitutionSummary> {
        num_visitas, años_visitas_ponentes, alumnos_registrados_zoho,
        tipo_evento_ultima_charla, fecha_ultima_charla,
        email_facultad, telefono_facultad,
-       ticker_agenda, persona_contacto_agenda, fecha_charla_visita, tipo_evento,
+       ticker_agenda, persona_contacto_agenda, fecha_charla_visita, hora_charla, lugar_concreto, tipo_evento, duracion_charla,
        num_asistentes_charla, num_interesados_firmas, global_worker_asiste,
        recursos_entregados, compañero_asiste,
        ciudad, tipo_centro, web, correos_profesores_web, plazas_anio,

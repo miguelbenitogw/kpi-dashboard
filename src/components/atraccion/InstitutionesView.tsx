@@ -525,7 +525,10 @@ function CharlaDetail({ inst }: { inst: Institution }) {
 
   const fields = [
     fmtDate('Fecha charla/visita', inst.fecha_charla_visita),
+    fmt('Hora', inst.hora_charla),
+    fmt('Duración', inst.duracion_charla),
     fmt('Tipo de evento', inst.tipo_evento),
+    fmt('Lugar concreto', inst.lugar_concreto),
     fmt('Estado charla', inst.estado_charla),
     fmt('Ticker estado', inst.ticker_estado),
     fmt('Persona agenda', inst.persona_contacto_agenda),

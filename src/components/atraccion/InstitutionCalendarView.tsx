@@ -270,8 +270,11 @@ function CharlaPopover({ selectedInst, selectedDay, eventsByDay, onClose, onSele
     : ''
 
   const fields: Array<{ label: string; value: string | number | null; fullWidth?: boolean }> = [
-    { label: 'Fecha charla', value: selectedInst?.fecha_charla_visita ? format(new Date(selectedInst.fecha_charla_visita + 'T00:00:00'), 'dd/MM/yyyy') : null },
+    { label: 'Fecha charla',    value: selectedInst?.fecha_charla_visita ? format(new Date(selectedInst.fecha_charla_visita + 'T00:00:00'), 'dd/MM/yyyy') : null },
+    { label: 'Hora',            value: selectedInst?.hora_charla ?? null },
+    { label: 'Duración',        value: selectedInst?.duracion_charla ?? null },
     { label: 'Tipo de evento',  value: selectedInst?.tipo_evento ?? null },
+    { label: 'Lugar',           value: selectedInst?.lugar_concreto ?? null },
     { label: 'Estado',          value: selectedInst?.estado_charla ?? null },
     { label: 'Persona agenda',  value: selectedInst?.persona_contacto_agenda ?? null },
     { label: 'Compañero asiste', value: selectedInst?.compañero_asiste ?? null },
