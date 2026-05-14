@@ -30,6 +30,10 @@ export default function DropoutsKpiBanner({ rows }: Props) {
   }
   const topTag = Array.from(tagCounts.entries()).sort(([, a], [, b]) => b - a)[0]?.[0] ?? '—'
 
+  const modOnline = rows.filter((r) => r.dropout_modality?.toLowerCase().includes('online')).length
+  const modPresencial = rows.filter((r) => r.dropout_modality?.toLowerCase().includes('presencial') && !r.dropout_modality?.toLowerCase().includes('semi')).length
+  const modSemipresencial = rows.filter((r) => r.dropout_modality?.toLowerCase().includes('semi')).length
+
   // Payment stats
   const cobrados = rows.filter((r) => r.pago_estado === 'cobrado')
   const parciales = rows.filter((r) => r.pago_estado === 'parcial')
@@ -73,6 +77,30 @@ export default function DropoutsKpiBanner({ rows }: Props) {
     {
       label: 'Canal dominante',
       value: topTag,
+      color: '#7c3aed',
+      bg: '#faf5ff',
+      border: '#e9d5ff',
+    },
+    {
+      label: 'Online',
+      value: modOnline.toLocaleString('es-AR'),
+      sub: total > 0 ? `${Math.round((modOnline / total) * 100)}%` : undefined,
+      color: '#1e4b9e',
+      bg: '#eff6ff',
+      border: '#bfdbfe',
+    },
+    {
+      label: 'Presencial',
+      value: modPresencial.toLocaleString('es-AR'),
+      sub: total > 0 ? `${Math.round((modPresencial / total) * 100)}%` : undefined,
+      color: '#e55a2b',
+      bg: '#fff7ed',
+      border: '#fed7aa',
+    },
+    {
+      label: 'Semipresencial',
+      value: modSemipresencial.toLocaleString('es-AR'),
+      sub: total > 0 ? `${Math.round((modSemipresencial / total) * 100)}%` : undefined,
       color: '#7c3aed',
       bg: '#faf5ff',
       border: '#e9d5ff',

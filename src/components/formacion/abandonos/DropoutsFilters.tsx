@@ -10,6 +10,7 @@ export interface DropoutFilters {
   interests: string[]
   tags: string[]
   nationalities: string[]
+  modalities: string[]
 }
 
 export const EMPTY_FILTERS: DropoutFilters = {
@@ -20,6 +21,7 @@ export const EMPTY_FILTERS: DropoutFilters = {
   interests: [],
   tags: [],
   nationalities: [],
+  modalities: [],
 }
 
 interface Options {
@@ -29,6 +31,7 @@ interface Options {
   interests: FilterOption[]
   tags: FilterOption[]
   nationalities: FilterOption[]
+  modalities: FilterOption[]
 }
 
 interface Props {
@@ -144,7 +147,8 @@ export default function DropoutsFilters({ filters, options, onChange, onClear }:
     filters.languageLevels.length > 0 ||
     filters.interests.length > 0 ||
     filters.tags.length > 0 ||
-    filters.nationalities.length > 0
+    filters.nationalities.length > 0 ||
+    filters.modalities.length > 0
 
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
@@ -186,6 +190,7 @@ export default function DropoutsFilters({ filters, options, onChange, onClear }:
       <MultiSelect label="Interés futuro" opts={options.interests} selected={filters.interests} onToggle={(v) => onChange({ ...filters, interests: toggle(filters.interests, v) })} />
       <MultiSelect label="Etiqueta" opts={options.tags} selected={filters.tags} onToggle={(v) => onChange({ ...filters, tags: toggle(filters.tags, v) })} />
       <MultiSelect label="Nacionalidad" opts={options.nationalities} selected={filters.nationalities} onToggle={(v) => onChange({ ...filters, nationalities: toggle(filters.nationalities, v) })} />
+      <MultiSelect label="Modalidad" opts={options.modalities} selected={filters.modalities} onToggle={(v) => onChange({ ...filters, modalities: toggle(filters.modalities, v) })} />
 
       {hasActive && (
         <button

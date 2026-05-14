@@ -18,6 +18,7 @@ const EMPTY_FILTERS: DropoutFilters = {
   interests: [],
   tags: [],
   nationalities: [],
+  modalities: [],
 }
 
 function Skeleton() {
@@ -80,6 +81,11 @@ export default function DropoutsView() {
         return false
       if (filters.tags.length > 0 && !filters.tags.some((t) => d.tags.includes(t)))
         return false
+      if (
+        filters.modalities.length > 0 &&
+        !filters.modalities.includes(d.dropout_modality ?? 'Sin dato')
+      )
+        return false
       return true
     })
   }, [allDropouts, filters])
@@ -138,7 +144,13 @@ export default function DropoutsView() {
         count: filtered.filter((d) => d.tags.includes(tag)).length,
       }))
 
-    return { promos, reasons, languageLevels, interests, tags, nationalities }
+    const modalities = buildOpts(
+      (d) => d.dropout_modality ?? 'Sin dato',
+      allDropouts,
+      filtered
+    )
+
+    return { promos, reasons, languageLevels, interests, tags, nationalities, modalities }
   }, [allDropouts, filtered])
 
   if (loading) return <Skeleton />

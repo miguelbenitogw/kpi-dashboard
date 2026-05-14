@@ -21,15 +21,10 @@ const FORMATION_STATES = [
 // Note: DB uses spaces, not hyphens (e.g. 'Offer Withdrawn', not 'Offer-Withdrawn')
 const RETAINED_STATES = ['Hired', 'Training Finished', 'In Training', 'Assigned', 'To Place', 'Next Project']
 
-// Statuses that mean the candidate dropped out
-const DROPOUT_STATES = [
-  'Offer Withdrawn',
-  'Offer Declined',
-  'Expelled',
-  'Transferred',
-  'Rejected by client',
-  'No Show',
-]
+// Only Offer Withdrawn counts as a real "baja en formación"
+const DROPOUT_STATES = ['Offer Withdrawn']
+
+const TRANSFERRED_STATES = ['Transferred']
 
 export interface FormacionStateRow {
   status: string
@@ -96,6 +91,7 @@ export interface PromotionFormacionOverview {
   objetivo: number
   actual: number
   dropouts: number
+  transferred: number
   trafficLight: 'good' | 'warning' | 'danger'
   objetivo_atraccion: number
   objetivo_programa: number
@@ -190,12 +186,14 @@ export async function getDropoutAnalysis(
 ): Promise<DropoutAnalysisData> {
   // Source of truth for dropout detail: promo_students_kpi (tab='Dropouts')
   // candidates_kpi.dropout_* fields are NOT reliably populated — don't use them here.
+  // Only Offer Withdrawn counts as a real "baja en formación"
   let dropoutQuery = supabase
     .from('promo_students_kpi')
     .select(
       'sheet_status, dropout_reason, dropout_date, dropout_language_level, dropout_days_of_training, dropout_interest_future, promocion_nombre',
     )
     .eq('tab_name', 'Dropouts')
+    .eq('sheet_status', 'Offer Withdrawn')
 
   if (promoNombres && promoNombres.length > 0) {
     dropoutQuery = dropoutQuery.in('promocion_nombre', promoNombres)
@@ -388,6 +386,7 @@ export async function getPromotionsFormacionOverview(
   // Build counts map per promo
   const retainedMap = new Map<string, number>()
   const dropoutMap = new Map<string, number>()
+  const transferredMap = new Map<string, number>()
   const totalMap = new Map<string, number>()
 
   for (const c of candidates ?? []) {
@@ -401,6 +400,8 @@ export async function getPromotionsFormacionOverview(
       retainedMap.set(promo, (retainedMap.get(promo) ?? 0) + 1)
     } else if (DROPOUT_STATES.includes(status)) {
       dropoutMap.set(promo, (dropoutMap.get(promo) ?? 0) + 1)
+    } else if (TRANSFERRED_STATES.includes(status)) {
+      transferredMap.set(promo, (transferredMap.get(promo) ?? 0) + 1)
     }
   }
 
@@ -408,6 +409,7 @@ export async function getPromotionsFormacionOverview(
     const objetivo = promo.expectativa_finalizan ?? 0
     const actual = retainedMap.get(promo.nombre) ?? 0
     const dropouts = dropoutMap.get(promo.nombre) ?? 0
+    const transferred = transferredMap.get(promo.nombre) ?? 0
     const ratio = objetivo > 0 ? actual / objetivo : 0
 
     return {
@@ -417,6 +419,7 @@ export async function getPromotionsFormacionOverview(
       objetivo,
       actual,
       dropouts,
+      transferred,
       trafficLight: computeTrafficLight(ratio),
       objetivo_atraccion: (promo as any).objetivo_atraccion ?? 0,
       objetivo_programa: (promo as any).objetivo_programa ?? 0,

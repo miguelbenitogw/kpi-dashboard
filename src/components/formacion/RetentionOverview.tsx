@@ -97,6 +97,7 @@ export default function RetentionOverview({
   const totalObjetivo = visiblePromos.reduce((acc, p) => acc + p.objetivo, 0)
   const totalActual = visiblePromos.reduce((acc, p) => acc + p.actual, 0)
   const totalDropouts = visiblePromos.reduce((acc, p) => acc + p.dropouts, 0)
+  const totalTransferred = visiblePromos.reduce((acc, p) => acc + p.transferred, 0)
   const overallRatio = totalObjetivo > 0 ? totalActual / totalObjetivo : 0
   const overallPct = Math.round(overallRatio * 100)
 
@@ -159,7 +160,7 @@ export default function RetentionOverview({
               >
                 <button
                   onClick={() => onToggle(promo.nombre)}
-                  title={`${promo.nombre} — Obj ${promo.objetivo} · Actual ${promo.actual} · Bajas ${promo.dropouts} · ${pct}%`}
+                  title={`${promo.nombre} — Obj ${promo.objetivo} · Actual ${promo.actual} · Bajas ${promo.dropouts} · Transferred ${promo.transferred} · ${pct}%`}
                   className={[
                     'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer border',
                     isSelected
@@ -215,7 +216,7 @@ export default function RetentionOverview({
           </div>
 
           {/* Retention metrics row */}
-          <div className="mt-3 grid grid-cols-3 gap-6">
+          <div className="mt-3 grid grid-cols-4 gap-6">
             <div>
               <p className="text-xs text-gray-500">Objetivo total</p>
               <p className="mt-1 text-2xl font-bold tabular-nums text-gray-50">
@@ -232,6 +233,12 @@ export default function RetentionOverview({
               <p className="text-xs text-gray-500">Bajas</p>
               <p className="mt-1 text-2xl font-bold tabular-nums text-red-400">
                 {totalDropouts.toLocaleString('es-AR')}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Transferred</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-blue-400">
+                {totalTransferred.toLocaleString('es-AR')}
               </p>
             </div>
           </div>
