@@ -23,27 +23,55 @@ import type { Institution } from '@/lib/queries/instituciones'
 
 const T = {
   blue: '#1e4b9e',
-  orange: '#e55a2b',
   border: '#e7e2d8',
   cardBg: '#fff',
   pageBg: '#f5f1ea',
   textPrimary: '#1c1917',
   textMuted: '#78716c',
   textVeryMuted: '#a8a29e',
-  green: '#16a34a',
-  greenBg: '#f0fdf4',
-  blueBg: '#eff6ff',
-  amber: '#d97706',
-  red: '#ef4444',
+  // Event type colors — current/future
+  greenBg: '#dcfce7',
+  greenText: '#166534',
+  blueBg: '#dbeafe',
+  blueText: '#1e3a8a',
+  amberBg: '#fef3c7',
+  amberText: '#92400e',
+  // Event type colors — past (lighter)
+  greenBgPast: '#f0fdf4',
+  blueBgPast: '#eff6ff',
+  amberBgPast: '#fffbeb',
+  // Out of month / empty
+  outOfMonthBg: '#f5f1ea',
 } as const
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Day type logic ───────────────────────────────────────────────────────────
 
-function chipColors(tipoEvento: string | null): { bg: string; color: string } {
-  if (tipoEvento === 'Online') return { bg: T.greenBg, color: T.green }
-  if (tipoEvento?.toLowerCase().includes('presencial')) return { bg: T.blueBg, color: T.blue }
-  return { bg: T.pageBg, color: T.textMuted }
+type DayType = 'online' | 'presencial' | 'mixed' | 'other' | 'empty'
+
+function getDayType(insts: Institution[]): DayType {
+  if (insts.length === 0) return 'empty'
+  const hasOnline = insts.some((i) => i.tipo_evento === 'Online')
+  const hasPresencial = insts.some((i) =>
+    i.tipo_evento?.toLowerCase().includes('presencial')
+  )
+  if (hasOnline && hasPresencial) return 'mixed'
+  if (hasOnline) return 'online'
+  if (hasPresencial) return 'presencial'
+  return 'other'
 }
+
+function dayCellBg(insts: Institution[], inMonth: boolean, past: boolean): string {
+  if (!inMonth) return T.outOfMonthBg
+  if (insts.length === 0) return T.cardBg
+  const type = getDayType(insts)
+  if (type === 'online') return past ? T.greenBgPast : T.greenBg
+  if (type === 'presencial') return past ? T.blueBgPast : T.blueBg
+  if (type === 'mixed') return past ? T.amberBgPast : T.amberBg
+  // 'other' tipo_evento
+  return past ? '#f9fafb' : '#f3f4f6'
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function firstToken(value: string | null): string {
   if (!value) return ''
@@ -54,67 +82,149 @@ function truncate(str: string, max: number): string {
   return str.length > max ? str.slice(0, max) + '…' : str
 }
 
+function capitalizeFirst(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+// ─── Legend ───────────────────────────────────────────────────────────────────
+
+function Legend() {
+  const items: Array<{ bg: string; border: string; label: string }> = [
+    { bg: T.greenBg, border: T.greenText, label: 'Online' },
+    { bg: T.blueBg, border: T.blueText, label: 'Presencial' },
+    { bg: T.amberBg, border: T.amberText, label: 'Mixto' },
+    { bg: T.cardBg, border: T.border, label: 'Sin charla' },
+  ]
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 16,
+        padding: '8px 16px',
+        borderBottom: `1px solid ${T.border}`,
+        background: '#fafaf8',
+      }}
+    >
+      {items.map(({ bg, border, label }) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{
+              width: 14,
+              height: 14,
+              borderRadius: 3,
+              background: bg,
+              border: `1.5px solid ${border}`,
+              display: 'inline-block',
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 500 }}>{label}</span>
+        </div>
+      ))}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+        <span
+          style={{
+            width: 14,
+            height: 14,
+            borderRadius: 3,
+            background: T.greenBgPast,
+            border: `1.5px dashed ${T.greenText}`,
+            display: 'inline-block',
+            flexShrink: 0,
+          }}
+        />
+        <span style={{ fontSize: 11, color: T.textVeryMuted, fontWeight: 500 }}>
+          Pasado (color atenuado)
+        </span>
+      </div>
+    </div>
+  )
+}
+
 // ─── CharlaEventChip ──────────────────────────────────────────────────────────
 
 interface ChipProps {
   inst: Institution
   past: boolean
+  compact: boolean
   onClick: () => void
 }
 
-function CharlaEventChip({ inst, past, onClick }: ChipProps) {
-  const { bg, color } = chipColors(inst.tipo_evento)
+function CharlaEventChip({ inst, past, compact, onClick }: ChipProps) {
   const isOnline = inst.tipo_evento === 'Online'
+  const textColor = isOnline ? T.greenText : T.blueText
 
   const label = (() => {
     const token = firstToken(inst.compañero_asiste)
-    if (token) return truncate(token, 11)
-    return truncate(inst.tipo_evento ?? '—', 11)
+    if (token) return truncate(token, compact ? 7 : 11)
+    return truncate(inst.tipo_evento ?? '—', compact ? 7 : 11)
   })()
 
   return (
     <div
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
       style={{
-        background: bg,
-        color,
+        background: 'rgba(255,255,255,0.88)',
+        color: textColor,
         borderRadius: 4,
-        padding: '2px 6px',
-        fontSize: 10,
-        fontWeight: 500,
+        padding: compact ? '1px 4px' : '2px 6px',
+        fontSize: compact ? 9 : 10,
+        fontWeight: 600,
         display: 'flex',
         alignItems: 'center',
-        gap: 4,
+        gap: 3,
         cursor: 'pointer',
         marginBottom: 2,
-        opacity: past ? 0.55 : 1,
-        userSelect: 'none',
+        opacity: past ? 0.65 : 1,
+        userSelect: 'none' as const,
+        maxWidth: '100%',
+        overflow: 'hidden',
       }}
     >
       {isOnline ? (
-        <Wifi size={10} style={{ flexShrink: 0 }} />
+        <Wifi size={compact ? 8 : 9} style={{ flexShrink: 0 }} />
       ) : (
         <span
           style={{
-            width: 6,
-            height: 6,
+            width: compact ? 5 : 6,
+            height: compact ? 5 : 6,
             borderRadius: '50%',
-            background: color,
+            background: textColor,
             flexShrink: 0,
             display: 'inline-block',
           }}
         />
       )}
-      <span
-        style={{
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          maxWidth: 90,
-        }}
-      >
-        {label}
-      </span>
+      {!compact && (
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            maxWidth: 80,
+          }}
+        >
+          {label}
+        </span>
+      )}
+      {compact && (
+        <span
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            maxWidth: 48,
+          }}
+        >
+          {label}
+        </span>
+      )}
     </div>
   )
 }
@@ -149,21 +259,22 @@ function CharlaPopover({
   const isModeA = selectedInst !== null
   const dayInsts = selectedDay ? (eventsByDay.get(selectedDay) ?? []) : []
 
-  // Mode A — title & subtitle
   const titleA = selectedInst?.universidad ?? ''
   const subtitleA = [selectedInst?.profesion, selectedInst?.ciudad].filter(Boolean).join(' · ')
 
-  // Mode B — title
   let titleB = ''
   if (selectedDay) {
     const d = new Date(selectedDay + 'T00:00:00')
-    const dayLabel = format(d, "d 'de' MMMM", { locale: es })
-    titleB = `Charlas del ${dayLabel}`
+    titleB = `Charlas del ${format(d, "d 'de' MMMM", { locale: es })}`
   }
 
-  // Mode A detail fields
   const fields: Array<{ label: string; value: string | number | null; fullWidth?: boolean }> = [
-    { label: 'Fecha charla', value: selectedInst?.fecha_charla_visita ? format(new Date(selectedInst.fecha_charla_visita + 'T00:00:00'), 'dd/MM/yyyy') : null },
+    {
+      label: 'Fecha charla',
+      value: selectedInst?.fecha_charla_visita
+        ? format(new Date(selectedInst.fecha_charla_visita + 'T00:00:00'), 'dd/MM/yyyy')
+        : null,
+    },
     { label: 'Tipo de evento', value: selectedInst?.tipo_evento ?? null },
     { label: 'Estado', value: selectedInst?.estado_charla ?? null },
     { label: 'Persona contacto agenda', value: selectedInst?.persona_contacto_agenda ?? null },
@@ -186,17 +297,11 @@ function CharlaPopover({
         justifyContent: 'center',
       }}
     >
-      {/* Backdrop */}
       <div
         onClick={onClose}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(0,0,0,0.18)',
-        }}
+        style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.18)' }}
       />
 
-      {/* Panel */}
       <div
         style={{
           position: 'relative',
@@ -259,7 +364,6 @@ function CharlaPopover({
         {/* Body */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {isModeA ? (
-            // Mode A — detail grid
             <div
               style={{
                 display: 'grid',
@@ -285,7 +389,7 @@ function CharlaPopover({
                         fontSize: 10,
                         color: T.textVeryMuted,
                         fontWeight: 600,
-                        textTransform: 'uppercase',
+                        textTransform: 'uppercase' as const,
                         letterSpacing: '0.5px',
                       }}
                     >
@@ -299,10 +403,26 @@ function CharlaPopover({
               })}
             </div>
           ) : (
-            // Mode B — day list
             <div>
               {dayInsts.map((inst) => {
-                const { bg, color } = chipColors(inst.tipo_evento)
+                const type = getDayType([inst])
+                const bg =
+                  type === 'online'
+                    ? T.greenBg
+                    : type === 'presencial'
+                    ? T.blueBg
+                    : type === 'mixed'
+                    ? T.amberBg
+                    : '#f3f4f6'
+                const color =
+                  type === 'online'
+                    ? T.greenText
+                    : type === 'presencial'
+                    ? T.blueText
+                    : type === 'mixed'
+                    ? T.amberText
+                    : T.textMuted
+
                 return (
                   <div
                     key={inst.id}
@@ -342,7 +462,7 @@ function CharlaPopover({
                         color,
                         borderRadius: 4,
                         padding: '2px 8px',
-                        fontWeight: 500,
+                        fontWeight: 600,
                         flexShrink: 0,
                       }}
                     >
@@ -359,19 +479,218 @@ function CharlaPopover({
   )
 }
 
+// ─── MonthPanel ───────────────────────────────────────────────────────────────
+
+const WEEKDAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do']
+
+interface MonthPanelProps {
+  month: Date
+  eventsByDay: Map<string, Institution[]>
+  compact: boolean
+  onSelectInst: (inst: Institution) => void
+  onSelectDay: (day: string) => void
+}
+
+function MonthPanel({ month, eventsByDay, compact, onSelectInst, onSelectDay }: MonthPanelProps) {
+  const monthStart = startOfMonth(month)
+  const monthEnd = endOfMonth(month)
+  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 })
+  const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
+  const days = eachDayOfInterval({ start: gridStart, end: gridEnd })
+
+  const monthLabel = capitalizeFirst(format(month, 'MMMM yyyy', { locale: es }))
+
+  const maxChips = compact ? 1 : 2
+  const minCellHeight = compact ? 68 : 88
+
+  const hasEvents = days.some((d) => {
+    const key = format(d, 'yyyy-MM-dd')
+    return isSameMonth(d, month) && (eventsByDay.get(key)?.length ?? 0) > 0
+  })
+
+  return (
+    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      {/* Month title */}
+      <div
+        style={{
+          textAlign: 'center',
+          padding: compact ? '6px 4px' : '8px 8px',
+          fontWeight: 700,
+          fontSize: compact ? 11 : 13,
+          color: T.textPrimary,
+          borderBottom: `1px solid ${T.border}`,
+          background: '#fafaf8',
+          letterSpacing: '-0.2px',
+        }}
+      >
+        {monthLabel}
+      </div>
+
+      {/* Weekday headers */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, 1fr)',
+          borderBottom: `1px solid ${T.border}`,
+          background: '#fafaf8',
+        }}
+      >
+        {WEEKDAYS.map((wd) => (
+          <div
+            key={wd}
+            style={{
+              fontSize: compact ? 9 : 11,
+              fontWeight: 600,
+              color: T.textVeryMuted,
+              textAlign: 'center',
+              padding: compact ? '3px 0' : '5px 0',
+            }}
+          >
+            {wd}
+          </div>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1 }}>
+        {!hasEvents ? (
+          <div
+            style={{
+              gridColumn: '1 / -1',
+              padding: '32px 0',
+              textAlign: 'center',
+              color: T.textVeryMuted,
+              fontSize: 12,
+            }}
+          >
+            <CalendarDays
+              size={24}
+              style={{ marginBottom: 8, opacity: 0.35, display: 'block', margin: '0 auto 8px' }}
+            />
+            <p style={{ margin: 0, fontSize: compact ? 10 : 12 }}>Sin charlas</p>
+          </div>
+        ) : (
+          days.map((date) => {
+            const key = format(date, 'yyyy-MM-dd')
+            const inMonth = isSameMonth(date, month)
+            const today = isToday(date)
+            const past = isBefore(startOfDay(date), startOfDay(new Date()))
+            const dayInsts = eventsByDay.get(key) ?? []
+            const visibleInsts = dayInsts.slice(0, maxChips)
+            const overflowCount = dayInsts.length > maxChips ? dayInsts.length - maxChips : 0
+            const cellBg = dayCellBg(dayInsts, inMonth, past)
+            const hasAnyEvent = dayInsts.length > 0
+
+            return (
+              <div
+                key={key}
+                onClick={() => {
+                  if (!hasAnyEvent) return
+                  if (dayInsts.length === 1) onSelectInst(dayInsts[0])
+                  else onSelectDay(key)
+                }}
+                style={{
+                  borderRight: `1px solid ${T.border}`,
+                  borderBottom: `1px solid ${T.border}`,
+                  minHeight: minCellHeight,
+                  padding: compact ? '3px 3px' : '4px 5px',
+                  background: cellBg,
+                  cursor: hasAnyEvent ? 'pointer' : 'default',
+                  transition: 'filter 0.1s',
+                }}
+              >
+                {/* Day number */}
+                <div style={{ marginBottom: compact ? 2 : 3 }}>
+                  {today ? (
+                    <span
+                      style={{
+                        width: compact ? 17 : 20,
+                        height: compact ? 17 : 20,
+                        borderRadius: '50%',
+                        background: T.blue,
+                        color: '#fff',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: compact ? 9 : 10,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {format(date, 'd')}
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: compact ? 9 : 11,
+                        fontWeight: 500,
+                        color: inMonth
+                          ? past
+                            ? '#9ca3af'
+                            : '#57534e'
+                          : '#c4b9a8',
+                      }}
+                    >
+                      {format(date, 'd')}
+                    </span>
+                  )}
+                </div>
+
+                {/* Event chips */}
+                {visibleInsts.map((inst) => (
+                  <CharlaEventChip
+                    key={inst.id}
+                    inst={inst}
+                    past={past}
+                    compact={compact}
+                    onClick={() => onSelectInst(inst)}
+                  />
+                ))}
+
+                {/* Overflow button */}
+                {overflowCount > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onSelectDay(key)
+                    }}
+                    style={{
+                      fontSize: compact ? 8 : 10,
+                      color: T.blue,
+                      cursor: 'pointer',
+                      padding: '1px 4px',
+                      background: 'rgba(255,255,255,0.85)',
+                      borderRadius: 3,
+                      border: 'none',
+                      display: 'block',
+                      marginTop: 1,
+                      fontWeight: 600,
+                    }}
+                  >
+                    +{overflowCount}
+                  </button>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── InstitutionCalendarView ──────────────────────────────────────────────────
 
 interface Props {
   filtered: Institution[]
 }
 
-const WEEKDAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do']
-
 export default function InstitutionCalendarView({ filtered }: Props) {
   const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date())
+  const [monthCount, setMonthCount] = useState<1 | 2 | 3 | 4>(2)
   const [selectedInst, setSelectedInst] = useState<Institution | null>(null)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
 
+  // Build day → institutions map
   const eventsByDay = useMemo(() => {
     const map = new Map<string, Institution[]>()
     for (const inst of filtered) {
@@ -384,22 +703,24 @@ export default function InstitutionCalendarView({ filtered }: Props) {
     return map
   }, [filtered])
 
-  const monthStart = startOfMonth(currentMonth)
-  const monthEnd = endOfMonth(currentMonth)
-  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 })
-  const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
-  const days = eachDayOfInterval({ start: gridStart, end: gridEnd })
+  // Array of months to render
+  const monthsToShow = useMemo(
+    () => Array.from({ length: monthCount }, (_, i) => addMonths(currentMonth, i)),
+    [currentMonth, monthCount]
+  )
 
-  const monthLabel = (() => {
-    const raw = format(currentMonth, 'MMMM yyyy', { locale: es })
-    return raw.charAt(0).toUpperCase() + raw.slice(1)
-  })()
+  // Header range label
+  const rangeLabel = useMemo(() => {
+    if (monthCount === 1) {
+      return capitalizeFirst(format(currentMonth, 'MMMM yyyy', { locale: es }))
+    }
+    const last = addMonths(currentMonth, monthCount - 1)
+    const firstLbl = capitalizeFirst(format(currentMonth, 'MMMM', { locale: es }))
+    const lastLbl = capitalizeFirst(format(last, 'MMMM yyyy', { locale: es }))
+    return `${firstLbl} — ${lastLbl}`
+  }, [currentMonth, monthCount])
 
-  // Check if there are any events in the current month
-  const hasEventsThisMonth = Array.from(eventsByDay.keys()).some((key) => {
-    const d = new Date(key + 'T00:00:00')
-    return isSameMonth(d, currentMonth)
-  })
+  const compact = monthCount >= 3
 
   function closePopover() {
     setSelectedInst(null)
@@ -416,17 +737,22 @@ export default function InstitutionCalendarView({ filtered }: Props) {
         fontFamily: 'inherit',
       }}
     >
-      {/* ── Calendar Header ── */}
+      {/* ── Legend ── */}
+      <Legend />
+
+      {/* ── Header ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '12px 16px',
+          padding: '10px 16px',
           background: T.cardBg,
           borderBottom: `1px solid ${T.border}`,
+          gap: 12,
         }}
       >
+        {/* Prev */}
         <button
           onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
           style={{
@@ -438,15 +764,72 @@ export default function InstitutionCalendarView({ filtered }: Props) {
             display: 'flex',
             alignItems: 'center',
             borderRadius: 4,
+            flexShrink: 0,
           }}
         >
           <ChevronLeft size={16} />
         </button>
 
-        <span style={{ fontWeight: 700, fontSize: 15, color: T.textPrimary }}>
-          {monthLabel}
-        </span>
+        {/* Center: range label + month count pills */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            flex: 1,
+            justifyContent: 'center',
+            minWidth: 0,
+          }}
+        >
+          <span
+            style={{
+              fontWeight: 700,
+              fontSize: 14,
+              color: T.textPrimary,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {rangeLabel}
+          </span>
 
+          {/* Month count toggle */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 2,
+              background: '#f0ece4',
+              borderRadius: 8,
+              padding: 3,
+              flexShrink: 0,
+            }}
+          >
+            {([1, 2, 3, 4] as const).map((n) => (
+              <button
+                key={n}
+                onClick={() => setMonthCount(n)}
+                title={`Ver ${n} ${n === 1 ? 'mes' : 'meses'}`}
+                style={{
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: '3px 9px',
+                  borderRadius: 6,
+                  background: monthCount === n ? T.blue : 'transparent',
+                  color: monthCount === n ? '#fff' : T.textMuted,
+                  transition: 'background 0.15s, color 0.15s',
+                  lineHeight: 1.4,
+                }}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Next */}
         <button
           onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
           style={{
@@ -458,153 +841,39 @@ export default function InstitutionCalendarView({ filtered }: Props) {
             display: 'flex',
             alignItems: 'center',
             borderRadius: 4,
+            flexShrink: 0,
           }}
         >
           <ChevronRight size={16} />
         </button>
       </div>
 
-      {/* ── Weekday Headers ── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          borderBottom: `1px solid ${T.border}`,
-        }}
-      >
-        {WEEKDAYS.map((wd) => (
+      {/* ── Month panels ── */}
+      <div style={{ display: 'flex', overflow: 'hidden' }}>
+        {monthsToShow.map((month, idx) => (
           <div
-            key={wd}
+            key={format(month, 'yyyy-MM')}
             style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: T.textVeryMuted,
-              textAlign: 'center',
-              padding: '6px 0',
+              flex: 1,
+              minWidth: 0,
+              borderRight: idx < monthsToShow.length - 1 ? `2px solid ${T.border}` : undefined,
             }}
           >
-            {wd}
+            <MonthPanel
+              month={month}
+              eventsByDay={eventsByDay}
+              compact={compact}
+              onSelectInst={(inst) => {
+                setSelectedDay(null)
+                setSelectedInst(inst)
+              }}
+              onSelectDay={(day) => {
+                setSelectedInst(null)
+                setSelectedDay(day)
+              }}
+            />
           </div>
         ))}
-      </div>
-
-      {/* ── Day Grid ── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          borderTop: `1px solid ${T.border}`,
-        }}
-      >
-        {!hasEventsThisMonth ? (
-          <div
-            style={{
-              gridColumn: '1 / -1',
-              padding: '48px 0',
-              textAlign: 'center',
-              color: T.textVeryMuted,
-              fontSize: 13,
-            }}
-          >
-            <CalendarDays size={32} style={{ marginBottom: 12, opacity: 0.4 }} />
-            <p style={{ margin: 0 }}>
-              Sin charlas en {monthLabel.toLowerCase()}
-            </p>
-          </div>
-        ) : (
-          days.map((date) => {
-            const key = format(date, 'yyyy-MM-dd')
-            const inMonth = isSameMonth(date, currentMonth)
-            const today = isToday(date)
-            const past = isBefore(startOfDay(date), startOfDay(new Date()))
-            const dayInsts = eventsByDay.get(key) ?? []
-            const overflowCount = dayInsts.length > 2 ? dayInsts.length - 2 : 0
-            const visibleInsts = dayInsts.slice(0, 2)
-
-            return (
-              <div
-                key={key}
-                style={{
-                  borderRight: `1px solid ${T.border}`,
-                  borderBottom: `1px solid ${T.border}`,
-                  minHeight: 90,
-                  padding: '4px 6px',
-                  position: 'relative',
-                  verticalAlign: 'top',
-                  background: inMonth ? '#fff' : '#faf8f5',
-                }}
-              >
-                {/* Day number */}
-                <div style={{ marginBottom: 3 }}>
-                  {today ? (
-                    <span
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: '50%',
-                        background: T.blue,
-                        color: '#fff',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 10,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {format(date, 'd')}
-                    </span>
-                  ) : (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 500,
-                        color: inMonth ? '#57534e' : '#c4b9a8',
-                      }}
-                    >
-                      {format(date, 'd')}
-                    </span>
-                  )}
-                </div>
-
-                {/* Event chips */}
-                {visibleInsts.map((inst) => (
-                  <CharlaEventChip
-                    key={inst.id}
-                    inst={inst}
-                    past={past}
-                    onClick={() => {
-                      setSelectedDay(null)
-                      setSelectedInst(inst)
-                    }}
-                  />
-                ))}
-
-                {/* Overflow button */}
-                {overflowCount > 0 && (
-                  <button
-                    onClick={() => {
-                      setSelectedInst(null)
-                      setSelectedDay(key)
-                    }}
-                    style={{
-                      fontSize: 10,
-                      color: T.blue,
-                      cursor: 'pointer',
-                      padding: '1px 4px',
-                      background: T.blueBg,
-                      borderRadius: 4,
-                      border: 'none',
-                      display: 'block',
-                      marginTop: 1,
-                    }}
-                  >
-                    +{overflowCount} más
-                  </button>
-                )}
-              </div>
-            )
-          })
-        )}
       </div>
 
       {/* ── Popover ── */}
