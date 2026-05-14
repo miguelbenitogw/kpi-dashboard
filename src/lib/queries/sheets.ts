@@ -31,20 +31,32 @@ export async function getRegisteredSheets(): Promise<RegisteredSheet[]> {
   if (sheetsError) throw new Error(`Failed to fetch sheets: ${sheetsError.message}`)
   if (!sheets || sheets.length === 0) return []
 
-  // Fetch student counts per sheet
+  // Fetch student counts per sheet — only from 'Contact Information' tab (canonical enrollment list).
+  // Fallback: if a sheet has no 'Contact Information' rows, count 'Assignments' tab instead.
   const sheetIds = sheets.map((s: { id: string }) => s.id)
   const { data: countRows, error: countError } = await supabase
     .from('promo_students_kpi')
-    .select('promo_sheet_id')
+    .select('promo_sheet_id, tab_name')
     .in('promo_sheet_id', sheetIds)
+    .in('tab_name', ['Contact Information', 'Assignments'])
 
   if (countError) throw new Error(`Failed to fetch student counts: ${countError.message}`)
 
-  // Count students per sheet
-  const countMap = new Map<string, number>()
+  // Build per-sheet counts: prefer 'Contact Information', fall back to 'Assignments'
+  const contactMap = new Map<string, number>()
+  const assignMap  = new Map<string, number>()
   for (const row of countRows ?? []) {
     const id = row.promo_sheet_id
-    countMap.set(id, (countMap.get(id) ?? 0) + 1)
+    if (row.tab_name === 'Contact Information') {
+      contactMap.set(id, (contactMap.get(id) ?? 0) + 1)
+    } else {
+      assignMap.set(id, (assignMap.get(id) ?? 0) + 1)
+    }
+  }
+  const countMap = new Map<string, number>()
+  for (const id of sheetIds) {
+    const n = contactMap.get(id) ?? assignMap.get(id) ?? 0
+    if (n > 0) countMap.set(id, n)
   }
 
   return sheets.map((sheet: any) => ({
