@@ -47,14 +47,34 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
   return (data ?? []) as TeamMember[]
 }
 
+export async function getAllTeamMembers(): Promise<TeamMember[]> {
+  const { data, error } = await (supabaseAdmin as any)
+    .from('team_members_kpi')
+    .select('id, name, sheet_tab_name, tarde_larga_dia, tarde_larga_cambios, is_active')
+    .order('name', { ascending: true })
+
+  if (error) throw error
+  return (data ?? []) as TeamMember[]
+}
+
+export async function toggleMemberActive(memberId: number, isActive: boolean): Promise<void> {
+  const { error } = await (supabaseAdmin as any)
+    .from('team_members_kpi')
+    .update({ is_active: isActive, updated_at: new Date().toISOString() })
+    .eq('id', memberId)
+
+  if (error) throw error
+}
+
 export async function getVacationsByYear(year: number): Promise<VacationDay[]> {
   const { data, error } = await (supabaseAdmin as any)
     .from('team_vacations_kpi')
     .select(
       `id, member_id, year, day_number, vacation_date, status,
-       team_members_kpi ( name )`,
+       team_members_kpi!inner ( name, is_active )`,
     )
     .eq('year', year)
+    .eq('team_members_kpi.is_active', true)
     .order('vacation_date', { ascending: true, nullsFirst: false })
     .order('day_number', { ascending: true })
 
@@ -114,11 +134,12 @@ export async function getCalendarData(
     .from('team_vacations_kpi')
     .select(
       `vacation_date, status, member_id,
-       team_members_kpi ( id, name )`,
+       team_members_kpi!inner ( id, name, is_active )`,
     )
     .gte('vacation_date', startDate)
     .lt('vacation_date', endDate)
     .not('vacation_date', 'is', null)
+    .eq('team_members_kpi.is_active', true)
     .order('vacation_date', { ascending: true })
 
   if (error) throw error

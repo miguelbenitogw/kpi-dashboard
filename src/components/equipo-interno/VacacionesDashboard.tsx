@@ -1,13 +1,16 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Users,
   Check,
   Clock,
   Sun,
+  Settings,
 } from 'lucide-react'
 import {
   startOfMonth,
@@ -23,6 +26,7 @@ import type { TeamMember, VacationMemberSummary, CalendarDayEntry } from '@/lib/
 
 type Props = {
   members: TeamMember[]
+  allMembers: TeamMember[]
   summary: VacationMemberSummary[]
   calendarData: CalendarDayEntry[]
   initialYear: number
@@ -48,6 +52,7 @@ function firstName(fullName: string): string {
 
 export default function VacacionesDashboard({
   members,
+  allMembers: initialAllMembers,
   summary,
   calendarData: initialCalendarData,
   initialYear,
@@ -58,6 +63,9 @@ export default function VacacionesDashboard({
   const [calendarData, setCalendarData]     = useState<CalendarDayEntry[]>(initialCalendarData)
   const [summaryData, setSummaryData]       = useState<VacationMemberSummary[]>(summary)
   const [loading, setLoading]               = useState(false)
+  const [allMembers, setAllMembers]         = useState<TeamMember[]>(initialAllMembers)
+  const [membersOpen, setMembersOpen]       = useState(false)
+  const [togglingId, setTogglingId]         = useState<number | null>(null)
 
   const fetchCalendar = useCallback(async (y: number, m: number) => {
     setLoading(true)
@@ -97,6 +105,31 @@ export default function VacacionesDashboard({
     if (ny !== year) { setYear(ny); fetchSummary(ny) }
     fetchCalendar(ny, nm)
   }
+
+  const toggleMember = useCallback(async (memberId: number, newActive: boolean) => {
+    setTogglingId(memberId)
+    try {
+      const res = await fetch('/api/vacaciones/members', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId, isActive: newActive }),
+      })
+      if (res.ok) {
+        setAllMembers((prev) =>
+          prev.map((m) => (m.id === memberId ? { ...m, is_active: newActive } : m)),
+        )
+        fetchCalendar(year, month)
+        fetchSummary(year)
+      }
+    } finally {
+      setTogglingId(null)
+    }
+  }, [year, month, fetchCalendar, fetchSummary])
+
+  const activeMembers = useMemo(
+    () => allMembers.filter((m) => m.is_active),
+    [allMembers],
+  )
 
   const calendarDays = useMemo(() => {
     const first = startOfMonth(new Date(year, month - 1))
@@ -162,7 +195,7 @@ export default function VacacionesDashboard({
         <SummaryCard
           icon={<Users className="h-5 w-5" />}
           iconBg="#1e4b9e1a" iconColor="#1e4b9e"
-          value={members.length} label="Total miembros"
+          value={activeMembers.length} label="Total miembros"
         />
         <SummaryCard
           icon={<Check className="h-5 w-5" />}
@@ -317,7 +350,7 @@ export default function VacacionesDashboard({
               </tr>
             </thead>
             <tbody>
-              {members.map((member, idx) => {
+              {activeMembers.map((member, idx) => {
                 const s = summaryData.find((r) => r.member_id === member.id) ?? {
                   total_days: 0, approved: 0, pending: 0,
                 }
@@ -396,7 +429,7 @@ export default function VacacionesDashboard({
                 )
               })}
 
-              {members.length === 0 && (
+              {activeMembers.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-5 py-8 text-center text-sm" style={{ color: '#a8a29e' }}>
                     No hay miembros del equipo registrados
@@ -406,6 +439,68 @@ export default function VacacionesDashboard({
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* ── Member management panel ──────────────────────────────────────── */}
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ border: '1px solid #e7e2d8', background: '#fff' }}
+      >
+        <button
+          onClick={() => setMembersOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-5 py-4"
+          style={{ borderBottom: membersOpen ? '1px solid #e7e2d8' : 'none', background: 'none', cursor: 'pointer', border: 'none' }}
+        >
+          <div className="flex items-center gap-2">
+            <Settings className="h-4 w-4" style={{ color: '#78716c' }} />
+            <h2 className="text-base font-semibold" style={{ color: '#1c1917' }}>
+              Gestión de miembros
+            </h2>
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#f5f1ea', color: '#78716c' }}>
+              {allMembers.filter((m) => m.is_active).length} activos / {allMembers.length} total
+            </span>
+          </div>
+          {membersOpen ? (
+            <ChevronUp className="h-4 w-4" style={{ color: '#78716c' }} />
+          ) : (
+            <ChevronDown className="h-4 w-4" style={{ color: '#78716c' }} />
+          )}
+        </button>
+
+        {membersOpen && (
+          <div className="px-5 py-4">
+            <p className="text-xs mb-4" style={{ color: '#a8a29e' }}>
+              Desactiva miembros que ya no trabajan aquí para ocultar sus datos del calendario y resumen.
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {allMembers.map((member) => (
+                <label
+                  key={member.id}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer transition-colors"
+                  style={{
+                    border: '1px solid #e7e2d8',
+                    background: member.is_active ? '#fff' : '#faf9f7',
+                    opacity: togglingId === member.id ? 0.5 : 1,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={member.is_active}
+                    disabled={togglingId === member.id}
+                    onChange={() => toggleMember(member.id, !member.is_active)}
+                    style={{ accentColor: '#1e4b9e' }}
+                  />
+                  <span
+                    className="text-sm truncate"
+                    style={{ color: member.is_active ? '#1c1917' : '#a8a29e' }}
+                  >
+                    {member.name}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
