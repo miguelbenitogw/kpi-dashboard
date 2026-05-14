@@ -499,7 +499,7 @@ export async function importVacaciones(): Promise<VacacionesImportResult> {
   const processedYears = new Set<number>()
 
   for (const tab of calendarioTabs) {
-    const tabName = tab.name.trim()
+    const tabName = tab.name
 
     let rawValues: unknown[][]
     try {
