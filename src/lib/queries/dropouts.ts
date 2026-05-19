@@ -44,14 +44,17 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
     (dropoutsRes.data ?? []).map((d: any) => d.full_name).filter(Boolean) as string[]
   )]
 
-  let allCandidates: { email: string | null; full_name: string | null; tags: string[] | null; zoho_candidate_id: string | null }[] = []
+  let allCandidates: { email: string | null; full_name: string | null; tags: string[] | null; id: string }[] = []
   // .in() has URL length limits, batch in groups of 50
   for (let i = 0; i < dropoutNames.length; i += 50) {
     const batch = dropoutNames.slice(i, i + 50)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('candidates_kpi')
-      .select('email, full_name, tags, zoho_candidate_id')
+      .select('id, email, full_name, tags')
       .in('full_name', batch)
+    if (error) {
+      console.error('[dropouts] candidates fetch error:', error)
+    }
     if (data) allCandidates.push(...data)
   }
 
@@ -60,7 +63,7 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
 
   for (const c of allCandidates) {
     const tags: string[] = Array.isArray(c.tags) ? c.tags : []
-    const zohoId: string | null = c.zoho_candidate_id ?? null
+    const zohoId: string | null = c.id ?? null
     if (c.email) byEmail.set(c.email.toLowerCase().trim(), { tags, zohoId })
     if (c.full_name) byName.set(c.full_name.toLowerCase().trim(), { tags, zohoId })
   }
