@@ -324,7 +324,7 @@ function ZohoIdBadge({ jobNumber }: { jobNumber: number }) {
         alignItems: 'center',
         gap: 3,
         fontSize: 10,
-        fontWeight: 500,
+        fontWeight: 700,
         color: copied ? '#16a34a' : '#a8a29e',
         background: copied ? '#f0fdf4' : 'transparent',
         border: `1px solid ${copied ? '#bbf7d0' : '#e7e2d8'}`,
