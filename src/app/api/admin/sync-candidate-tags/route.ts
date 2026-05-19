@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { syncCandidateTags } from '@/lib/zoho/sync-candidate-tags'
+import { validateApiKey, unauthorizedResponse } from '@/app/api/sync/middleware'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 /**
  * GET /api/admin/sync-candidate-tags
@@ -18,7 +19,8 @@ export async function GET(_request: NextRequest) {
  * Syncs Associated_Tags from Zoho Recruit into candidates_kpi.tags.
  * Only updates rows that already exist in candidates_kpi — never inserts.
  */
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
+  if (!validateApiKey(request)) return unauthorizedResponse()
   try {
     const result = await syncCandidateTags()
 

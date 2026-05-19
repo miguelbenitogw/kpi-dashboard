@@ -1,7 +1,6 @@
 import { Suspense } from 'react'
 import KpiCards from '@/components/dashboard/KpiCards'
 import AlertsSummary from '@/components/dashboard/AlertsSummary'
-import WeeklyTrendChart from '@/components/dashboard/WeeklyTrendChart'
 import TopVacancies from '@/components/dashboard/TopVacancies'
 import CvsPerVacancyChart from '@/components/dashboard/CvsPerVacancyChart'
 import VacantesPrincipalesStrip from '@/components/resumen/VacantesPrincipalesStrip'
@@ -79,23 +78,12 @@ export default function DashboardPage() {
         <CvsPerVacancyChart />
       </div>
 
-      {/* Charts + Alerts Grid */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Weekly Trend — 2 columns */}
-        <div
-          className="lg:col-span-2 rounded-xl p-0 overflow-hidden"
-          style={{ background: '#ffffff', border: '1px solid #e7e2d8' }}
-        >
-          <WeeklyTrendChart />
-        </div>
-
-        {/* SLA Alerts — 1 column */}
-        <div
-          className="rounded-xl p-0 overflow-hidden"
-          style={{ background: '#ffffff', border: '1px solid #e7e2d8' }}
-        >
-          <AlertsSummary />
-        </div>
+      {/* SLA Alerts */}
+      <div
+        className="rounded-xl p-0 overflow-hidden"
+        style={{ background: '#ffffff', border: '1px solid #e7e2d8' }}
+      >
+        <AlertsSummary />
       </div>
 
       {/* Top Vacancies */}

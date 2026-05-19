@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { syncJobOpenings } from '@/lib/zoho/sync-job-openings'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 /**
  * GET /api/cron/sync

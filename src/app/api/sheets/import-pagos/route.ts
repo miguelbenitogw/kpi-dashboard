@@ -9,10 +9,12 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { importPagos } from '@/lib/google-sheets/import-pagos'
+import { validateApiKey, unauthorizedResponse } from '@/app/api/sync/middleware'
 
 export const maxDuration = 120
 
 export async function POST(req: Request) {
+  if (!validateApiKey(req)) return unauthorizedResponse()
   let customSheetId: string | undefined
 
   try {

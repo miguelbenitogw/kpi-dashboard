@@ -1,19 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
-import { syncJobOpenings } from '@/lib/zoho/sync-job-openings'
-import { importExcelMadre } from '@/lib/google-sheets/import-madre'
-import { syncCandidateTags } from '@/lib/zoho/sync-candidate-tags'
-import { syncVacancyTagCountsLocal } from '@/lib/supabase/sync-vacancy-tags-local'
-import { syncVacancyTagCountsFromZoho } from '@/lib/zoho/sync-vacancy-tags-zoho'
-import { syncCandidatesForActiveVacancies } from '@/lib/zoho/sync-candidates'
 
-export const maxDuration = 60
+export const maxDuration = 300
+
+interface DispatchTarget {
+  name: string
+  path: string
+  method: 'GET' | 'POST'
+  authType: 'cron' | 'api-key'
+  body?: Record<string, unknown>
+}
+
+interface DispatchResult {
+  name: string
+  status: number
+  duration_ms: number
+  data: Record<string, unknown> | null
+  error: string | null
+}
+
+const TARGETS: DispatchTarget[] = [
+  { name: 'zoho_job_openings',     path: '/api/cron/sync',                      method: 'GET',  authType: 'cron' },
+  { name: 'excel_madre',           path: '/api/cron/sync-madre',                method: 'GET',  authType: 'cron' },
+  { name: 'candidate_tags',        path: '/api/admin/sync-candidate-tags',      method: 'POST', authType: 'api-key' },
+  { name: 'vacancy_tags_local',    path: '/api/admin/sync-vacancy-tags',        method: 'POST', authType: 'api-key' },
+  { name: 'vacancy_tags_zoho',     path: '/api/admin/sync-vacancy-tags-zoho',   method: 'POST', authType: 'api-key', body: { onlyActive: true } },
+  { name: 'atraccion_history',     path: '/api/cron/sync-atraccion-history',    method: 'GET',  authType: 'cron' },
+]
 
 /**
  * GET /api/cron/sync-full
  *
  * Weekly full sync — runs every Sunday at 03:00 UTC.
- * Combines Zoho job openings sync + Excel madre import in one pass.
+ * Dispatches all sub-syncs in PARALLEL via fetch(). Each sub-sync runs in its
+ * own serverless function instance with its own 300s timeout budget.
  *
  * Schedule: 0 3 * * 0
  */
@@ -40,164 +60,55 @@ export async function GET(request: NextRequest) {
 
   const logId = logRow?.id ?? null
 
-  const results: {
-    zoho_job_openings: { synced: number; api_calls: number; errors: string[] } | null
-    excel_madre: Array<{
-      label: string
-      base_datos: { updated: number; inserted: number; skipped: number } | null
-      resumen: { upserted: number; skipped: number } | null
-      errors: string[]
-    }>
-    candidate_tags: {
-      total_fetched: number
-      updated: number
-      skipped_no_match: number
-      api_calls: number
-      errors: string[]
-    } | null
-    vacancy_tag_counts_local: { processed: number; skipped_closed: number; upserted_rows: number; errors: string[] } | null
-    vacancy_tag_counts_zoho: {
-      vacancies_processed: number
-      vacancies_skipped_closed: number
-      tag_rows_upserted: number
-      zoho_api_calls: number
-      errors: string[]
-    } | null
-    candidates_stage_history: {
-      vacancies_processed: number
-      candidates_synced: number
-      status_changes_logged: number
-      api_calls: number
-      errors: string[]
-    } | null
-  } = {
-    zoho_job_openings: null,
-    excel_madre: [],
-    candidate_tags: null,
-    vacancy_tag_counts_local: null,
-    vacancy_tag_counts_zoho: null,
-    candidates_stage_history: null,
+  const baseUrl = deriveBaseUrl(request)
+  const syncApiKey = process.env.SYNC_API_KEY ?? ''
+
+  const settled = await Promise.allSettled(
+    TARGETS.map(async (target): Promise<DispatchResult> => {
+      const t0 = Date.now()
+      try {
+        const headers: Record<string, string> =
+          target.authType === 'cron'
+            ? { authorization: `Bearer ${cronSecret}` }
+            : { 'x-api-key': syncApiKey }
+
+        if (target.body) headers['content-type'] = 'application/json'
+
+        const res = await fetch(`${baseUrl}${target.path}`, {
+          method: target.method,
+          headers,
+          body: target.body ? JSON.stringify(target.body) : undefined,
+        })
+
+        const data = await res.json().catch(() => null)
+        return { name: target.name, status: res.status, duration_ms: Date.now() - t0, data, error: null }
+      } catch (err) {
+        return {
+          name: target.name,
+          status: 0,
+          duration_ms: Date.now() - t0,
+          data: null,
+          error: err instanceof Error ? err.message : String(err),
+        }
+      }
+    }),
+  )
+
+  const results: Record<string, DispatchResult> = {}
+  const allErrors: string[] = []
+
+  for (const outcome of settled) {
+    const result = outcome.status === 'fulfilled'
+      ? outcome.value
+      : { name: 'unknown', status: 0, duration_ms: 0, data: null, error: String(outcome.reason) }
+
+    results[result.name] = result
+
+    if (result.error) allErrors.push(`[${result.name}] ${result.error}`)
+    if (result.status >= 400) allErrors.push(`[${result.name}] HTTP ${result.status}`)
   }
 
-  // ---- Phase 1: Zoho job openings ----------------------------------------
-  try {
-    const joResult = await syncJobOpenings()
-    results.zoho_job_openings = {
-      synced: joResult.synced,
-      api_calls: joResult.api_calls,
-      errors: joResult.errors,
-    }
-  } catch (err) {
-    results.zoho_job_openings = {
-      synced: 0,
-      api_calls: 0,
-      errors: [err instanceof Error ? err.message : String(err)],
-    }
-  }
-
-  // ---- Phase 2: Excel madre (all active sheets) ---------------------------
-  const { data: madreSheets } = await supabaseAdmin
-    .from('madre_sheets_kpi' as any)
-    .select('sheet_id, label')
-    .eq('is_active', true)
-    .order('year', { ascending: true })
-
-  for (const madre of (madreSheets as Array<{ sheet_id: string; label: string }> | null) ?? []) {
-    try {
-      const madreResult = await importExcelMadre(madre.sheet_id)
-      results.excel_madre.push({
-        label: madre.label,
-        base_datos: {
-          updated: madreResult.baseDatos.updated,
-          inserted: madreResult.baseDatos.inserted,
-          skipped: madreResult.baseDatos.skipped,
-        },
-        resumen: {
-          upserted: madreResult.resumen.upserted,
-          skipped: madreResult.resumen.skipped,
-        },
-        errors: madreResult.errors,
-      })
-    } catch (err) {
-      results.excel_madre.push({
-        label: madre.label,
-        base_datos: null,
-        resumen: null,
-        errors: [`Fatal: ${err instanceof Error ? err.message : String(err)}`],
-      })
-    }
-  }
-
-  // ---- Phase 3: Candidate tags from Zoho ------------------------------------
-  try {
-    const tagsResult = await syncCandidateTags()
-    results.candidate_tags = tagsResult
-  } catch (err) {
-    results.candidate_tags = {
-      total_fetched: 0,
-      updated: 0,
-      skipped_no_match: 0,
-      api_calls: 0,
-      errors: [err instanceof Error ? err.message : String(err)],
-    }
-  }
-
-  // ---- Phase 4: Vacancy tag counts — local (Supabase-only, all vacancies) -----
-  // Reads candidate_job_history_kpi + candidates_kpi.tags. No Zoho API.
-  // Closed vacancies are skipped if already computed (frozen).
-  try {
-    const vtcLocalResult = await syncVacancyTagCountsLocal()
-    results.vacancy_tag_counts_local = vtcLocalResult
-  } catch (err) {
-    results.vacancy_tag_counts_local = {
-      processed: 0,
-      skipped_closed: 0,
-      upserted_rows: 0,
-      errors: [err instanceof Error ? err.message : String(err)],
-    }
-  }
-
-  // ---- Phase 5: Vacancy tag counts from Zoho API (active only) ---------------
-  // Covers candidates associated in Zoho but not yet in candidate_job_history_kpi.
-  try {
-    const vtcZohoResult = await syncVacancyTagCountsFromZoho({ onlyActive: true })
-    results.vacancy_tag_counts_zoho = vtcZohoResult
-  } catch (err) {
-    results.vacancy_tag_counts_zoho = {
-      vacancies_processed: 0,
-      vacancies_skipped_closed: 0,
-      tag_rows_upserted: 0,
-      zoho_api_calls: 0,
-      errors: [err instanceof Error ? err.message : String(err)],
-    }
-  }
-
-  // ---- Phase 6: Candidate stage history (status changes across active vacancies) --
-  try {
-    const stageResult = await syncCandidatesForActiveVacancies()
-    results.candidates_stage_history = stageResult
-  } catch (err) {
-    results.candidates_stage_history = {
-      vacancies_processed: 0,
-      candidates_synced: 0,
-      status_changes_logged: 0,
-      api_calls: 0,
-      errors: [err instanceof Error ? err.message : String(err)],
-    }
-  }
-
-  const allErrors = [
-    ...(results.zoho_job_openings?.errors ?? []),
-    ...results.excel_madre.flatMap((m) => m.errors),
-    ...(results.candidate_tags?.errors ?? []),
-    ...(results.vacancy_tag_counts_local?.errors ?? []),
-    ...(results.vacancy_tag_counts_zoho?.errors ?? []),
-    ...(results.candidates_stage_history?.errors ?? []),
-  ]
   const hasErrors = allErrors.length > 0
-  const totalRecords =
-    (results.zoho_job_openings?.synced ?? 0) +
-    results.excel_madre.reduce((sum, m) => sum + (m.base_datos?.updated ?? 0) + (m.base_datos?.inserted ?? 0), 0)
 
   if (logId) {
     await supabaseAdmin
@@ -205,9 +116,8 @@ export async function GET(request: NextRequest) {
       .update({
         status: hasErrors ? 'partial' : 'success',
         finished_at: new Date().toISOString(),
-        records_processed: totalRecords,
-        api_calls_used: results.zoho_job_openings?.api_calls ?? 0,
-        error_message: hasErrors ? allErrors.join(' | ') : null,
+        records_processed: Object.keys(results).length,
+        error_message: hasErrors ? allErrors.slice(0, 10).join(' | ') : null,
       })
       .eq('id', logId)
   }
@@ -216,9 +126,16 @@ export async function GET(request: NextRequest) {
     {
       success: true,
       duration_ms: Date.now() - startTime,
-      ...results,
+      dispatched: TARGETS.length,
+      results,
       all_errors: allErrors,
     },
-    { status: hasErrors ? 207 : 200 }
+    { status: hasErrors ? 207 : 200 },
   )
+}
+
+function deriveBaseUrl(request: NextRequest): string {
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  const url = new URL(request.url)
+  return url.origin
 }

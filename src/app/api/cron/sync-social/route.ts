@@ -4,7 +4,7 @@ import { fetchAllYouTubeStats } from '@/lib/social-media/youtube'
 import { fetchAllInstagramStats } from '@/lib/social-media/instagram'
 import type { Json } from '@/lib/supabase/types'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 /**
  * GET /api/cron/sync-social
@@ -35,30 +35,34 @@ export async function GET(request: NextRequest) {
     skipped += 3
     errors.push('YOUTUBE_API_KEY not configured — skipped YouTube sync')
   } else {
-    const youtubeStats = await fetchAllYouTubeStats()
+    try {
+      const youtubeStats = await fetchAllYouTubeStats()
 
-    for (const stats of youtubeStats) {
-      const accountId = `youtube_${stats.handle.toLowerCase()}`
+      for (const stats of youtubeStats) {
+        const accountId = `youtube_${stats.handle.toLowerCase()}`
 
-      const { error } = await supabaseAdmin
-        .from('social_media_snapshots_kpi')
-        .insert({
-          account_id: accountId,
-          platform: 'youtube',
-          handle: stats.handle,
-          metric_name: 'snapshot',
-          subscribers_count: stats.subscriberCount,
-          posts_count: stats.videoCount,
-          total_views: stats.viewCount,
-          raw_data: { channelId: stats.channelId, topVideos: stats.topVideos } as unknown as Json,
-          captured_at: capturedAt,
-        })
+        const { error } = await supabaseAdmin
+          .from('social_media_snapshots_kpi')
+          .insert({
+            account_id: accountId,
+            platform: 'youtube',
+            handle: stats.handle,
+            metric_name: 'snapshot',
+            subscribers_count: stats.subscriberCount,
+            posts_count: stats.videoCount,
+            total_views: stats.viewCount,
+            raw_data: { channelId: stats.channelId, topVideos: stats.topVideos } as unknown as Json,
+            captured_at: capturedAt,
+          })
 
-      if (error) {
-        errors.push(`YouTube ${stats.handle}: ${error.message}`)
-      } else {
-        synced++
+        if (error) {
+          errors.push(`YouTube ${stats.handle}: ${error.message}`)
+        } else {
+          synced++
+        }
       }
+    } catch (err) {
+      errors.push(`YouTube fetch failed: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
@@ -68,39 +72,43 @@ export async function GET(request: NextRequest) {
     skipped += 3
     errors.push('META_ACCESS_TOKEN not configured — skipped Instagram sync')
   } else {
-    const igStats = await fetchAllInstagramStats()
+    try {
+      const igStats = await fetchAllInstagramStats()
 
-    if (igStats.length === 0) {
-      errors.push('Instagram: no accounts returned — token may be expired or missing permissions')
-      console.error('[cron/sync-social] Instagram fetch returned 0 accounts. Check META_ACCESS_TOKEN validity.')
-    }
-
-    for (const stats of igStats) {
-      const { error } = await supabaseAdmin
-        .from('social_media_snapshots_kpi')
-        .insert({
-          account_id: stats.accountId,
-          platform: 'instagram',
-          handle: stats.handle,
-          metric_name: 'snapshot',
-          followers_count: stats.followersCount,
-          following_count: stats.followsCount,
-          posts_count: stats.mediaCount,
-          raw_data: {
-            igBusinessId: stats.igBusinessId,
-            username: stats.username,
-            name: stats.name,
-            profilePictureUrl: stats.profilePictureUrl,
-            topMedia: stats.topMedia,
-          } as unknown as Json,
-          captured_at: capturedAt,
-        })
-
-      if (error) {
-        errors.push(`Instagram ${stats.handle}: ${error.message}`)
-      } else {
-        synced++
+      if (igStats.length === 0) {
+        errors.push('Instagram: no accounts returned — token may be expired or missing permissions')
+        console.error('[cron/sync-social] Instagram fetch returned 0 accounts. Check META_ACCESS_TOKEN validity.')
       }
+
+      for (const stats of igStats) {
+        const { error } = await supabaseAdmin
+          .from('social_media_snapshots_kpi')
+          .insert({
+            account_id: stats.accountId,
+            platform: 'instagram',
+            handle: stats.handle,
+            metric_name: 'snapshot',
+            followers_count: stats.followersCount,
+            following_count: stats.followsCount,
+            posts_count: stats.mediaCount,
+            raw_data: {
+              igBusinessId: stats.igBusinessId,
+              username: stats.username,
+              name: stats.name,
+              profilePictureUrl: stats.profilePictureUrl,
+              topMedia: stats.topMedia,
+            } as unknown as Json,
+            captured_at: capturedAt,
+          })
+
+        if (error) {
+          errors.push(`Instagram ${stats.handle}: ${error.message}`)
+        } else {
+          synced++
+        }
+      }
+    } catch (err) {
+      errors.push(`Instagram fetch failed: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 

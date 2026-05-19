@@ -26,13 +26,12 @@ export async function GET(request: Request) {
       .single()
 
     // Get record counts for all tables
-    const [candidates, jobOpenings, stageHistory, slaAlerts, dailySnapshots, syncLogs] =
+    const [candidates, jobOpenings, stageHistory, slaAlerts, syncLogs] =
       await Promise.all([
         supabaseAdmin.from('candidates_kpi').select('*', { count: 'exact', head: true }),
         supabaseAdmin.from('job_openings_kpi').select('*', { count: 'exact', head: true }),
         supabaseAdmin.from('stage_history_kpi').select('*', { count: 'exact', head: true }),
         supabaseAdmin.from('sla_alerts_kpi').select('*', { count: 'exact', head: true }),
-        supabaseAdmin.from('daily_snapshot_kpi').select('*', { count: 'exact', head: true }),
         supabaseAdmin.from('sync_log_kpi').select('*', { count: 'exact', head: true }),
       ])
 
@@ -60,7 +59,6 @@ export async function GET(request: Request) {
         job_openings: jobOpenings.count ?? 0,
         stage_history: stageHistory.count ?? 0,
         sla_alerts: slaAlerts.count ?? 0,
-        daily_snapshots: dailySnapshots.count ?? 0,
         sync_logs: syncLogs.count ?? 0,
       },
     })

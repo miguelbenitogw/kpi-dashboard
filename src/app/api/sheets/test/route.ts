@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 import { listSheets, readSheetByGid } from '@/lib/google-sheets/client'
+import { validateApiKey, unauthorizedResponse } from '@/app/api/sync/middleware'
 
 // Test spreadsheet: Promo 113/114
 const SPREADSHEET_ID = '1Gb22VO_gLRKdCgLOYL_1llJCAt-AwZhcF9QXsbWprik'
 const DROPOUT_GID = 1646413473
 
-export async function GET() {
+export async function GET(req: Request) {
+  if (!validateApiKey(req)) return unauthorizedResponse()
   try {
     const tabs = await listSheets(SPREADSHEET_ID)
     const rows = await readSheetByGid(SPREADSHEET_ID, DROPOUT_GID)

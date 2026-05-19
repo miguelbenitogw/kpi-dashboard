@@ -18,16 +18,8 @@
       "schedule": "30 3 * * *"
     },
     {
-      "path": "/api/cron/sync-vacancy-cvs",
-      "schedule": "0 7 * * 5"
-    },
-    {
       "path": "/api/cron/sync-social",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/sync-full",
-      "schedule": "0 3 * * 0"
     },
     {
       "path": "/api/cron/sync-atraccion-history",
@@ -39,19 +31,31 @@
     },
     {
       "path": "/api/cron/sync-germany",
-      "schedule": "0 4 * * 0"
+      "schedule": "0 4 * * *"
     },
     {
       "path": "/api/cron/sync-germany-candidates",
-      "schedule": "0 5 * * 0"
+      "schedule": "0 5 * * *"
     },
     {
       "path": "/api/cron/sync-vacancy-stats",
       "schedule": "0 5 * * *"
     },
     {
+      "path": "/api/cron/sync-vacancy-cvs",
+      "schedule": "0 7 * * 5"
+    },
+    {
       "path": "/api/cron/sync-institutions",
       "schedule": "0 6 * * 1"
+    },
+    {
+      "path": "/api/cron/sync-candidate-tags",
+      "schedule": "0 6 * * 0"
+    },
+    {
+      "path": "/api/cron/sync-vacancy-tags",
+      "schedule": "30 6 * * 0"
     }
   ]
 }

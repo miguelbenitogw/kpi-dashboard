@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import { importGlobalPlacement } from '@/lib/google-sheets/import-global-placement'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 /**
  * GET /api/cron/sync-placement
@@ -21,11 +21,12 @@ export async function GET(request: NextRequest) {
   const startedAt = new Date().toISOString()
   const startTime = Date.now()
 
-  await supabaseAdmin.from('sync_log_kpi').insert({
+  const { data: logRow } = await supabaseAdmin.from('sync_log_kpi').insert({
     sync_type: 'global_placement_weekly',
     status: 'running',
     started_at: startedAt,
-  })
+  }).select('id').single()
+  const logId = logRow?.id ?? null
 
   const results: Array<{
     label: string
@@ -62,14 +63,14 @@ export async function GET(request: NextRequest) {
   const status = allErrors.length === 0 ? 'success' : totalUpdated > 0 ? 'partial' : 'failed'
   const finishedAt = new Date().toISOString()
 
-  await supabaseAdmin.from('sync_log_kpi').insert({
-    sync_type: 'global_placement_weekly',
-    status,
-    records_processed: totalUpdated,
-    error_message: allErrors.length > 0 ? allErrors.slice(0, 5).join(' | ') : null,
-    started_at: startedAt,
-    finished_at: finishedAt,
-  })
+  if (logId) {
+    await supabaseAdmin.from('sync_log_kpi').update({
+      status,
+      records_processed: totalUpdated,
+      error_message: allErrors.length > 0 ? allErrors.slice(0, 5).join(' | ') : null,
+      finished_at: finishedAt,
+    }).eq('id', logId)
+  }
 
   return NextResponse.json(
     {

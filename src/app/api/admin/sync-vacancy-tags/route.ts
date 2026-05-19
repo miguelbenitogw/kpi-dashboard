@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { syncVacancyTagCounts } from '@/lib/supabase/sync-vacancy-tags'
+import { validateApiKey, unauthorizedResponse } from '@/app/api/sync/middleware'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 /**
  * GET /api/admin/sync-vacancy-tags
@@ -18,7 +19,8 @@ export async function GET(_request: NextRequest) {
  * Pre-aggregates candidate tag counts per vacancy into vacancy_tag_counts_kpi.
  * Active vacancies are always recomputed; closed vacancies are only computed once.
  */
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
+  if (!validateApiKey(request)) return unauthorizedResponse()
   try {
     const result = await syncVacancyTagCounts()
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { importGermanyExcelMadre, GERMANY_SHEET_ID } from '@/lib/google-sheets/import-germany'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 /**
  * POST /api/cron/sync-germany
@@ -13,7 +13,7 @@ export const maxDuration = 60
  *
  * Protected by CRON_SECRET header (Bearer token).
  */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
 

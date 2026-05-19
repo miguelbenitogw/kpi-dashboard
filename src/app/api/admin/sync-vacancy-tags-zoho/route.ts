@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { syncVacancyTagCountsFromZoho } from '@/lib/zoho/sync-vacancy-tags-zoho'
+import { validateApiKey, unauthorizedResponse } from '@/app/api/sync/middleware'
 
 export const maxDuration = 300 // 5 minutes — needs Pro plan or use in chunks
 
@@ -10,6 +11,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (!validateApiKey(req)) return unauthorizedResponse()
   try {
     const body = await req.json().catch(() => ({}))
     const onlyActive = body.onlyActive === true
