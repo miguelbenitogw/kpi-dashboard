@@ -250,14 +250,14 @@ export default function DropoutsCharts({ rows }: Props) {
       {/* 2+3. Donuts side by side — each half width */}
       <div className="grid grid-cols-2 gap-4">
         <ChartCard title="Nivel de idioma">
-          <ResponsiveContainer width="100%" height={180}>
+          <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
                 data={byLevel}
                 dataKey="value"
                 nameKey="name"
-                outerRadius="70%"
-                innerRadius="50%"
+                outerRadius="80%"
+                innerRadius="55%"
               >
                 {byLevel.map((_, i) => (
                   <Cell key={i} fill={LEVEL_PALETTE[i % LEVEL_PALETTE.length]} />
@@ -268,9 +268,9 @@ export default function DropoutsCharts({ rows }: Props) {
                 verticalAlign="bottom"
                 height={36}
                 iconType="circle"
-                iconSize={6}
+                iconSize={8}
                 formatter={(value) => (
-                  <span style={{ color: '#78716c', fontSize: 10 }}>{value}</span>
+                  <span style={{ color: '#44403c', fontSize: 12 }}>{value}</span>
                 )}
               />
             </PieChart>
@@ -278,14 +278,14 @@ export default function DropoutsCharts({ rows }: Props) {
         </ChartCard>
 
         <ChartCard title="Interés futuro">
-          <ResponsiveContainer width="100%" height={180}>
+          <ResponsiveContainer width="100%" height={260}>
             <PieChart>
               <Pie
                 data={byInterest}
                 dataKey="value"
                 nameKey="name"
-                outerRadius="70%"
-                innerRadius="50%"
+                outerRadius="80%"
+                innerRadius="55%"
               >
                 {byInterest.map((entry, i) => (
                   <Cell
@@ -299,9 +299,9 @@ export default function DropoutsCharts({ rows }: Props) {
                 verticalAlign="bottom"
                 height={36}
                 iconType="circle"
-                iconSize={6}
+                iconSize={8}
                 formatter={(value) => (
-                  <span style={{ color: '#78716c', fontSize: 10 }}>{value}</span>
+                  <span style={{ color: '#44403c', fontSize: 12 }}>{value}</span>
                 )}
               />
             </PieChart>
