@@ -121,12 +121,17 @@ export default function DropoutsCharts({ rows }: Props) {
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
   }, [rows])
 
-  // 4. Abandonos por promoción
+  // 4. Abandonos por promoción (con tasa de abandono)
   const byPromo = useMemo(() => {
-    const map = new Map<string, number>()
+    const map = new Map<string, { count: number; total: number }>()
     for (const r of rows) {
       const k = r.promocion_nombre ?? 'Sin promo'
-      map.set(k, (map.get(k) ?? 0) + 1)
+      const existing = map.get(k)
+      if (!existing) {
+        map.set(k, { count: 1, total: r.promo_total_students ?? 0 })
+      } else {
+        existing.count++
+      }
     }
     return Array.from(map.entries())
       .sort(([a], [b]) => {
@@ -134,7 +139,12 @@ export default function DropoutsCharts({ rows }: Props) {
         const numB = parseInt(b.replace(/\D/g, ''), 10) || 0
         return numA - numB
       })
-      .map(([name, count]) => ({ name, count }))
+      .map(([name, { count, total }]) => ({
+        name,
+        count,
+        total,
+        pct: total > 0 ? Math.round((count / total) * 100) : 0,
+      }))
   }, [rows])
 
   // 5. Etiquetas — split by category
@@ -311,8 +321,11 @@ export default function DropoutsCharts({ rows }: Props) {
 
       {/* 4. Abandonos por promoción */}
       <ChartCard title="Abandonos por promoción">
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={byPromo} margin={{ top: 4, right: 8, left: -10, bottom: 60 }}>
+        <p style={{ margin: '0 0 6px', fontSize: 10, color: '#9CA3AF' }}>
+          Cada barra muestra el n.º de bajas. El <strong style={{ color: '#f87171' }}>%</strong> indica la tasa de abandono (bajas / total alumnos de la promo).
+        </p>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={byPromo} margin={{ top: 18, right: 8, left: -10, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
             <XAxis
               dataKey="name"
@@ -322,8 +335,34 @@ export default function DropoutsCharts({ rows }: Props) {
               interval={0}
             />
             <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} allowDecimals={false} />
-            <Tooltip {...TOOLTIP_STYLE} />
-            <Bar dataKey="count" fill={PROMO_COLOR} radius={[3, 3, 0, 0]} />
+            <Tooltip
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null
+                const d = payload[0].payload as { name: string; count: number; total: number; pct: number }
+                return (
+                  <div style={{ background: '#fff', border: '1px solid #e7e2d8', borderRadius: 6, padding: '8px 12px', fontSize: 11, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+                    <p style={{ margin: 0, fontWeight: 700, color: '#1c1917' }}>{d.name}</p>
+                    <p style={{ margin: '4px 0 0', color: '#78716c' }}>
+                      <strong style={{ color: '#6366f1' }}>{d.count}</strong> bajas de <strong>{d.total}</strong> alumnos
+                    </p>
+                    <p style={{ margin: '2px 0 0', color: '#ef4444', fontWeight: 600 }}>
+                      Tasa de abandono: {d.pct}%
+                    </p>
+                  </div>
+                )
+              }}
+            />
+            <Bar dataKey="count" fill={PROMO_COLOR} radius={[3, 3, 0, 0]}
+              label={({ x, y, width, index }: any) => {
+                const entry = byPromo[index]
+                if (!entry || entry.pct === 0) return null
+                return (
+                  <text x={x + width / 2} y={y - 4} textAnchor="middle" fontSize={9} fontWeight={600} fill="#f87171">
+                    {entry.pct}%
+                  </text>
+                )
+              }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>

@@ -18,6 +18,8 @@ export interface DropoutRow {
   tags: string[]
   /** Year derived from the promo's fecha_inicio (Excel Madre), NOT dropout_date */
   promo_year: number | null
+  /** Total students in this promo (all tabs in promo sheet) */
+  promo_total_students: number | null
   // Payment enrichment
   pago_importe_total: number | null
   pago_importe_pendiente: number | null
@@ -77,6 +79,16 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
     }
   }
 
+  // 4. Count total students per promo (all sheet tabs) for dropout rate calculation
+  const promoTotalMap = new Map<string, number>()
+  for (const promoName of promoNames) {
+    const { count } = await (supabase as any)
+      .from('promo_students_kpi')
+      .select('id', { count: 'exact', head: true })
+      .eq('promocion_nombre', promoName)
+    if (count !== null) promoTotalMap.set(promoName, count)
+  }
+
   const byEmail = new Map<string, { tags: string[]; zohoId: string | null }>()
   const byName = new Map<string, { tags: string[]; zohoId: string | null }>()
 
@@ -106,6 +118,7 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
       dropout_notes: d.dropout_notes ?? null,
       tags: match?.tags ?? [],
       promo_year: promoYearMap.get(d.promocion_nombre ?? '') ?? null,
+      promo_total_students: promoTotalMap.get(d.promocion_nombre ?? '') ?? null,
     }
   })
 
