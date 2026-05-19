@@ -6,6 +6,7 @@ import TopVacancies from '@/components/dashboard/TopVacancies'
 import CvsPerVacancyChart from '@/components/dashboard/CvsPerVacancyChart'
 import VacantesPrincipalesStrip from '@/components/resumen/VacantesPrincipalesStrip'
 import PlacementPendingCards from '@/components/dashboard/PlacementPendingCards'
+import EquipoHoyWidget from '@/components/resumen/EquipoHoyWidget'
 
 export default function DashboardPage() {
   return (
@@ -18,6 +19,13 @@ export default function DashboardPage() {
         <p className="mt-1 text-sm" style={{ color: '#78716c' }}>
           Vista general de indicadores clave de reclutamiento
         </p>
+      </div>
+
+      {/* ¿Quién está hoy? */}
+      <div style={{ background: '#f9f7f4', borderRadius: 14, padding: '16px 20px', border: '1px solid #e7e2d8' }}>
+        <Suspense fallback={null}>
+          <EquipoHoyWidget />
+        </Suspense>
       </div>
 
       {/* Vacantes principales */}

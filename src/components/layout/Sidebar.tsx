@@ -71,6 +71,7 @@ const navSections: NavSection[] = [
     title: 'EQUIPO INTERNO',
     items: [
       { href: '/dashboard/equipo-interno/vacaciones', label: 'Vacaciones', icon: CalendarDays },
+      { href: '/dashboard/equipo-interno/placement',  label: 'Placement',  icon: Briefcase },
     ],
   },
   {
