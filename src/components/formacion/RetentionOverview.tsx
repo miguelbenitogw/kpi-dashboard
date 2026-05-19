@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Pencil } from 'lucide-react'
+import { Pencil, Info } from 'lucide-react'
 import {
   getPromotionsFormacionOverview,
   type PromotionFormacionOverview,
@@ -160,7 +160,7 @@ export default function RetentionOverview({
               >
                 <button
                   onClick={() => onToggle(promo.nombre)}
-                  title={`${promo.nombre} — Obj ${promo.objetivo} · Actual ${promo.actual} · Bajas ${promo.dropouts} · Transferred ${promo.transferred} · ${pct}%`}
+                  title={`${promo.nombre} — Obj ${promo.objetivo} · Actual ${promo.actual} · Bajas formación ${promo.dropouts} · Transferred ${promo.transferred} · ${pct}%`}
                   className={[
                     'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer border',
                     isSelected
@@ -230,7 +230,15 @@ export default function RetentionOverview({
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Bajas</p>
+              <div className="flex items-center gap-1">
+                <p className="text-xs text-gray-500">Bajas en formación</p>
+                <div className="group relative">
+                  <Info className="h-3 w-3 text-gray-400 cursor-help" />
+                  <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-[10px] leading-snug text-gray-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    Se contabilizan candidatos con estado<br /><strong className="text-white">Offer Withdrawn</strong>
+                  </div>
+                </div>
+              </div>
               <p className="mt-1 text-2xl font-bold tabular-nums text-red-400">
                 {totalDropouts.toLocaleString('es-AR')}
               </p>

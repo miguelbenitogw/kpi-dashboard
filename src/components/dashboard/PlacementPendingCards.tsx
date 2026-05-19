@@ -150,7 +150,7 @@ function NorwayCard({ slices }: { slices: SliceData[] }) {
         </div>
 
         {/* Legend */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', maxHeight: 148 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
           {enriched.map((entry) => {
             const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0
             return (
