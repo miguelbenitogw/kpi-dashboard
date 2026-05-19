@@ -180,20 +180,6 @@ export default function ColocacionPage() {
             </div>
           </section>
 
-          {/* ── Estado + Open To breakdown ── */}
-          <section>
-            <div style={{ marginBottom: 12 }}>
-              <h2 className="text-base font-semibold" style={{ color: '#1c1917' }}>
-                Distribución por estado y preferencias
-              </h2>
-              <p className="text-sm" style={{ color: '#78716c', marginTop: 2 }}>
-                Desglose de candidatos por estado Zoho y preferencia de destino (Open To).
-              </p>
-            </div>
-            <div style={{ background: '#ffffff', border: '1px solid #e7e2d8', borderRadius: 14, padding: 18 }}>
-              <GPColocacionView externalPromo={''} year={selectedYear || null} />
-            </div>
-          </section>
         </>
       )}
 
