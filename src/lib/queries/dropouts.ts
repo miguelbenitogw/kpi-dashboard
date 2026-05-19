@@ -16,6 +16,8 @@ export interface DropoutRow {
   dropout_modality: string | null
   dropout_notes: string | null
   tags: string[]
+  /** Year derived from the promo's fecha_inicio (Excel Madre), NOT dropout_date */
+  promo_year: number | null
   // Payment enrichment
   pago_importe_total: number | null
   pago_importe_pendiente: number | null
@@ -58,6 +60,23 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
     if (data) allCandidates.push(...data)
   }
 
+  // 3. Fetch promo start dates to derive promo_year (same logic as Formación)
+  const promoNames = [...new Set(
+    (dropoutsRes.data ?? []).map((d: any) => d.promocion_nombre).filter(Boolean) as string[]
+  )]
+  const promoYearMap = new Map<string, number>()
+  if (promoNames.length > 0) {
+    const { data: promos } = await supabase
+      .from('promotions_kpi')
+      .select('nombre, fecha_inicio')
+      .in('nombre', promoNames)
+    for (const p of promos ?? []) {
+      if (p.fecha_inicio) {
+        promoYearMap.set(p.nombre, new Date(p.fecha_inicio).getFullYear())
+      }
+    }
+  }
+
   const byEmail = new Map<string, { tags: string[]; zohoId: string | null }>()
   const byName = new Map<string, { tags: string[]; zohoId: string | null }>()
 
@@ -86,6 +105,7 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
       dropout_modality: d.dropout_modality ?? null,
       dropout_notes: d.dropout_notes ?? null,
       tags: match?.tags ?? [],
+      promo_year: promoYearMap.get(d.promocion_nombre ?? '') ?? null,
     }
   })
 

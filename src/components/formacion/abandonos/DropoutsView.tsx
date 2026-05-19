@@ -45,10 +45,10 @@ export default function DropoutsView() {
   useEffect(() => {
     getDropoutsWithTags().then((data) => {
       setAllDropouts(data)
-      // Auto-select most recent year
+      // Auto-select most recent year (uses promo's fecha_inicio year, same as Formación)
       const years = new Set<number>()
       for (const d of data) {
-        if (d.dropout_date) years.add(new Date(d.dropout_date).getFullYear())
+        if (d.promo_year) years.add(d.promo_year)
       }
       const sorted = Array.from(years).sort((a, b) => a - b)
       if (sorted.length > 0) setSelectedYear(sorted[sorted.length - 1])
@@ -56,22 +56,19 @@ export default function DropoutsView() {
     })
   }, [])
 
-  // Available years derived from data
+  // Available years derived from promo's fecha_inicio (same as Formación)
   const availableYears = useMemo(() => {
     const years = new Set<number>()
     for (const d of allDropouts) {
-      if (d.dropout_date) years.add(new Date(d.dropout_date).getFullYear())
+      if (d.promo_year) years.add(d.promo_year)
     }
     return Array.from(years).sort((a, b) => a - b)
   }, [allDropouts])
 
-  // Pre-filter by selected year, then apply other filters
+  // Pre-filter by selected year (promo's fecha_inicio year)
   const byYear = useMemo(() => {
     if (selectedYear === null) return allDropouts
-    return allDropouts.filter((d) => {
-      if (!d.dropout_date) return false
-      return new Date(d.dropout_date).getFullYear() === selectedYear
-    })
+    return allDropouts.filter((d) => d.promo_year === selectedYear)
   }, [allDropouts, selectedYear])
 
   // Filtered rows
