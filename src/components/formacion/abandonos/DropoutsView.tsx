@@ -191,7 +191,7 @@ export default function DropoutsView() {
       {/* Year pills */}
       {availableYears.length > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: '#78716c', fontWeight: 500, marginRight: 4 }}>Temporada</span>
+          <span style={{ fontSize: 12, color: '#78716c', fontWeight: 500, marginRight: 4 }}>Año promocional</span>
           <button
             onClick={() => handleYearChange(null)}
             style={{
@@ -208,25 +208,28 @@ export default function DropoutsView() {
           >
             Todas
           </button>
-          {availableYears.map((y) => (
-            <button
-              key={y}
-              onClick={() => handleYearChange(y)}
-              style={{
-                borderRadius: 99,
-                padding: '4px 14px',
-                fontSize: 12,
-                fontWeight: selectedYear === y ? 700 : 500,
-                border: `1px solid ${selectedYear === y ? '#1e4b9e' : '#e7e2d8'}`,
-                background: selectedYear === y ? '#eff6ff' : '#fff',
-                color: selectedYear === y ? '#1e4b9e' : '#78716c',
-                cursor: 'pointer',
-                transition: 'all 120ms',
-              }}
-            >
-              {y}
-            </button>
-          ))}
+          {availableYears.map((y) => {
+            const label = `${String(y - 1).slice(-2)}-${String(y).slice(-2)}`
+            return (
+              <button
+                key={y}
+                onClick={() => handleYearChange(y)}
+                style={{
+                  borderRadius: 99,
+                  padding: '4px 14px',
+                  fontSize: 12,
+                  fontWeight: selectedYear === y ? 700 : 500,
+                  border: `1px solid ${selectedYear === y ? '#1e4b9e' : '#e7e2d8'}`,
+                  background: selectedYear === y ? '#eff6ff' : '#fff',
+                  color: selectedYear === y ? '#1e4b9e' : '#78716c',
+                  cursor: 'pointer',
+                  transition: 'all 120ms',
+                }}
+              >
+                {label}
+              </button>
+            )
+          })}
         </div>
       )}
 
