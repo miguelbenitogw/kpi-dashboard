@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Info } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { supabase } from '@/lib/supabase/client'
 
@@ -22,6 +22,20 @@ const STATUS_COLORS: Record<string, string> = {
   'Resign':                       '#dc2626',
 }
 const DEFAULT_COLOR = '#cbd5e1'
+
+const STATUS_DESCRIPTIONS: Record<string, string> = {
+  'Hired by agency':              'Contratado por una agencia de personal sanitario en Noruega',
+  'Hired by Kommuner Fast':       'Trabajando para una kommune con contrato indefinido',
+  'Hired by Kommuner temporary':  'Trabajando para una kommune con contrato temporal',
+  'Out/on boarding job':          'En proceso de incorporación a su puesto de trabajo',
+  'Interview in process':         'En proceso de entrevista con una empresa de la RedGW',
+  'Presented to an Agency':       'Perfil presentado a una agencia, pendiente de respuesta',
+  'Registration ready':           'Registro completado, listo para ser presentado',
+  'Working on it':                'Preparando su perfil o documentación para presentar',
+  'Creating profile':             'En proceso de creación de perfil profesional',
+  'Not ready to present':         'Aún no reúne los requisitos para ser presentado',
+  'Resign':                       'Ha renunciado al proceso de colocación',
+}
 
 // Statuses excluded from GP active pool (same as GP_EXCLUDED in colocacion.ts)
 const GP_EXCLUDED = new Set(['Offer Withdrawn', 'Offer Declined', 'Expelled', 'No Show'])
@@ -120,9 +134,30 @@ function NorwayCard({ slices }: { slices: SliceData[] }) {
       flex: '0 1 480px', minWidth: 280,
     }}>
       {/* Header */}
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#1e4b9e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
-        Noruega · Placement Status
-        <span style={{ fontWeight: 400, color: '#64748b', marginLeft: 6 }}>({total} activos)</span>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#1e4b9e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span>Noruega · Placement Status</span>
+        <span style={{ fontWeight: 400, color: '#64748b' }}>({total} activos)</span>
+        <div style={{ position: 'relative' }} className="group">
+          <Info size={13} style={{ color: '#94a3b8', cursor: 'help' }} />
+          <div
+            className="pointer-events-none absolute z-50 opacity-0 transition-opacity group-hover:opacity-100"
+            style={{
+              bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+              marginBottom: 6, width: 280, borderRadius: 8,
+              background: '#1e293b', padding: '10px 12px',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+              fontSize: 10, lineHeight: 1.5, color: '#e2e8f0',
+            }}
+          >
+            <p style={{ fontWeight: 700, color: '#93c5fd', marginBottom: 4 }}>Estados de colocación:</p>
+            {Object.entries(STATUS_DESCRIPTIONS).map(([status, desc]) => (
+              <div key={status} style={{ display: 'flex', gap: 6, marginBottom: 3 }}>
+                <span style={{ width: 6, height: 6, borderRadius: 2, background: STATUS_COLORS[status] ?? DEFAULT_COLOR, flexShrink: 0, marginTop: 4 }} />
+                <span><strong style={{ color: '#fff' }}>{status}</strong> — {desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

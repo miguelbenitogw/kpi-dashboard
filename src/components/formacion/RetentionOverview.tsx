@@ -224,7 +224,23 @@ export default function RetentionOverview({
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Retenidos</p>
+              <div className="flex items-center gap-1">
+                <p className="text-xs text-gray-500">Retenidos</p>
+                <div className="group relative">
+                  <Info className="h-3 w-3 text-gray-400 cursor-help" />
+                  <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 w-56 rounded-md bg-gray-800 px-3 py-2 text-[10px] leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    <p className="mb-1 font-semibold text-emerald-300">Estados que se contabilizan:</p>
+                    <ul className="list-disc pl-3 space-y-0.5">
+                      <li><strong>In Training</strong> — en formación actualmente</li>
+                      <li><strong>Hired</strong> — ha viajado a destino</li>
+                      <li><strong>To Place</strong> — formación finalizada, sin oferta aún</li>
+                      <li><strong>Assigned</strong> — asignación recibida, pendiente de viajar</li>
+                      <li><strong>Training Finished</strong> — formación finalizada sin oferta</li>
+                      <li><strong>Next Project</strong> — incorporación a proyecto futuro</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
               <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-400">
                 {totalActual.toLocaleString('es-AR')}
               </p>
@@ -234,8 +250,11 @@ export default function RetentionOverview({
                 <p className="text-xs text-gray-500">Bajas en formación</p>
                 <div className="group relative">
                   <Info className="h-3 w-3 text-gray-400 cursor-help" />
-                  <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-800 px-2.5 py-1.5 text-[10px] leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                    Se contabilizan candidatos con estado<br /><strong className="font-bold text-amber-300">Offer Withdrawn</strong>
+                  <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 w-56 rounded-md bg-gray-800 px-3 py-2 text-[10px] leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    <p className="mb-1 font-semibold text-red-300">Estado que se contabiliza:</p>
+                    <ul className="list-disc pl-3">
+                      <li><strong>Offer Withdrawn</strong> — ha abandonado el proyecto tras iniciar la formación</li>
+                    </ul>
                   </div>
                 </div>
               </div>
@@ -244,7 +263,18 @@ export default function RetentionOverview({
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Transferred</p>
+              <div className="flex items-center gap-1">
+                <p className="text-xs text-gray-500">Transferred</p>
+                <div className="group relative">
+                  <Info className="h-3 w-3 text-gray-400 cursor-help" />
+                  <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 w-56 rounded-md bg-gray-800 px-3 py-2 text-[10px] leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    <p className="mb-1 font-semibold text-blue-300">Estado que se contabiliza:</p>
+                    <ul className="list-disc pl-3">
+                      <li><strong>Transferred</strong> — ha dejado su promoción para incorporarse a un proyecto futuro</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
               <p className="mt-1 text-2xl font-bold tabular-nums text-blue-400">
                 {totalTransferred.toLocaleString('es-AR')}
               </p>
