@@ -40,17 +40,43 @@ export default function DropoutsView() {
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState<DropoutFilters>(EMPTY_FILTERS)
   const [chartsOpen, setChartsOpen] = useState(true)
+  const [selectedYear, setSelectedYear] = useState<number | null>(null)
 
   useEffect(() => {
     getDropoutsWithTags().then((data) => {
       setAllDropouts(data)
+      // Auto-select most recent year
+      const years = new Set<number>()
+      for (const d of data) {
+        if (d.dropout_date) years.add(new Date(d.dropout_date).getFullYear())
+      }
+      const sorted = Array.from(years).sort((a, b) => a - b)
+      if (sorted.length > 0) setSelectedYear(sorted[sorted.length - 1])
       setLoading(false)
     })
   }, [])
 
+  // Available years derived from data
+  const availableYears = useMemo(() => {
+    const years = new Set<number>()
+    for (const d of allDropouts) {
+      if (d.dropout_date) years.add(new Date(d.dropout_date).getFullYear())
+    }
+    return Array.from(years).sort((a, b) => a - b)
+  }, [allDropouts])
+
+  // Pre-filter by selected year, then apply other filters
+  const byYear = useMemo(() => {
+    if (selectedYear === null) return allDropouts
+    return allDropouts.filter((d) => {
+      if (!d.dropout_date) return false
+      return new Date(d.dropout_date).getFullYear() === selectedYear
+    })
+  }, [allDropouts, selectedYear])
+
   // Filtered rows
   const filtered = useMemo(() => {
-    return allDropouts.filter((d) => {
+    return byYear.filter((d) => {
       if (filters.search) {
         const q = filters.search.toLowerCase()
         const nameMatch = d.full_name?.toLowerCase().includes(q) ?? false
@@ -90,7 +116,7 @@ export default function DropoutsView() {
     })
   }, [allDropouts, filters])
 
-  // Options derived from allDropouts, counts from filtered
+  // Options derived from byYear (year-filtered), counts from filtered
   const options = useMemo(() => {
     function buildOpts(
       getter: (d: DropoutRow) => string,
@@ -109,33 +135,33 @@ export default function DropoutsView() {
 
     const promos = buildOpts(
       (d) => d.promocion_nombre ?? '',
-      allDropouts.filter((d) => d.promocion_nombre),
+      byYear.filter((d) => d.promocion_nombre),
       filtered
     )
     const reasons = buildOpts(
       (d) => d.dropout_reason ?? 'Sin motivo',
-      allDropouts,
+      byYear,
       filtered
     )
     const languageLevels = buildOpts(
       (d) => d.dropout_language_level ?? 'Sin dato',
-      allDropouts,
+      byYear,
       filtered
     )
     const interests = buildOpts(
       (d) => d.dropout_interest_future ?? 'Sin dato',
-      allDropouts,
+      byYear,
       filtered
     )
     const nationalities = buildOpts(
       (d) => d.nationality ?? 'Sin dato',
-      allDropouts,
+      byYear,
       filtered
     )
 
-    // Tags — unique across all dropouts
+    // Tags — unique across year-filtered dropouts
     const allTagSet = new Set<string>()
-    for (const d of allDropouts) d.tags.forEach((t) => allTagSet.add(t))
+    for (const d of byYear) d.tags.forEach((t) => allTagSet.add(t))
     const tags: FilterOption[] = Array.from(allTagSet)
       .sort()
       .map((tag) => ({
@@ -146,17 +172,64 @@ export default function DropoutsView() {
 
     const modalities = buildOpts(
       (d) => d.dropout_modality ?? 'Sin dato',
-      allDropouts,
+      byYear,
       filtered
     )
 
     return { promos, reasons, languageLevels, interests, tags, nationalities, modalities }
-  }, [allDropouts, filtered])
+  }, [byYear, filtered])
 
   if (loading) return <Skeleton />
 
+  function handleYearChange(year: number | null) {
+    setSelectedYear(year)
+    setFilters(EMPTY_FILTERS)
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Year pills */}
+      {availableYears.length > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: '#78716c', fontWeight: 500, marginRight: 4 }}>Temporada</span>
+          <button
+            onClick={() => handleYearChange(null)}
+            style={{
+              borderRadius: 99,
+              padding: '4px 14px',
+              fontSize: 12,
+              fontWeight: selectedYear === null ? 700 : 500,
+              border: `1px solid ${selectedYear === null ? '#1e4b9e' : '#e7e2d8'}`,
+              background: selectedYear === null ? '#eff6ff' : '#fff',
+              color: selectedYear === null ? '#1e4b9e' : '#78716c',
+              cursor: 'pointer',
+              transition: 'all 120ms',
+            }}
+          >
+            Todas
+          </button>
+          {availableYears.map((y) => (
+            <button
+              key={y}
+              onClick={() => handleYearChange(y)}
+              style={{
+                borderRadius: 99,
+                padding: '4px 14px',
+                fontSize: 12,
+                fontWeight: selectedYear === y ? 700 : 500,
+                border: `1px solid ${selectedYear === y ? '#1e4b9e' : '#e7e2d8'}`,
+                background: selectedYear === y ? '#eff6ff' : '#fff',
+                color: selectedYear === y ? '#1e4b9e' : '#78716c',
+                cursor: 'pointer',
+                transition: 'all 120ms',
+              }}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+      )}
+
       <DropoutsKpiBanner rows={filtered} />
 
       <DropoutsFilters

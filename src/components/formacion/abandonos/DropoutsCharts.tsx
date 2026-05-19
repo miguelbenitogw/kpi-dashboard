@@ -225,7 +225,7 @@ export default function DropoutsCharts({ rows }: Props) {
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      {/* 1. Motivos de baja */}
+      {/* 1. Motivos de baja — full width */}
       <ChartCard title="Motivos de baja">
         <ResponsiveContainer width="100%" height={reasonHeight}>
           <BarChart data={byReason} layout="vertical" margin={{ left: 8, right: 16 }}>
@@ -247,66 +247,67 @@ export default function DropoutsCharts({ rows }: Props) {
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* 2. Nivel de idioma */}
-      <ChartCard title="Nivel de idioma al abandonar">
-        <ResponsiveContainer width="100%" height={200}>
-          <PieChart>
-            <Pie
-              data={byLevel}
-              dataKey="value"
-              nameKey="name"
-              outerRadius="75%"
-              innerRadius="55%"
-            >
-              {byLevel.map((_, i) => (
-                <Cell key={i} fill={LEVEL_PALETTE[i % LEVEL_PALETTE.length]} />
-              ))}
-            </Pie>
-            <Tooltip {...TOOLTIP_STYLE} />
-            <Legend
-              verticalAlign="bottom"
-              height={36}
-              iconType="circle"
-              iconSize={8}
-              formatter={(value) => (
-                <span style={{ color: '#78716c', fontSize: 11 }}>{value}</span>
-              )}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-      </ChartCard>
+      {/* 2+3. Donuts side by side — each half width */}
+      <div className="grid grid-cols-2 gap-4">
+        <ChartCard title="Nivel de idioma">
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie
+                data={byLevel}
+                dataKey="value"
+                nameKey="name"
+                outerRadius="70%"
+                innerRadius="50%"
+              >
+                {byLevel.map((_, i) => (
+                  <Cell key={i} fill={LEVEL_PALETTE[i % LEVEL_PALETTE.length]} />
+                ))}
+              </Pie>
+              <Tooltip {...TOOLTIP_STYLE} />
+              <Legend
+                verticalAlign="bottom"
+                height={36}
+                iconType="circle"
+                iconSize={6}
+                formatter={(value) => (
+                  <span style={{ color: '#78716c', fontSize: 10 }}>{value}</span>
+                )}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
 
-      {/* 3. Interés en proyectos futuros */}
-      <ChartCard title="Interés en proyectos futuros">
-        <ResponsiveContainer width="100%" height={200}>
-          <PieChart>
-            <Pie
-              data={byInterest}
-              dataKey="value"
-              nameKey="name"
-              outerRadius="75%"
-              innerRadius="55%"
-            >
-              {byInterest.map((entry, i) => (
-                <Cell
-                  key={i}
-                  fill={INTEREST_COLORS[entry.name] ?? LEVEL_PALETTE[i % LEVEL_PALETTE.length]}
-                />
-              ))}
-            </Pie>
-            <Tooltip {...TOOLTIP_STYLE} />
-            <Legend
-              verticalAlign="bottom"
-              height={36}
-              iconType="circle"
-              iconSize={8}
-              formatter={(value) => (
-                <span style={{ color: '#78716c', fontSize: 11 }}>{value}</span>
-              )}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-      </ChartCard>
+        <ChartCard title="Interés futuro">
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie
+                data={byInterest}
+                dataKey="value"
+                nameKey="name"
+                outerRadius="70%"
+                innerRadius="50%"
+              >
+                {byInterest.map((entry, i) => (
+                  <Cell
+                    key={i}
+                    fill={INTEREST_COLORS[entry.name] ?? LEVEL_PALETTE[i % LEVEL_PALETTE.length]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip {...TOOLTIP_STYLE} />
+              <Legend
+                verticalAlign="bottom"
+                height={36}
+                iconType="circle"
+                iconSize={6}
+                formatter={(value) => (
+                  <span style={{ color: '#78716c', fontSize: 10 }}>{value}</span>
+                )}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
 
       {/* 4. Abandonos por promoción */}
       <ChartCard title="Abandonos por promoción">
