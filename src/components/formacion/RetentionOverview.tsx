@@ -234,8 +234,8 @@ export default function RetentionOverview({
                 <p className="text-xs text-gray-500">Bajas en formación</p>
                 <div className="group relative">
                   <Info className="h-3 w-3 text-gray-400 cursor-help" />
-                  <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1.5 text-[10px] leading-snug text-gray-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                    Se contabilizan candidatos con estado<br /><strong className="text-white">Offer Withdrawn</strong>
+                  <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-800 px-2.5 py-1.5 text-[10px] leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    Se contabilizan candidatos con estado<br /><strong className="font-bold text-amber-300">Offer Withdrawn</strong>
                   </div>
                 </div>
               </div>
