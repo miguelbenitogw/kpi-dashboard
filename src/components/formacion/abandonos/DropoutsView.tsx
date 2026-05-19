@@ -206,7 +206,7 @@ export default function DropoutsView() {
             Todas
           </button>
           {availableYears.map((y) => {
-            const label = `${String(y - 1).slice(-2)}-${String(y).slice(-2)}`
+            const label = `${String(y).slice(-2)}-${String(y + 1).slice(-2)}`
             return (
               <button
                 key={y}
