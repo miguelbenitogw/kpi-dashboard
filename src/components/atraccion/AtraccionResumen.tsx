@@ -303,6 +303,45 @@ function SortableVacancyCard({ item }: { item: ResumenVacanteItem }) {
   )
 }
 
+// ─── Zoho ID badge (click to copy) ───────────────────────────────────────────
+function ZohoIdBadge({ jobNumber }: { jobNumber: number }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation()
+    navigator.clipboard.writeText(String(jobNumber)).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    }).catch(() => { /* clipboard unavailable */ })
+  }
+
+  return (
+    <span
+      onClick={handleCopy}
+      title={copied ? '¡Copiado!' : 'Clic para copiar ID'}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 3,
+        fontSize: 10,
+        fontWeight: 500,
+        color: copied ? '#16a34a' : '#a8a29e',
+        background: copied ? '#f0fdf4' : 'transparent',
+        border: `1px solid ${copied ? '#bbf7d0' : '#e7e2d8'}`,
+        borderRadius: 5,
+        padding: '1px 6px',
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+        userSelect: 'none',
+        letterSpacing: '0.02em',
+        marginTop: 3,
+      }}
+    >
+      {copied ? '✓ Copiado' : `#${jobNumber}`}
+    </span>
+  )
+}
+
 // ─── Unified vacancy card ─────────────────────────────────────────────────────
 function VacancyCard({ item }: { item: ResumenVacanteItem }) {
   const country = getVacancyCountry(item.title)
@@ -340,8 +379,13 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
       {/* ── Header ── */}
       <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${P.divider}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, background: deadline.tint }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: P.text, lineHeight: 1.35 }} title={item.title}>
-            {item.title}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: P.text, lineHeight: 1.35, flex: 1, minWidth: 0 }} title={item.title}>
+              {item.title}
+            </div>
+            {item.zohoJobNumber != null && (
+              <ZohoIdBadge jobNumber={item.zohoJobNumber} />
+            )}
           </div>
           <div style={{ fontSize: 11, color: P.muted, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span>{item.totalCandidates} candidatos</span>

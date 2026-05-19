@@ -2098,6 +2098,8 @@ export interface ResumenVacanteItem {
   id: string
   title: string
   tipo_profesional: string
+  /** Zoho sequential job number (3-4 digits, e.g. 665) — shown in card header for quick reference */
+  zohoJobNumber: number | null
   cvsThisWeek: number
   cvsLastWeek: number
   /** CVs per day Mon–Sun of the current ISO week (may be 0 for future days) */
@@ -2136,7 +2138,7 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
   // 1. Starred vacancies
   const { data: vacancies, error: vacError } = await (supabase as any)
     .from('job_openings_kpi')
-    .select('id, title, tipo_profesional, total_candidates, hiring_target, closing_date, date_opened, ratio_exito_contactados, ratio_descarte, ratio_exito_threshold, ratio_descarte_threshold')
+    .select('id, title, tipo_profesional, zoho_job_number, total_candidates, hiring_target, closing_date, date_opened, ratio_exito_contactados, ratio_descarte, ratio_exito_threshold, ratio_descarte_threshold')
     .eq('is_vacante_principal', true)
     .order('tipo_profesional', { ascending: true })
 
@@ -2145,7 +2147,7 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
     return []
   }
 
-  const rows = vacancies as { id: string; title: string | null; tipo_profesional: string | null; total_candidates: number | null; hiring_target: number | null; closing_date: string | null; date_opened: string | null; ratio_exito_contactados: number | null; ratio_descarte: number | null; ratio_exito_threshold: number | null; ratio_descarte_threshold: number | null }[]
+  const rows = vacancies as { id: string; title: string | null; tipo_profesional: string | null; zoho_job_number: number | null; total_candidates: number | null; hiring_target: number | null; closing_date: string | null; date_opened: string | null; ratio_exito_contactados: number | null; ratio_descarte: number | null; ratio_exito_threshold: number | null; ratio_descarte_threshold: number | null }[]
   const ids = rows.map((r) => r.id)
 
   // 2. Weekly CVs — last 6 completed weeks + current in-progress week
@@ -2232,6 +2234,7 @@ export async function getResumenAtraccionVacantes(): Promise<ResumenVacanteItem[
       id: v.id,
       title: v.title ?? 'Sin título',
       tipo_profesional: v.tipo_profesional ?? 'otro',
+      zohoJobNumber: v.zoho_job_number ?? null,
       cvsThisWeek: wm?.thisWeek ?? 0,
       cvsLastWeek: wm?.lastWeek ?? 0,
       dailyCvsThisWeek: weekDays.map((day) => ({
