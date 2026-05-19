@@ -38,7 +38,6 @@ export default function GPPreferenciaView({ promoFilter, year }: Props) {
   const [combinations, setCombinations] = useState<GPPreferenciaCombination[]>([])
   const [loading, setLoading] = useState(true)
   const [showDefs, setShowDefs] = useState(false)
-  const [showCombos, setShowCombos] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -154,23 +153,14 @@ export default function GPPreferenciaView({ promoFilter, year }: Props) {
           {/* Combinations section */}
           {combinations.length > 0 && (
             <div style={{ marginTop: 20 }}>
-              <button
-                onClick={() => setShowCombos((v) => !v)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0',
-                  borderTop: '1px solid #e7e2d8',
-                }}
-              >
+              <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid #e7e2d8' }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#78716c' }}>
                   Agrupación por combinación de etiquetas
                   <span style={{ fontWeight: 400, marginLeft: 6 }}>· {combinations.length} grupos</span>
                 </span>
-                <span style={{ fontSize: 14, color: '#a8a29e', transform: showCombos ? 'rotate(180deg)' : 'none', transition: 'transform 150ms' }}>▾</span>
-              </button>
+              </div>
 
-              {showCombos && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
                   {combinations.map((item) => {
                     const comboWidth = Math.round((item.count / (combinations[0]?.count ?? 1)) * 100)
                     return (
@@ -200,7 +190,6 @@ export default function GPPreferenciaView({ promoFilter, year }: Props) {
                     )
                   })}
                 </div>
-              )}
             </div>
           )}
         </>
