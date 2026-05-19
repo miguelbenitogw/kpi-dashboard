@@ -198,15 +198,18 @@ export default function RetentionOverview({
                 <p className="text-xs text-gray-500">Retenidos</p>
                 <div className="group relative">
                   <Info className="h-3 w-3 text-gray-400 cursor-help" />
-                  <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 w-56 rounded-md bg-gray-800 px-3 py-2 text-[10px] leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                    <p className="mb-1 font-semibold text-emerald-300">Estados que se contabilizan:</p>
-                    <ul className="list-disc pl-3 space-y-0.5">
-                      <li><strong>In Training</strong> — en formación actualmente</li>
-                      <li><strong>Hired</strong> — ha viajado a destino</li>
-                      <li><strong>To Place</strong> — formación finalizada, sin oferta aún</li>
-                      <li><strong>Assigned</strong> — asignación recibida, pendiente de viajar</li>
-                      <li><strong>Training Finished</strong> — formación finalizada sin oferta</li>
-                      <li><strong>Next Project</strong> — incorporación a proyecto futuro</li>
+                  <div
+                    className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100"
+                    style={{ width: 224, borderRadius: 6, background: '#1e293b', padding: '8px 12px', fontSize: 10, lineHeight: 1.5, color: '#e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}
+                  >
+                    <p style={{ marginBottom: 4, fontWeight: 600, color: '#6ee7b7' }}>Estados que se contabilizan:</p>
+                    <ul style={{ listStyleType: 'disc', paddingLeft: 12 }}>
+                      <li style={{ marginBottom: 2 }}><strong style={{ color: '#fff' }}>In Training</strong> — en formación actualmente</li>
+                      <li style={{ marginBottom: 2 }}><strong style={{ color: '#fff' }}>Hired</strong> — ha viajado a destino</li>
+                      <li style={{ marginBottom: 2 }}><strong style={{ color: '#fff' }}>To Place</strong> — formación finalizada, sin oferta aún</li>
+                      <li style={{ marginBottom: 2 }}><strong style={{ color: '#fff' }}>Assigned</strong> — asignación recibida, pendiente de viajar</li>
+                      <li style={{ marginBottom: 2 }}><strong style={{ color: '#fff' }}>Training Finished</strong> — formación finalizada sin oferta</li>
+                      <li style={{ marginBottom: 2 }}><strong style={{ color: '#fff' }}>Next Project</strong> — incorporación a proyecto futuro</li>
                     </ul>
                   </div>
                 </div>
@@ -220,10 +223,13 @@ export default function RetentionOverview({
                 <p className="text-xs text-gray-500">Bajas en formación</p>
                 <div className="group relative">
                   <Info className="h-3 w-3 text-gray-400 cursor-help" />
-                  <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 w-56 rounded-md bg-gray-800 px-3 py-2 text-[10px] leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                    <p className="mb-1 font-semibold text-red-300">Estado que se contabiliza:</p>
-                    <ul className="list-disc pl-3">
-                      <li><strong>Offer Withdrawn</strong> — ha abandonado el proyecto tras iniciar la formación</li>
+                  <div
+                    className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100"
+                    style={{ width: 224, borderRadius: 6, background: '#1e293b', padding: '8px 12px', fontSize: 10, lineHeight: 1.5, color: '#e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}
+                  >
+                    <p style={{ marginBottom: 4, fontWeight: 600, color: '#fca5a5' }}>Estado que se contabiliza:</p>
+                    <ul style={{ listStyleType: 'disc', paddingLeft: 12 }}>
+                      <li><strong style={{ color: '#fff' }}>Offer Withdrawn</strong> — ha abandonado el proyecto tras iniciar la formación</li>
                     </ul>
                   </div>
                 </div>
@@ -237,10 +243,13 @@ export default function RetentionOverview({
                 <p className="text-xs text-gray-500">Transferred</p>
                 <div className="group relative">
                   <Info className="h-3 w-3 text-gray-400 cursor-help" />
-                  <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 w-56 rounded-md bg-gray-800 px-3 py-2 text-[10px] leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                    <p className="mb-1 font-semibold text-blue-300">Estado que se contabiliza:</p>
-                    <ul className="list-disc pl-3">
-                      <li><strong>Transferred</strong> — ha dejado su promoción para incorporarse a un proyecto futuro</li>
+                  <div
+                    className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100"
+                    style={{ width: 224, borderRadius: 6, background: '#1e293b', padding: '8px 12px', fontSize: 10, lineHeight: 1.5, color: '#e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}
+                  >
+                    <p style={{ marginBottom: 4, fontWeight: 600, color: '#93c5fd' }}>Estado que se contabiliza:</p>
+                    <ul style={{ listStyleType: 'disc', paddingLeft: 12 }}>
+                      <li><strong style={{ color: '#fff' }}>Transferred</strong> — ha dejado su promoción para incorporarse a un proyecto futuro</li>
                     </ul>
                   </div>
                 </div>
@@ -336,7 +345,7 @@ export default function RetentionOverview({
           onClose={() => setEditingPromo(null)}
           onSaved={() => {
             setEditingPromo(null)
-            fetchPromos(promoFilter)
+            fetchPromos()
           }}
         />
       )}

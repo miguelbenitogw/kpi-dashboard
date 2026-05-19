@@ -196,7 +196,10 @@ function NorwayCard({ slices }: { slices: SliceData[] }) {
                 {desc && (
                   <span className="group" style={{ position: 'relative', flexShrink: 0 }}>
                     <Info size={12} style={{ color: '#94a3b8', cursor: 'help' }} />
-                    <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 -translate-x-1/2 w-44 rounded-md bg-gray-800 px-2 py-1.5 text-[10px] leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    <span
+                      className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100"
+                      style={{ width: 176, borderRadius: 6, background: '#1e293b', padding: '6px 10px', fontSize: 10, lineHeight: 1.4, color: '#e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.25)', display: 'block' }}
+                    >
                       {desc}
                     </span>
                   </span>

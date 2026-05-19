@@ -207,7 +207,10 @@ function PillLegend({ items }: { items: LegendPillItem[] }) {
             {tip && (
               <div className="group relative">
                 <Info className="h-3 w-3 text-gray-500 cursor-help" />
-                <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 w-48 rounded-md bg-gray-900 px-2.5 py-1.5 text-[10px] leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                <div
+                  className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100"
+                  style={{ width: 192, borderRadius: 6, background: '#1e293b', padding: '6px 10px', fontSize: 10, lineHeight: 1.4, color: '#e2e8f0', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}
+                >
                   {tip}
                 </div>
               </div>
