@@ -25,38 +25,34 @@ export interface DropoutRow {
   pago_estado: 'cobrado' | 'parcial' | 'pendiente' | 'sin_datos'
 }
 
-async function fetchAllCandidates() {
-  const all: { email: string | null; full_name: string | null; tags: string[] | null; zoho_candidate_id: string | null }[] = []
-  const PAGE = 1000
-  let from = 0
-  while (true) {
-    const { data } = await supabase
-      .from('candidates_kpi')
-      .select('email, full_name, tags, zoho_candidate_id')
-      .range(from, from + PAGE - 1)
-    if (!data || data.length === 0) break
-    all.push(...data)
-    if (data.length < PAGE) break
-    from += PAGE
-  }
-  return all
-}
-
 export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
-  const [dropoutsRes, allCandidates] = await Promise.all([
-    (supabase as any)
-      .from('promo_students_kpi')
-      .select(
-        'id, zoho_candidate_id, full_name, email, nationality, promocion_nombre, sheet_status, dropout_reason, dropout_date, dropout_language_level, dropout_interest_future, dropout_days_of_training, dropout_modality, dropout_notes',
-      )
-      .eq('tab_name', 'Dropouts'),
-
-    fetchAllCandidates(),
-  ])
+  // 1. Fetch dropouts first
+  const dropoutsRes = await (supabase as any)
+    .from('promo_students_kpi')
+    .select(
+      'id, zoho_candidate_id, full_name, email, nationality, promocion_nombre, sheet_status, dropout_reason, dropout_date, dropout_language_level, dropout_interest_future, dropout_days_of_training, dropout_modality, dropout_notes',
+    )
+    .eq('tab_name', 'Dropouts')
 
   if (dropoutsRes.error) {
     console.error('[dropouts] fetch error:', dropoutsRes.error)
     return []
+  }
+
+  // 2. Fetch only candidates matching dropout names (avoids PostgREST row limits)
+  const dropoutNames = [...new Set(
+    (dropoutsRes.data ?? []).map((d: any) => d.full_name).filter(Boolean) as string[]
+  )]
+
+  let allCandidates: { email: string | null; full_name: string | null; tags: string[] | null; zoho_candidate_id: string | null }[] = []
+  // .in() has URL length limits, batch in groups of 50
+  for (let i = 0; i < dropoutNames.length; i += 50) {
+    const batch = dropoutNames.slice(i, i + 50)
+    const { data } = await supabase
+      .from('candidates_kpi')
+      .select('email, full_name, tags, zoho_candidate_id')
+      .in('full_name', batch)
+    if (data) allCandidates.push(...data)
   }
 
   const byEmail = new Map<string, { tags: string[]; zohoId: string | null }>()
