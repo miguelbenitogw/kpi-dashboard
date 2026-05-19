@@ -36,7 +36,8 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
 
     supabase
       .from('candidates_kpi')
-      .select('email, full_name, tags, zoho_candidate_id'),
+      .select('email, full_name, tags, zoho_candidate_id')
+      .limit(5000),
   ])
 
   if (dropoutsRes.error) {

@@ -8,8 +8,6 @@ import {
 } from '@/lib/queries/formacion'
 import PromoEditModal from './PromoEditModal'
 
-type PromoFilter = 'active' | 'finished' | 'all'
-
 const trafficLightColor: Record<string, string> = {
   good: 'bg-emerald-500',
   warning: 'bg-amber-500',
@@ -43,23 +41,19 @@ export default function RetentionOverview({
 }: Props) {
   const [promos, setPromos] = useState<PromotionFormacionOverview[]>([])
   const [loading, setLoading] = useState(true)
-  const [promoFilter, setPromoFilter] = useState<PromoFilter>('active')
   const [editingPromo, setEditingPromo] = useState<PromotionFormacionOverview | null>(null)
 
-  const fetchPromos = useCallback(
-    (filter: PromoFilter) => {
-      setLoading(true)
-      getPromotionsFormacionOverview(filter, year).then((data) => {
-        setPromos(data)
-        setLoading(false)
-      })
-    },
-    [year]
-  )
+  const fetchPromos = useCallback(() => {
+    setLoading(true)
+    getPromotionsFormacionOverview('all', year).then((data) => {
+      setPromos(data)
+      setLoading(false)
+    })
+  }, [year])
 
   useEffect(() => {
-    fetchPromos(promoFilter)
-  }, [promoFilter, fetchPromos])
+    fetchPromos()
+  }, [fetchPromos])
 
   if (loading) {
     return (
@@ -116,32 +110,8 @@ export default function RetentionOverview({
   return (
     <>
       <div className="space-y-4">
-        {/* ── Filter tabs + Promo chips (compact, on top) ── */}
+        {/* ── Promo chips ── */}
         <div className="flex flex-wrap items-center gap-1.5">
-          {(['active', 'finished', 'all'] as const).map((f) => {
-            const labels: Record<PromoFilter, string> = {
-              active: 'Activas',
-              finished: 'Terminadas',
-              all: 'Todas',
-            }
-            return (
-              <button
-                key={f}
-                onClick={() => setPromoFilter(f)}
-                className={[
-                  'rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors',
-                  promoFilter === f
-                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                    : 'border border-gray-600/50 bg-gray-700/40 text-gray-400 hover:bg-gray-700 hover:text-gray-200',
-                ].join(' ')}
-              >
-                {labels[f]}
-              </button>
-            )
-          })}
-
-          <span className="mx-1 h-4 w-px bg-gray-700/60" aria-hidden />
-
           {promos.map((promo) => {
             const pct =
               promo.objetivo > 0

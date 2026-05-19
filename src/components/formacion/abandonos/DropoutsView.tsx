@@ -114,7 +114,7 @@ export default function DropoutsView() {
         return false
       return true
     })
-  }, [allDropouts, filters])
+  }, [byYear, filters])
 
   // Options derived from byYear (year-filtered), counts from filtered
   const options = useMemo(() => {
