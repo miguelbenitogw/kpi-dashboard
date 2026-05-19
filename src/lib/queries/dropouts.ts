@@ -25,8 +25,25 @@ export interface DropoutRow {
   pago_estado: 'cobrado' | 'parcial' | 'pendiente' | 'sin_datos'
 }
 
+async function fetchAllCandidates() {
+  const all: { email: string | null; full_name: string | null; tags: string[] | null; zoho_candidate_id: string | null }[] = []
+  const PAGE = 1000
+  let from = 0
+  while (true) {
+    const { data } = await supabase
+      .from('candidates_kpi')
+      .select('email, full_name, tags, zoho_candidate_id')
+      .range(from, from + PAGE - 1)
+    if (!data || data.length === 0) break
+    all.push(...data)
+    if (data.length < PAGE) break
+    from += PAGE
+  }
+  return all
+}
+
 export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
-  const [dropoutsRes, candidatesRes] = await Promise.all([
+  const [dropoutsRes, allCandidates] = await Promise.all([
     (supabase as any)
       .from('promo_students_kpi')
       .select(
@@ -34,10 +51,7 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
       )
       .eq('tab_name', 'Dropouts'),
 
-    supabase
-      .from('candidates_kpi')
-      .select('email, full_name, tags, zoho_candidate_id')
-      .limit(5000),
+    fetchAllCandidates(),
   ])
 
   if (dropoutsRes.error) {
@@ -48,7 +62,7 @@ export async function getDropoutsWithTags(): Promise<DropoutRow[]> {
   const byEmail = new Map<string, { tags: string[]; zohoId: string | null }>()
   const byName = new Map<string, { tags: string[]; zohoId: string | null }>()
 
-  for (const c of candidatesRes.data ?? []) {
+  for (const c of allCandidates) {
     const tags: string[] = Array.isArray(c.tags) ? c.tags : []
     const zohoId: string | null = c.zoho_candidate_id ?? null
     if (c.email) byEmail.set(c.email.toLowerCase().trim(), { tags, zohoId })
