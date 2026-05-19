@@ -105,6 +105,16 @@ export default function RetentionOverview({
   const pctCons_programa =
     totalObjPrograma > 0 ? Math.round((totalEnPrograma / totalObjPrograma) * 100) : 0
 
+  // Coordinador breakdown
+  const coordMap = new Map<string, number>()
+  for (const p of visiblePromos) {
+    const c = p.coordinador ?? 'Sin coordinador'
+    coordMap.set(c, (coordMap.get(c) ?? 0) + 1)
+  }
+  const coordBreakdown = Array.from(coordMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count }))
+
   const hasSelection = selectedPromos.length > 0
 
   return (
@@ -130,7 +140,7 @@ export default function RetentionOverview({
               >
                 <button
                   onClick={() => onToggle(promo.nombre)}
-                  title={`${promo.nombre} — Obj ${promo.objetivo} · Actual ${promo.actual} · Bajas formación ${promo.dropouts} · Transferred ${promo.transferred} · ${pct}%`}
+                  title={`${promo.nombre}${promo.coordinador ? ` · ${promo.coordinador}` : ''} — Obj ${promo.objetivo} · Actual ${promo.actual} · Bajas formación ${promo.dropouts} · Transferred ${promo.transferred} · ${pct}%`}
                   className={[
                     'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer border',
                     isSelected
@@ -278,6 +288,21 @@ export default function RetentionOverview({
               />
             </div>
           </div>
+
+          {/* Coordinadores */}
+          {coordBreakdown.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                Coordinadores
+              </span>
+              {coordBreakdown.map(({ name, count }) => (
+                <span key={name} className="inline-flex items-center gap-1.5 text-xs text-gray-400">
+                  <span className="font-medium text-gray-300">{name}</span>
+                  <span className="tabular-nums text-gray-500">({count})</span>
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Atraccion totals row */}
           <div className="mt-5 border-t border-gray-700/50 pt-4">
