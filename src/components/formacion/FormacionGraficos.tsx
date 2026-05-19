@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
+import { Info } from 'lucide-react'
 import {
   PieChart,
   Pie,
@@ -149,6 +150,38 @@ function Skeleton() {
   )
 }
 
+// ─── Status descriptions (from Manual de Reclutamiento) ──────────────────────
+
+const STATUS_INFO: Record<string, string> = {
+  'Associated': 'Asociado a la vacante sin acciones realizadas',
+  'Not Valid': 'No cumple el perfil (nacionalidad, estudios, experiencia)',
+  'First Call': 'Llamada 1 sin respuesta — se envía dossier resumen',
+  'Second Call': 'Llamada 2 sin respuesta — se envía email informativo',
+  'No Answer': 'Llamada 3 sin respuesta — nunca se llegó a hablar',
+  'On Hold': 'Se habló con la persona pero dejó de responder',
+  'Rejected': 'Contactado pero no interesado o no encaja en el perfil',
+  'Next Project': 'Prefiere incorporarse en un proyecto futuro',
+  'Check Interest': 'Pendiente de confirmar interés en la oferta',
+  'Interview to be Scheduled': 'Interesado confirmado, pendiente de fijar fecha de entrevista',
+  'Interview-Scheduled': 'Citado para entrevista final',
+  'No Show': 'No se presentó a la entrevista final',
+  'Waiting for Consensus': 'Entrevista realizada, sin decisión aún',
+  'Rejected by client': 'Descartado tras la entrevista final',
+  'Approved by client': 'Aceptado tras la entrevista, pendiente de empezar formación',
+  'Offer-Declined': 'Aceptado pero decidió no empezar la formación',
+  'Offer Declined': 'Aceptado pero decidió no empezar la formación',
+  'In Training': 'Seleccionado y en formación actualmente',
+  'Offer Withdrawn': 'Abandonó el proyecto tras iniciar la formación',
+  'Offer-Withdrawn': 'Abandonó el proyecto tras iniciar la formación',
+  'Expelled': 'Expulsado del proyecto por incumplimiento',
+  'Transferred': 'Dejó su promoción para incorporarse a un proyecto futuro',
+  'To Place': 'Formación finalizada, pendiente de oferta de empleo',
+  'Assigned': 'Asignación recibida, pendiente de viajar a destino',
+  'Stand-by': 'Listo para marcharse pero no puede por motivos personales',
+  'Training Finished': 'Formación finalizada sin oferta de empleo',
+  'Hired': 'Ha viajado a su país de destino o comenzado su asignación',
+}
+
 // ─── Compact pill legend ──────────────────────────────────────────────────────
 
 interface LegendPillItem {
@@ -156,26 +189,38 @@ interface LegendPillItem {
   count: number
   percentage: number
   color: string
+  tooltip?: string
 }
 
 function PillLegend({ items }: { items: LegendPillItem[] }) {
   return (
     <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
-      {items.map((item) => (
-        <div key={item.label} className="flex items-center gap-1.5">
-          <div
-            className="h-2 w-2 flex-shrink-0 rounded-full"
-            style={{ backgroundColor: item.color }}
-          />
-          <span className="text-xs text-gray-300">{item.label}</span>
-          <span className="text-xs tabular-nums text-gray-500">
-            {item.count.toLocaleString('es-AR')}
-          </span>
-          <span className="text-[10px] tabular-nums text-gray-600">
-            ({item.percentage}%)
-          </span>
-        </div>
-      ))}
+      {items.map((item) => {
+        const tip = item.tooltip ?? STATUS_INFO[item.label]
+        return (
+          <div key={item.label} className="flex items-center gap-1.5">
+            <div
+              className="h-2 w-2 flex-shrink-0 rounded-full"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="text-xs text-gray-300">{item.label}</span>
+            {tip && (
+              <div className="group relative">
+                <Info className="h-3 w-3 text-gray-500 cursor-help" />
+                <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 w-48 rounded-md bg-gray-900 px-2.5 py-1.5 text-[10px] leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                  {tip}
+                </div>
+              </div>
+            )}
+            <span className="text-xs tabular-nums text-gray-500">
+              {item.count.toLocaleString('es-AR')}
+            </span>
+            <span className="text-[10px] tabular-nums text-gray-600">
+              ({item.percentage}%)
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }

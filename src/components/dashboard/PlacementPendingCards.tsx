@@ -188,10 +188,19 @@ function NorwayCard({ slices }: { slices: SliceData[] }) {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
           {enriched.map((entry) => {
             const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0
+            const desc = STATUS_DESCRIPTIONS[entry.name]
             return (
               <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                 <span style={{ width: 8, height: 8, borderRadius: 2, background: entry.color, flexShrink: 0 }} />
                 <span style={{ flex: 1, color: '#374151', lineHeight: 1.3 }}>{entry.name}</span>
+                {desc && (
+                  <span className="group" style={{ position: 'relative', flexShrink: 0 }}>
+                    <Info size={12} style={{ color: '#94a3b8', cursor: 'help' }} />
+                    <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 -translate-x-1/2 w-44 rounded-md bg-gray-800 px-2 py-1.5 text-[10px] leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                      {desc}
+                    </span>
+                  </span>
+                )}
                 <span style={{ fontWeight: 700, color: '#1c1917', flexShrink: 0 }}>{entry.value}</span>
                 <span style={{ color: '#94a3b8', flexShrink: 0, minWidth: 28, textAlign: 'right' }}>{pct}%</span>
               </div>
