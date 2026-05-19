@@ -22,14 +22,6 @@ export default function DropoutsKpiBanner({ rows }: Props) {
   const interestYes = rows.filter((r) => r.dropout_interest_future === 'Yes').length
   const interestPct = total > 0 ? Math.round((interestYes / total) * 100) : 0
 
-  const tagCounts = new Map<string, number>()
-  for (const r of rows) {
-    for (const t of r.tags) {
-      tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1)
-    }
-  }
-  const topTag = Array.from(tagCounts.entries()).sort(([, a], [, b]) => b - a)[0]?.[0] ?? '—'
-
   const modOnline = rows.filter((r) => r.dropout_modality?.toLowerCase().includes('online')).length
   const modPresencial = rows.filter((r) => r.dropout_modality?.toLowerCase().includes('presencial') && !r.dropout_modality?.toLowerCase().includes('semi')).length
   const modSemipresencial = rows.filter((r) => r.dropout_modality?.toLowerCase().includes('semi')).length
@@ -44,14 +36,9 @@ export default function DropoutsKpiBanner({ rows }: Props) {
   const totalPendienteParcial = parciales.reduce((acc, r) => acc + (r.pago_importe_pendiente ?? 0), 0)
   const totalDeudaActiva = totalPendienteTotal + totalPendienteParcial
 
-  const cards: Array<{
-    label: string
-    value: string
-    sub?: string
-    color: string
-    bg: string
-    border: string
-  }> = [
+  type Card = { label: string; value: string; sub?: string; color: string; bg: string; border: string }
+
+  const row1: Card[] = [
     {
       label: 'Total bajas',
       value: total.toLocaleString('es-AR'),
@@ -74,13 +61,9 @@ export default function DropoutsKpiBanner({ rows }: Props) {
       bg: '#f0fdf4',
       border: '#bbf7d0',
     },
-    {
-      label: 'Canal dominante',
-      value: topTag,
-      color: '#7c3aed',
-      bg: '#faf5ff',
-      border: '#e9d5ff',
-    },
+  ]
+
+  const row2: Card[] = [
     {
       label: 'Online',
       value: modOnline.toLocaleString('es-AR'),
@@ -105,6 +88,9 @@ export default function DropoutsKpiBanner({ rows }: Props) {
       bg: '#faf5ff',
       border: '#e9d5ff',
     },
+  ]
+
+  const row3: Card[] = [
     {
       label: 'Cobrado íntegro',
       value: cobrados.length.toLocaleString('es-AR'),
@@ -139,32 +125,42 @@ export default function DropoutsKpiBanner({ rows }: Props) {
     },
   ]
 
+  const renderCard = (c: Card) => (
+    <div
+      key={c.label}
+      style={{
+        background: c.bg,
+        border: `1px solid ${c.border}`,
+        borderRadius: 10,
+        padding: '12px 14px',
+        textAlign: 'center',
+      }}
+    >
+      <p style={{ margin: 0, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#78716c' }}>
+        {c.label}
+      </p>
+      <p style={{ margin: '6px 0 2px', fontSize: '1.4rem', fontWeight: 700, color: c.color, lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {c.value}
+      </p>
+      {c.sub && (
+        <p style={{ margin: 0, fontSize: 11, color: '#a8a29e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {c.sub}
+        </p>
+      )}
+    </div>
+  )
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-      {cards.map((c) => (
-        <div
-          key={c.label}
-          style={{
-            background: c.bg,
-            border: `1px solid ${c.border}`,
-            borderRadius: 10,
-            padding: '12px 14px',
-            textAlign: 'center',
-          }}
-        >
-          <p style={{ margin: 0, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#78716c' }}>
-            {c.label}
-          </p>
-          <p style={{ margin: '6px 0 2px', fontSize: '1.4rem', fontWeight: 700, color: c.color, lineHeight: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {c.value}
-          </p>
-          {c.sub && (
-            <p style={{ margin: 0, fontSize: 11, color: '#a8a29e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {c.sub}
-            </p>
-          )}
-        </div>
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+        {row1.map(renderCard)}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+        {row2.map(renderCard)}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+        {row3.map(renderCard)}
+      </div>
     </div>
   )
 }
