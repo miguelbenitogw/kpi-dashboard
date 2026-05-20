@@ -396,7 +396,7 @@ function VacancyCard({ item }: { item: ResumenVacanteItem }) {
               return (
                 <>
                   <span>·</span>
-                  <Tooltip text={`Candidatos que avanzaron positivamente (Hired + Approved by client) sobre el total del proceso. Umbral configurado en Configuración: ${Math.round(threshold)}%`}>
+                  <Tooltip text={`Candidatos que avanzaron positivamente (Hired + Approved by client + In Training) sobre los contactados que avanzaron en el proceso — se excluyen: Associated, Not Valid, No Answer, Rejected by client y New. Umbral: ${Math.round(threshold)}%`}>
                     <span style={{ color, fontWeight: 700 }}>✓ {pct}% éxito</span>
                   </Tooltip>
                 </>
